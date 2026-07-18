@@ -377,7 +377,6 @@ function renderBrowse(){
 
   // 지자체 개요 + 감축사업 전체 목록 표시
   function drawPlan(p){
-    const ev = (EVALS.evaluations||[]).find(e=>e.id===p.id);
     const row = (label, val) => val ? `<tr><th style="width:150px">${label}</th><td>${val}</td></tr>` : '';
     const nProj = (p.projects||[]).reduce((s,g)=>s+g.items.length,0);
     area.innerHTML = `
@@ -391,7 +390,6 @@ function renderBrowse(){
         ${row('부문별 비중', p.sectors ? p.sectors.map(s=>`${s.name} ${s.share}%`).join(' · ') : null)}
         ${row('총 투자계획', p.budget ? `${p.budget.total}<br><span class="dnote">${p.budget.detail||''}</span>` : null)}
         ${row('거버넌스', p.governance)}
-        ${row('프레임워크 평가', ev ? `<b>${ev.total}점</b> · <span class="gradebadge g-${ev.grade}" style="font-size:13px;padding:2px 8px">${ev.grade}</span> <span class="dnote">(상세는 프레임워크 평가 탭)</span>` : '평가 예정')}
         ${row('특이사항', p.notes)}
         ${row('출처', `<span class="dnote">${p.source}</span>`)}
       </table>
@@ -493,7 +491,6 @@ function renderPlans(){
   function drawCompare(){
     const sel = PLANS.plans.filter(p=>selectedPlans.has(p.id));
     if (!sel.length){ area.innerHTML='<div class="empty">위에서 지자체를 선택하면 비교 표가 표시됩니다.</div>'; return; }
-    const evalOf = id => (EVALS.evaluations||[]).find(e=>e.id===id);
     const row = (label, fn) => `<tr><th style="width:150px">${label}</th>${sel.map(p=>`<td>${fn(p)??'—'}</td>`).join('')}</tr>`;
     area.innerHTML = `<table class="dt">
       <tr><th></th>${sel.map(p=>`<th style="font-size:14px;color:#0f2540">${p.name}</th>`).join('')}</tr>
@@ -505,7 +502,6 @@ function renderPlans(){
       ${row('부문별 비중 상위', p=>p.sectors ? p.sectors.slice(0,3).map(s=>`${s.name} ${s.share}%`).join('<br>') : null)}
       ${row('총 투자계획', p=>p.budget ? p.budget.total : null)}
       ${row('주요 감축사업', p=>p.majorProjects ? p.majorProjects.slice(0,4).join('<br>') : null)}
-      ${row('프레임워크 평가', p=>{ const ev=evalOf(p.id); return ev?`<b>${ev.total}점</b> · <span class="gradebadge g-${ev.grade}" style="font-size:13px;padding:2px 8px">${ev.grade}</span>`:'평가 예정'; })}
       ${row('특이사항', p=>p.notes)}
       ${row('출처', p=>`<span class="dnote">${p.source}</span>`)}
     </table>`;
