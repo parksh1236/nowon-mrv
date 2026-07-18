@@ -3,16 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>노원구 MRV 측정·검증·계산</title>
+<title>탄소중립 기본계획 플랫폼 — 비교 · 평가 · MRV</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Pretendard','Malgun Gothic',sans-serif; background:#eef2f6; color:#223; }
 
   /* ── 상단 헤더 ───────────────────────────────── */
-  header { background:#0f2540; color:#fff; padding:18px 28px; }
+  header { background:#0f2540; color:#fff; padding:18px 28px 0; }
   header h1 { font-size:19px; font-weight:800; }
   header h1 span { color:#4fd1a5; }
   header .sub { font-size:12px; color:#9db3cc; margin-top:4px; }
+
+  /* ── 탭 내비게이션 ────────────────────────────── */
+  nav.tabs { display:flex; gap:4px; margin-top:14px; }
+  nav.tabs button { padding:10px 20px; font-size:13.5px; font-weight:700; border:none; cursor:pointer;
+    background:#1b3a5e; color:#9db3cc; border-radius:10px 10px 0 0; }
+  nav.tabs button.on { background:#eef2f6; color:#0f2540; }
+  .tabpane { display:none; }
+  .tabpane.on { display:block; }
 
   /* ── 본문 카드 ───────────────────────────────── */
   main { max-width:1060px; margin:20px auto; padding:0 16px 40px; }
@@ -31,7 +39,26 @@
   /* ── 표 ─────────────────────────────────────── */
   table.dt { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:14px; }
   table.dt th { text-align:left; color:#667; font-weight:600; padding:7px 8px; background:#f4f7fa; border:1px solid #e4eaf0; vertical-align:top; }
-  table.dt td { padding:7px 10px; border:1px solid #e4eaf0; color:#223; line-height:1.55; }
+  table.dt td { padding:7px 10px; border:1px solid #e4eaf0; color:#223; line-height:1.55; vertical-align:top; }
+
+  /* ── 탭1: 검색·비교 ──────────────────────────── */
+  .searchrow { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .searchrow input { flex:1; min-width:200px; padding:9px 12px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; }
+  .searchrow select { padding:9px 10px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; background:#fff; }
+  .planchips { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .chip { padding:7px 14px; font-size:12.5px; font-weight:700; border:1.5px solid #cfd8e3; border-radius:20px; background:#fff; cursor:pointer; color:#445; }
+  .chip.sel { background:#0b8a5f; border-color:#0b8a5f; color:#fff; }
+  .empty { padding:26px; text-align:center; color:#889; font-size:13px; background:#f8fafc; border:1px dashed #cfd8e3; border-radius:10px; margin-top:14px; }
+
+  /* ── 탭2: 평가 ───────────────────────────────── */
+  .gradebadge { display:inline-block; min-width:44px; text-align:center; padding:6px 12px; border-radius:10px; font-size:20px; font-weight:800; color:#fff; }
+  .g-S { background:#0b8a5f; } .g-A { background:#2e86de; } .g-B { background:#f39c12; }
+  .g-C { background:#e67e22; } .g-F { background:#c0392b; }
+  .scorebar { height:10px; background:#e4eaf0; border-radius:5px; overflow:hidden; }
+  .scorebar i { display:block; height:100%; background:#4fd1a5; }
+  .critical-warn { color:#c0392b; font-weight:700; font-size:11.5px; }
+  details.rubric { margin-top:6px; font-size:12px; }
+  details.rubric summary { cursor:pointer; color:#2e86de; font-weight:600; }
 
   /* ── MRV 계산기 ─────────────────────────────── */
   .calcbox { display:flex; gap:8px; align-items:center; margin:12px 0; flex-wrap:wrap; }
@@ -45,17 +72,56 @@
   .calcres small { font-size:14px; color:#667; font-weight:600; }
   .calcdel { color:#c0392b; cursor:pointer; font-weight:700; }
   .calcdel:hover { opacity:.7; }
-
 </style>
 </head>
 <body>
 <header>
-  <h1>🧮 노원구 <span>MRV 측정 · 검증 · 계산</span></h1>
-  <div class="sub">Measurement(측정) · Reporting(보고) · Verification(검증) — 노원구 탄소중립계획 기반</div>
+  <h1>🌱 탄소중립 기본계획 <span>비교 · 평가 · MRV 플랫폼</span></h1>
+  <div class="sub">지자체 탄소중립 녹색성장 기본계획 검색·비교, 프레임워크 평가, 감축량 계산</div>
+  <nav class="tabs">
+    <button data-tab="t1" class="on">🔍 검색·비교</button>
+    <button data-tab="t2">📋 프레임워크 평가</button>
+    <button data-tab="t3">🧮 MRV 계산기</button>
+  </nav>
 </header>
 
 <main>
-  <!-- MRV 개념 -->
+
+<!-- ══════════ 탭1: 검색·비교 ══════════ -->
+<div id="t1" class="tabpane on">
+  <section class="card">
+    <h2>지자체 기본계획 검색·비교</h2>
+    <div class="cpsub">지자체를 선택하면 핵심 지표를 나란히 비교합니다 (최대 3개)</div>
+    <div class="searchrow">
+      <input id="planSearch" type="text" placeholder="지자체 이름 검색 (예: 노원, 성남)">
+      <select id="regionFilter"><option value="">전체 지역</option></select>
+    </div>
+    <div id="planChips" class="planchips"></div>
+    <div id="compareArea"></div>
+  </section>
+</div>
+
+<!-- ══════════ 탭2: 프레임워크 평가 ══════════ -->
+<div id="t2" class="tabpane">
+  <section class="card">
+    <h2>통합 평가 프레임워크 평가 결과</h2>
+    <div class="cpsub" id="fwMeta"></div>
+    <div class="searchrow">
+      <select id="evalSelect" style="flex:1"></select>
+    </div>
+    <div id="evalArea"></div>
+  </section>
+  <section class="card">
+    <div class="dsec" style="margin-top:0">📮 추가 자료 제보 → 평가 개선</div>
+    <div class="dquote">기본계획에 반영되지 않은 이행 실적, 조례 제정, 예산 확보 등 <b>추가 자료</b>가 있다면
+    관리자에게 전달해 주세요. 자료를 검토하여 평가를 갱신하며, 반영된 자료와 평가 변경 이력은 아래 각 지자체
+    평가의 <b>[반영 자료·이력]</b>에 투명하게 기록됩니다.</div>
+    <div class="dnote">자료 보관: 구글드라이브 「탄소중립기본계획」 폴더 · 평가 갱신 시 이 페이지에 자동 반영</div>
+  </section>
+</div>
+
+<!-- ══════════ 탭3: MRV 계산기 ══════════ -->
+<div id="t3" class="tabpane">
   <section class="card">
     <h2>🧮 MRV 측정 · 검증 · 계산</h2>
     <div class="cpsub">Measurement(측정) · Reporting(보고) · Verification(검증)</div>
@@ -63,7 +129,6 @@
     <div class="dgrid3" id="mrvSteps"></div>
   </section>
 
-  <!-- 감축량 계산기 -->
   <section class="card">
     <div class="dsec" style="margin-top:0">감축량 계산기</div>
     <div class="dnote"><span id="catalogNote"></span><br>부문 → 감축사업 → 산정기준을 선택하고 활동량을 입력한 뒤 [추가]를 누르세요. 여러 사업을 추가하면 합계가 자동 계산됩니다.</div>
@@ -81,7 +146,6 @@
     <div id="calcOut" class="calcout"></div>
   </section>
 
-  <!-- 주요 감축원단위 -->
   <section class="card">
     <div class="dsec" style="margin-top:0">노원구 계획 주요 감축원단위</div>
     <table class="dt">
@@ -89,16 +153,152 @@
       <tbody id="factorRows"></tbody>
     </table>
   </section>
+</div>
 
 </main>
 
 <script>
-let DATA = null;
+/* ═══════════ 공통: 탭 전환 ═══════════ */
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('.tabpane').forEach(p=>p.classList.remove('on'));
+    btn.classList.add('on');
+    document.getElementById(btn.dataset.tab).classList.add('on');
+  };
+});
 
-fetch('mrv.json').then(r=>r.json()).then(d=>{ DATA=d; render(); });
+/* ═══════════ 데이터 로드 (4개 JSON) ═══════════ */
+let MRV=null, PLANS=null, FW=null, EVALS=null;
+Promise.all([
+  fetch('mrv.json').then(r=>r.json()),
+  fetch('data/plans.json').then(r=>r.json()).catch(()=>({plans:[]})),
+  fetch('data/framework.json').then(r=>r.json()).catch(()=>null),
+  fetch('data/evaluations.json').then(r=>r.json()).catch(()=>({evaluations:[]}))
+]).then(([m,p,f,e])=>{
+  MRV=m; PLANS=p; FW=f; EVALS=e;
+  renderPlans(); renderEvals(); renderMRV();
+});
 
-function render(){
-  const m = DATA.mrv;
+/* ═══════════ 탭1: 검색·비교 ═══════════ */
+const selectedPlans = new Set();   // 선택된 지자체 id 목록 (최대 3개)
+
+function renderPlans(){
+  const chips = document.getElementById('planChips');
+  const area  = document.getElementById('compareArea');
+  const search = document.getElementById('planSearch');
+  const region = document.getElementById('regionFilter');
+
+  if (!PLANS.plans.length){
+    chips.innerHTML='';
+    area.innerHTML = '<div class="empty">아직 등록된 기본계획 데이터가 없습니다.<br>PDF에서 추출한 지자체 데이터가 순차적으로 추가됩니다.</div>';
+    return;
+  }
+
+  // 지역 필터 옵션 채우기
+  const regions = [...new Set(PLANS.plans.map(p=>p.region))];
+  region.innerHTML = '<option value="">전체 지역</option>' + regions.map(r=>`<option>${r}</option>`).join('');
+
+  function drawChips(){
+    const q = search.value.trim();
+    const list = PLANS.plans.filter(p=>
+      (!q || p.name.includes(q)) && (!region.value || p.region===region.value));
+    chips.innerHTML = list.map(p=>
+      `<span class="chip ${selectedPlans.has(p.id)?'sel':''}" data-id="${p.id}">${p.name}</span>`).join('')
+      || '<span class="dnote">검색 결과가 없습니다.</span>';
+    chips.querySelectorAll('.chip').forEach(c=>{
+      c.onclick = ()=>{
+        const id=c.dataset.id;
+        if (selectedPlans.has(id)) selectedPlans.delete(id);
+        else { if (selectedPlans.size>=3){ alert('최대 3개까지 비교할 수 있습니다.'); return; } selectedPlans.add(id); }
+        drawChips(); drawCompare();
+      };
+    });
+  }
+
+  function drawCompare(){
+    const sel = PLANS.plans.filter(p=>selectedPlans.has(p.id));
+    if (!sel.length){ area.innerHTML='<div class="empty">위에서 지자체를 선택하면 비교 표가 표시됩니다.</div>'; return; }
+    const evalOf = id => (EVALS.evaluations||[]).find(e=>e.id===id);
+    const row = (label, fn) => `<tr><th style="width:150px">${label}</th>${sel.map(p=>`<td>${fn(p)??'—'}</td>`).join('')}</tr>`;
+    area.innerHTML = `<table class="dt">
+      <tr><th></th>${sel.map(p=>`<th style="font-size:14px;color:#0f2540">${p.name}</th>`).join('')}</tr>
+      ${row('지역 / 유형', p=>`${p.region} · ${p.level}`)}
+      ${row('계획 기간', p=>p.period)}
+      ${row('기준연도 배출량', p=>p.baseEmissions ? `${p.baseEmissions.toLocaleString()} tCO₂eq (${p.baseYear})` : null)}
+      ${row('2030 감축목표', p=>p.target2030)}
+      ${row('목표 기준', p=>p.targetBasis)}
+      ${row('부문별 비중 상위', p=>p.sectors ? p.sectors.slice(0,3).map(s=>`${s.name} ${s.share}%`).join('<br>') : null)}
+      ${row('총 투자계획', p=>p.budget ? p.budget.total : null)}
+      ${row('주요 감축사업', p=>p.majorProjects ? p.majorProjects.slice(0,4).join('<br>') : null)}
+      ${row('프레임워크 평가', p=>{ const ev=evalOf(p.id); return ev?`<b>${ev.total}점</b> · <span class="gradebadge g-${ev.grade}" style="font-size:13px;padding:2px 8px">${ev.grade}</span>`:'평가 예정'; })}
+      ${row('특이사항', p=>p.notes)}
+      ${row('출처', p=>`<span class="dnote">${p.source}</span>`)}
+    </table>`;
+  }
+
+  search.oninput = drawChips;
+  region.onchange = drawChips;
+  drawChips(); drawCompare();
+}
+
+/* ═══════════ 탭2: 프레임워크 평가 ═══════════ */
+function renderEvals(){
+  const meta = document.getElementById('fwMeta');
+  const sel  = document.getElementById('evalSelect');
+  const area = document.getElementById('evalArea');
+
+  if (FW) meta.textContent = `${FW.meta.title} (${FW.meta.version}) — 10대 기준 × 10점 = 100점 · ④재원 4점 이하 시 C등급 자동 강등`;
+
+  const evs = EVALS.evaluations||[];
+  if (!evs.length){
+    sel.style.display='none';
+    area.innerHTML = '<div class="empty">아직 등록된 평가 결과가 없습니다.<br>샘플 지자체 평가가 순차적으로 추가됩니다.</div>';
+    return;
+  }
+  sel.style.display='';
+  sel.innerHTML = evs.map((e,i)=>`<option value="${i}">${e.name} — ${e.total}점 (${e.grade}등급)</option>`).join('');
+
+  function draw(){
+    const ev = evs[+sel.value];
+    const critWarn = ev.scores.find(s=>s.criterionId===4 && s.score<=4);
+    area.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap">
+        <span class="gradebadge g-${ev.grade}">${ev.grade}</span>
+        <div>
+          <div style="font-size:20px;font-weight:800;color:#0f2540">${ev.name} — 총 ${ev.total}점 / 100점</div>
+          <div class="dnote">평가일 ${ev.date}${critWarn ? ' · <span class="critical-warn">④재원 4점 이하 → C등급 자동 강등 적용</span>' : ''}</div>
+        </div>
+      </div>
+      <div class="dquote" style="margin-top:12px">${ev.summary}</div>
+      <table class="dt">
+        <tr><th style="width:170px">평가 항목</th><th style="width:120px">점수</th><th>평가 근거</th></tr>
+        ${ev.scores.map(s=>{
+          const c = FW ? FW.criteria.find(c=>c.id===s.criterionId) : null;
+          const name = c ? `${'①②③④⑤⑥⑦⑧⑨⑩'[s.criterionId-1]} ${c.short}` : `기준 ${s.criterionId}`;
+          const rubricText = c ? c.rubric[String(s.score)] : '';
+          return `<tr>
+            <td><b>${name}</b>${c&&c.critical?'<br><span class="critical-warn">Critical</span>':''}</td>
+            <td><b>${s.score}</b> / 10<div class="scorebar" style="margin-top:5px"><i style="width:${s.score*10}%"></i></div></td>
+            <td>${s.evidence}
+              ${rubricText?`<details class="rubric"><summary>해당 배점 기준</summary><div style="color:#667;margin-top:4px">${s.score}점: ${rubricText}</div></details>`:''}</td>
+          </tr>`;
+        }).join('')}
+      </table>
+      <div class="dsec">반영 자료 · 평가 이력</div>
+      <table class="dt">
+        <tr><th style="width:110px">구분</th><th style="width:120px">일자</th><th>내용</th></tr>
+        ${(ev.materials||[]).map(m=>`<tr><td>반영 자료</td><td>${m.date}</td><td>${m.name}${m.note?` — <span class="dnote">${m.note}</span>`:''}</td></tr>`).join('')}
+        ${(ev.history||[]).map(h=>`<tr><td>평가 이력</td><td>${h.date}</td><td>${h.change}</td></tr>`).join('')}
+      </table>`;
+  }
+  sel.onchange = draw;
+  draw();
+}
+
+/* ═══════════ 탭3: MRV 계산기 (기존 로직) ═══════════ */
+function renderMRV(){
+  const m = MRV.mrv;
 
   // ── 개념 · 3단계 ──────────────────────────────
   document.getElementById('mrvIntro').textContent = m.intro;

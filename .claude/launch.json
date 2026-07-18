@@ -4,7 +4,7 @@
     {
       "name": "mrv",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["-y", "http-server", "C:\\Users\\user\\projects\\nowon-mrv", "-p", "8737", "-c-1"],
+      "runtimeArgs": ["-y", "http-server", "/Users/psh/nowon-mrv", "-p", "8737", "-c-1"],
       "port": 8737
     }
   ]
