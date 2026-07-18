@@ -46,18 +46,6 @@
   .calcdel { color:#c0392b; cursor:pointer; font-weight:700; }
   .calcdel:hover { opacity:.7; }
 
-  /* ── 사업별 MRV 지표 ────────────────────────── */
-  .ptag { display:inline-block; padding:3px 10px; font-size:11px; border-radius:20px; font-weight:700; background:#e6f7f0; color:#0b8a5f; margin-right:6px; }
-  details.pj { border:1px solid #e4eaf0; border-radius:10px; margin-top:10px; background:#f8fafc; }
-  details.pj summary { cursor:pointer; padding:11px 14px; font-size:13px; font-weight:700; color:#0f2540; list-style:none; }
-  details.pj summary::-webkit-details-marker { display:none; }
-  details.pj summary .pid { color:#0b8a5f; margin-right:4px; }
-  details.pj summary .pm { font-size:11px; color:#889; font-weight:400; margin-left:6px; }
-  details.pj[open] summary { border-bottom:1px solid #e4eaf0; }
-  details.pj .pbody { padding:4px 14px 14px; }
-  .secfilter { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
-  .secfilter button { padding:6px 14px; font-size:12px; font-weight:700; border:1px solid #cfd8e3; border-radius:20px; background:#fff; color:#445; cursor:pointer; }
-  .secfilter button.on { background:#0b8a5f; border-color:#0b8a5f; color:#fff; }
 </style>
 </head>
 <body>
@@ -102,17 +90,9 @@
     </table>
   </section>
 
-  <!-- 사업별 MRV·정량지표 -->
-  <section class="card">
-    <div class="dsec" style="margin-top:0">사업별 MRV · 정량지표</div>
-    <div class="dnote">노원구 탄소중립계획 세부사업의 정량지표와 산출식입니다. 부문을 선택해 필터링할 수 있습니다.</div>
-    <div class="secfilter" id="secFilter"></div>
-    <div id="pjList"></div>
-  </section>
 </main>
 
 <script>
-const fmt = n => (n==null||isNaN(n)) ? '-' : Number(n).toLocaleString('ko-KR');
 let DATA = null;
 
 fetch('mrv.json').then(r=>r.json()).then(d=>{ DATA=d; render(); });
@@ -201,37 +181,6 @@ function render(){
   };
   document.getElementById('calcBtn').onclick = add;
   val.onkeydown = e=>{ if(e.key==='Enter') add(); };
-
-  // ── 사업별 MRV·정량지표 ───────────────────────
-  const pjSecs = ['전체', ...new Set(DATA.projects.map(p=>p.sector))];
-  const filterEl = document.getElementById('secFilter');
-  filterEl.innerHTML = pjSecs.map((s,i)=>`<button class="${i?'':'on'}" data-s="${s}">${s}</button>`).join('');
-  filterEl.querySelectorAll('button').forEach(b=>{
-    b.onclick = ()=>{
-      filterEl.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
-      b.classList.add('on');
-      renderProjects(b.dataset.s);
-    };
-  });
-  renderProjects('전체');
-
-  function renderProjects(sec){
-    const list = sec==='전체' ? DATA.projects : DATA.projects.filter(p=>p.sector===sec);
-    document.getElementById('pjList').innerHTML = list.map(p=>`
-      <details class="pj">
-        <summary><span class="pid">${p.id}</span> ${p.name}
-          <span class="pm">${p.sector} 부문${p.reduction?` · 감축목표 ${fmt(p.reduction)} tCO₂eq`:''}</span></summary>
-        <div class="pbody">
-          <table class="dt" style="margin-top:6px">
-            <tr><th style="width:110px">MRV 유형</th><td>${p.mrv.mrvType}</td></tr>
-            ${p.mrv.indicator?`<tr><th>정량지표</th><td>${p.mrv.indicator}</td></tr>`:''}
-            ${p.mrv.formula?`<tr><th>산출식</th><td>${p.mrv.formula}</td></tr>`:''}
-            ${p.mrv.method?`<tr><th>적용 방법론</th><td>${p.mrv.method}</td></tr>`:''}
-            ${p.mrv.note?`<tr><th>비고</th><td>${p.mrv.note}</td></tr>`:''}
-          </table>
-        </div>
-      </details>`).join('');
-  }
 }
 </script>
 </body>
