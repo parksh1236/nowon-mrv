@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>탄소중립 기본계획 플랫폼 — 비교 · 평가 · MRV</title>
+<title>탄소중립 녹색성장 기본계획 플랫폼</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Pretendard','Malgun Gothic',sans-serif; background:#eef2f6; color:#223; }
@@ -92,7 +92,7 @@
 </head>
 <body>
 <header>
-  <h1>🌱 탄소중립 기본계획 <span>비교 · 평가 · MRV 플랫폼</span></h1>
+  <h1>🌱 탄소중립 녹색성장 <span>기본계획 플랫폼</span></h1>
   <div class="sub">지자체 탄소중립 녹색성장 기본계획 검색·비교, 프레임워크 평가, 감축량 계산</div>
   <nav class="tabs">
     <button data-tab="t0" class="on">💬 검색</button>
@@ -139,6 +139,31 @@
 
 <!-- ══════════ 탭2: 프레임워크 평가 ══════════ -->
 <div id="t2" class="tabpane">
+  <section class="card">
+    <h2>평가 프레임워크 안내</h2>
+    <div class="cpsub">탄소중립 지역 기본계획 실현가능성 및 투명성 통합 평가 프레임워크 (v3.4)</div>
+    <div class="dsec">평가 기준</div>
+    <div class="dquote">
+      <b>10대 기준 × 각 10점 = 총 100점</b>으로 평가하며, 각 기준은 1~10점의 정밀 배점표(루브릭)로
+      구성되어 평가자의 주관적 판단을 최소화합니다.<br>
+      ① 목표 야망 · ② 인벤토리 품질 · ③ 수요-공급 분리 · ④ 재원 조달(Critical) · ⑤ 기술 타당성 ·
+      ⑥ 디지털 MRV · ⑦ 정의로운 전환 · ⑧ 수직적 조정 · ⑨ 거버넌스 역량 · ⑩ 연도별 감축경로<br>
+      등급: <b>S</b>(90점↑) · <b>A</b>(75~89) · <b>B</b>(60~74) · <b>C</b>(40~59) · <b>F</b>(40점 미만)<br>
+      <span class="critical-warn">[핵심 제약] ④재원 조달이 4점 이하면 다른 점수와 무관하게 종합 등급이 C 이하로 자동 강등됩니다</span>
+      — 재원 없는 계획의 실현 가능성을 원천 차단하기 위한 장치입니다.
+    </div>
+    <div class="dsec">평가에 사용된 기반 프레임워크·툴</div>
+    <div class="dquote">
+      본 프레임워크는 글로벌 기후 평가·공시 체계와 한국의 제도적 맥락(기후대응기금, 기후예산제)을 결합해 설계되었습니다.<br><br>
+      🌍 <b>CAT</b>(Climate Action Tracker) — 각국 기후 행동이 파리협정 1.5°C에 부합하는지 추적하는 독립 평가 (목표 야망 기준의 근거)<br>
+      🏙️ <b>GCoM / NetZeroCities</b> — 세계 최대 도시 기후 연합의 3필라 배지 체계와 EU 기후중립 도시 미션 (부문별 계획·투자계획 기준)<br>
+      🔬 <b>SBTi Cities</b> — IPCC 탄소예산 기반 과학적 목표 설정·검증 (절대량 감축·감축경로 기준)<br>
+      📊 <b>CDP Cities</b> — 세계 최대 환경 공시 플랫폼의 4단계 채점 (인벤토리·투명성 기준)<br>
+      🌱 <b>녹색전환연구소</b> — 한국 지자체 기본계획 분석의 국내 맥락<br><br>
+      평가 수행은 AI 툴(Claude)이 각 지자체 기본계획 PDF 원문 전체를 읽고 루브릭에 따라 점수와 근거(페이지)를
+      작성하는 방식으로 진행되며, 결과는 참고용입니다. 추가 자료가 반영되면 평가가 갱신되고 이력이 기록됩니다.
+    </div>
+  </section>
   <section class="card">
     <h2>통합 평가 프레임워크 평가 결과</h2>
     <div class="cpsub" id="fwMeta"></div>
@@ -192,6 +217,11 @@
 </div>
 
 </main>
+
+<footer style="background:#0f2540;color:#9db3cc;text-align:center;padding:18px 16px;font-size:12.5px;line-height:1.7">
+  <b style="color:#fff">노원구 탄소중립도시과 녹색건축지원센터</b><br>
+  문의 : <a href="mailto:parksh1236@nowon.go.kr" style="color:#4fd1a5;text-decoration:none">parksh1236@nowon.go.kr</a>
+</footer>
 
 <script>
 /* ═══════════ 공통: 탭 전환 ═══════════ */
@@ -415,12 +445,24 @@ function renderEvals(){
         ${ev.scores.map(s=>{
           const c = FW ? FW.criteria.find(c=>c.id===s.criterionId) : null;
           const name = c ? `${'①②③④⑤⑥⑦⑧⑨⑩'[s.criterionId-1]} ${c.short}` : `기준 ${s.criterionId}`;
-          const rubricText = c ? c.rubric[String(s.score)] : '';
+          // 받은 점수와 위·아래 1점의 배점 기준을 함께 표시 (예: 6점이면 7·6·5점 기준)
+          let rubricHtml = '';
+          if (c){
+            const rows = [];
+            for (const sc of [s.score+1, s.score, s.score-1]){
+              if (sc < 1 || sc > 10) continue;
+              const txt = c.rubric[String(sc)];
+              if (!txt) continue;
+              const cur = sc === s.score;
+              rows.push(`<div style="margin-top:4px;${cur?'color:#0b8a5f;font-weight:700':'color:#667'}">
+                ${cur?'▶':'&nbsp;&nbsp;'} ${sc}점: ${txt}${cur?' <span style="font-size:11px">(받은 점수)</span>':''}</div>`);
+            }
+            rubricHtml = `<details class="rubric"><summary>배점 기준 보기 (위·아래 점수 포함)</summary>${rows.join('')}</details>`;
+          }
           return `<tr>
             <td><b>${name}</b>${c&&c.critical?'<br><span class="critical-warn">Critical</span>':''}</td>
             <td><b>${s.score}</b> / 10<div class="scorebar" style="margin-top:5px"><i style="width:${s.score*10}%"></i></div></td>
-            <td>${s.evidence}
-              ${rubricText?`<details class="rubric"><summary>해당 배점 기준</summary><div style="color:#667;margin-top:4px">${s.score}점: ${rubricText}</div></details>`:''}</td>
+            <td>${s.evidence}${rubricHtml}</td>
           </tr>`;
         }).join('')}
       </table>
