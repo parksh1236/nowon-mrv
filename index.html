@@ -50,6 +50,15 @@
   .chip.sel { background:#0b8a5f; border-color:#0b8a5f; color:#fff; }
   .empty { padding:26px; text-align:center; color:#889; font-size:13px; background:#f8fafc; border:1px dashed #cfd8e3; border-radius:10px; margin-top:14px; }
 
+  /* ── 탭0: 기본계획 열람 ──────────────────────── */
+  .sectorblock { margin-top:12px; }
+  .sectorhead { font-size:13px; font-weight:800; color:#0f2540; background:#f4f7fa; border:1px solid #e4eaf0; border-left:4px solid #4fd1a5; border-radius:6px; padding:8px 12px; }
+  .projlist { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .projbtn { padding:6px 12px; font-size:12px; border:1px solid #cfd8e3; border-radius:16px; background:#fff; cursor:pointer; color:#334; }
+  .projbtn:hover { border-color:#0b8a5f; color:#0b8a5f; }
+  .projbtn.sel { background:#0b8a5f; border-color:#0b8a5f; color:#fff; }
+  #projDetail { margin-top:14px; }
+
   /* ── 탭0: 챗봇형 검색 ────────────────────────── */
   .chatarea { margin-top:14px; max-height:520px; overflow-y:auto; padding:6px 2px; display:flex; flex-direction:column; gap:10px; }
   .msg { display:flex; }
@@ -104,8 +113,14 @@
 
 <main>
 
-<!-- ══════════ 탭0: 원문 검색 (챗봇형) ══════════ -->
+<!-- ══════════ 탭0: 기본계획 열람·검색 ══════════ -->
 <div id="t0" class="tabpane on">
+  <section class="card">
+    <h2>지자체 기본계획 열람</h2>
+    <div class="cpsub">지자체를 선택하면 기본계획 개요와 전체 감축사업 목록이 표시됩니다. 사업명을 클릭하면 원문에서 구체적인 내용을 찾아드립니다.</div>
+    <div id="browseChips" class="planchips"></div>
+    <div id="browseArea"></div>
+  </section>
   <section class="card">
     <h2>기본계획 원문 검색</h2>
     <div class="cpsub">키워드를 입력하면 등록된 지자체 기본계획 원문에서 관련 대목을 페이지 번호와 함께 찾아드립니다</div>
@@ -243,7 +258,7 @@ Promise.all([
   fetch('data/evaluations.json').then(r=>r.json()).catch(()=>({evaluations:[]}))
 ]).then(([m,p,f,e])=>{
   MRV=m; PLANS=p; FW=f; EVALS=e;
-  renderPlans(); renderEvals(); renderMRV();
+  renderBrowse(); renderPlans(); renderEvals(); renderMRV();
 });
 
 /* ═══════════ 탭0: 챗봇형 원문 검색 ═══════════ */
@@ -279,12 +294,15 @@ function chatAppend(html, who){
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // 발췌문에서 키워드 강조 표시
+// 키워드 전체(예: '태양광' 3글자)가 붙어 있는 경우만 강조 — 글자 사이에 공백이 끼어 있어도
+// (PDF 추출 시 공백 깨짐) 전체 단어로 매칭하며, 일부 글자('광')만 매칭하는 일은 없음
 function highlight(text, keywords){
   let out = esc(text);
   keywords.forEach(k=>{
     if (!k) return;
-    const re = new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
-    out = out.replace(re, m=>'<mark>'+m+'</mark>');
+    // 각 글자 사이에 \s* 허용 → '태 양광'도 '태양광' 전체로만 매칭
+    const pat = k.split('').map(ch=>ch.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('\\s*');
+    out = out.replace(new RegExp(pat,'g'), m=>'<mark>'+m+'</mark>');
   });
   return out;
 }
@@ -338,6 +356,93 @@ function runSearch(){
     wait.querySelector('.bubble').innerHTML = html;
     document.getElementById('chatArea').scrollTop = 1e9;
   });
+}
+
+/* ── 탭0: 지자체 기본계획 열람 ── */
+function renderBrowse(){
+  const chips = document.getElementById('browseChips');
+  const area  = document.getElementById('browseArea');
+  if (!PLANS.plans.length){ area.innerHTML='<div class="empty">등록된 기본계획이 없습니다.</div>'; return; }
+
+  let curId = null;
+  chips.innerHTML = PLANS.plans.map(p=>`<span class="chip" data-id="${p.id}">${p.name}</span>`).join('');
+
+  chips.querySelectorAll('.chip').forEach(c=>{
+    c.onclick = ()=>{
+      curId = c.dataset.id;
+      chips.querySelectorAll('.chip').forEach(x=>x.classList.toggle('sel', x.dataset.id===curId));
+      drawPlan(PLANS.plans.find(p=>p.id===curId));
+    };
+  });
+
+  // 지자체 개요 + 감축사업 전체 목록 표시
+  function drawPlan(p){
+    const ev = (EVALS.evaluations||[]).find(e=>e.id===p.id);
+    const row = (label, val) => val ? `<tr><th style="width:150px">${label}</th><td>${val}</td></tr>` : '';
+    const nProj = (p.projects||[]).reduce((s,g)=>s+g.items.length,0);
+    area.innerHTML = `
+      <table class="dt">
+        ${row('지역 / 유형', `${p.region} · ${p.level}`)}
+        ${row('계획 기간', p.period)}
+        ${row('기준연도 배출량', p.baseEmissions ? `${p.baseEmissions.toLocaleString()} tCO₂eq (${p.baseYear}) — ${p.baseEmissionsNote||''}` : null)}
+        ${row('2030 감축목표', p.target2030)}
+        ${row('2034 감축목표', p.target2034)}
+        ${row('목표 기준', p.targetBasis)}
+        ${row('부문별 비중', p.sectors ? p.sectors.map(s=>`${s.name} ${s.share}%`).join(' · ') : null)}
+        ${row('총 투자계획', p.budget ? `${p.budget.total}<br><span class="dnote">${p.budget.detail||''}</span>` : null)}
+        ${row('거버넌스', p.governance)}
+        ${row('프레임워크 평가', ev ? `<b>${ev.total}점</b> · <span class="gradebadge g-${ev.grade}" style="font-size:13px;padding:2px 8px">${ev.grade}</span> <span class="dnote">(상세는 프레임워크 평가 탭)</span>` : '평가 예정')}
+        ${row('특이사항', p.notes)}
+        ${row('출처', `<span class="dnote">${p.source}</span>`)}
+      </table>
+      <div class="dsec">감축사업 목록 (총 ${nProj}개) — 사업명을 클릭하면 원문 내용을 보여드립니다</div>
+      ${(p.projects||[]).map((g,gi)=>`
+        <div class="sectorblock">
+          <div class="sectorhead">${g.sector} <span style="color:#889;font-weight:600">(${g.items.length}개)</span></div>
+          <div class="projlist">${g.items.map(it=>`<span class="projbtn" data-t="${esc(it)}">${esc(it)}</span>`).join('')}</div>
+        </div>`).join('')}
+      <div id="projDetail"></div>`;
+
+    // 사업명 클릭 → 해당 지자체 원문에서 상세 내용 검색
+    area.querySelectorAll('.projbtn').forEach(b=>{
+      b.onclick = ()=>{
+        area.querySelectorAll('.projbtn').forEach(x=>x.classList.remove('sel'));
+        b.classList.add('sel');
+        showProjectDetail(p, b.dataset.t);
+      };
+    });
+  }
+
+  // 사업명으로 해당 지자체 원문 청크를 찾아 상세 표시
+  function showProjectDetail(p, title){
+    const box = document.getElementById('projDetail');
+    box.innerHTML = `<div class="dnote">"${esc(title)}" 원문을 찾는 중…</div>`;
+    box.scrollIntoView({behavior:'smooth', block:'nearest'});
+    loadFulltext().then(docs=>{
+      const doc = docs.find(d=>d.id===p.id);
+      if (!doc){ box.innerHTML='<div class="empty">원문 데이터가 없습니다.</div>'; return; }
+      // 사업명을 토큰으로 나눠(2글자 이상) 매칭 — 많은 토큰이 포함될수록 높은 점수
+      const tokens = title.replace(/[()·+/]/g,' ').split(/\s+/).filter(t=>t.length>=2).map(t=>t.replace(/\s+/g,''));
+      const hits = [];
+      doc.chunks.forEach(c=>{
+        let matched = tokens.filter(t=>c.n.includes(t));
+        if (!matched.length) return;
+        let score = matched.length*10;
+        matched.forEach(t=>{ score += (c.n.split(t).length-1); });
+        // 전체 사업명이 통째로 들어있으면 가산점
+        if (c.n.includes(title.replace(/\s+/g,''))) score += 100;
+        hits.push({p:c.p, t:c.t, score, nm:matched.length});
+      });
+      hits.sort((a,b)=>b.score-a.score);
+      const minMatch = Math.max(1, Math.ceil(tokens.length/2));
+      const top = hits.filter(h=>h.nm>=minMatch).slice(0,5);
+      if (!top.length){ box.innerHTML = `<div class="empty">"${esc(title)}" 관련 원문 대목을 찾지 못했습니다.</div>`; return; }
+      box.innerHTML = `
+        <div class="dsec">📌 "${esc(title)}" — ${p.name} 기본계획 원문 발췌</div>
+        ${top.map(h=>`<div class="hitcard"><div class="hithead">📄 ${p.name} 기본계획 · PDF ${h.p}페이지</div>${highlight(h.t, tokens)}</div>`).join('')}
+        <div class="dnote">※ 페이지 번호는 PDF 기준. 원문 전체는 구글드라이브 「탄소중립기본계획」 폴더의 해당 PDF 참조.</div>`;
+    });
+  }
 }
 
 document.getElementById('chatBtn').onclick = runSearch;
