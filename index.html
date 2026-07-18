@@ -50,6 +50,22 @@
   .chip.sel { background:#0b8a5f; border-color:#0b8a5f; color:#fff; }
   .empty { padding:26px; text-align:center; color:#889; font-size:13px; background:#f8fafc; border:1px dashed #cfd8e3; border-radius:10px; margin-top:14px; }
 
+  /* ── 탭0: 챗봇형 검색 ────────────────────────── */
+  .chatarea { margin-top:14px; max-height:520px; overflow-y:auto; padding:6px 2px; display:flex; flex-direction:column; gap:10px; }
+  .msg { display:flex; }
+  .msg.user { justify-content:flex-end; }
+  .msg .bubble { max-width:82%; padding:11px 14px; border-radius:14px; font-size:13px; line-height:1.65; }
+  .msg.bot .bubble { background:#f4f7fa; border:1px solid #e4eaf0; border-top-left-radius:4px; }
+  .msg.user .bubble { background:#0b8a5f; color:#fff; border-top-right-radius:4px; }
+  .qsug { color:#2e86de; font-weight:700; cursor:pointer; text-decoration:underline; }
+  .hitcard { background:#fff; border:1px solid #e4eaf0; border-left:4px solid #4fd1a5; border-radius:8px; padding:9px 12px; margin-top:8px; font-size:12.5px; line-height:1.6; }
+  .hitcard .hithead { font-weight:800; color:#0f2540; font-size:12px; margin-bottom:3px; }
+  .hitcard mark { background:#ffe9a8; padding:0 2px; border-radius:3px; }
+  .chatinput { display:flex; gap:8px; margin-top:14px; }
+  .chatinput input { flex:1; padding:11px 14px; font-size:13.5px; border:1.5px solid #cfd8e3; border-radius:10px; }
+  .chatinput button { padding:11px 26px; font-size:13.5px; font-weight:700; border:none; border-radius:10px; background:#0b8a5f; color:#fff; cursor:pointer; }
+  .chatinput button:hover { background:#0a7a54; }
+
   /* ── 탭2: 평가 ───────────────────────────────── */
   .gradebadge { display:inline-block; min-width:44px; text-align:center; padding:6px 12px; border-radius:10px; font-size:20px; font-weight:800; color:#fff; }
   .g-S { background:#0b8a5f; } .g-A { background:#2e86de; } .g-B { background:#f39c12; }
@@ -79,7 +95,8 @@
   <h1>🌱 탄소중립 기본계획 <span>비교 · 평가 · MRV 플랫폼</span></h1>
   <div class="sub">지자체 탄소중립 녹색성장 기본계획 검색·비교, 프레임워크 평가, 감축량 계산</div>
   <nav class="tabs">
-    <button data-tab="t1" class="on">🔍 검색·비교</button>
+    <button data-tab="t0" class="on">💬 검색</button>
+    <button data-tab="t1">📊 비교</button>
     <button data-tab="t2">📋 프레임워크 평가</button>
     <button data-tab="t3">🧮 MRV 계산기</button>
   </nav>
@@ -87,13 +104,32 @@
 
 <main>
 
-<!-- ══════════ 탭1: 검색·비교 ══════════ -->
-<div id="t1" class="tabpane on">
+<!-- ══════════ 탭0: 원문 검색 (챗봇형) ══════════ -->
+<div id="t0" class="tabpane on">
   <section class="card">
-    <h2>지자체 기본계획 검색·비교</h2>
+    <h2>기본계획 원문 검색</h2>
+    <div class="cpsub">키워드를 입력하면 등록된 지자체 기본계획 원문에서 관련 대목을 페이지 번호와 함께 찾아드립니다</div>
+    <div id="chatArea" class="chatarea">
+      <div class="msg bot"><div class="bubble">안녕하세요! 지자체 탄소중립 기본계획 원문 검색 도우미입니다.<br>
+      궁금한 키워드를 입력해 보세요. 예: <span class="qsug" data-q="그린리모델링">그린리모델링</span>,
+      <span class="qsug" data-q="태양광">태양광</span>, <span class="qsug" data-q="전기차 충전">전기차 충전</span>,
+      <span class="qsug" data-q="정의로운 전환">정의로운 전환</span>, <span class="qsug" data-q="기후예산">기후예산</span><br>
+      <small style="color:#889">여러 단어를 띄어 쓰면 모두 포함된 대목을 찾습니다. 현재 검색 대상: 노원구·강남구·강북구·성남시·동두천시</small></div></div>
+    </div>
+    <div class="chatinput">
+      <input id="chatQ" type="text" placeholder="검색어 입력 (예: 그린리모델링)">
+      <button id="chatBtn">검색</button>
+    </div>
+  </section>
+</div>
+
+<!-- ══════════ 탭1: 비교 ══════════ -->
+<div id="t1" class="tabpane">
+  <section class="card">
+    <h2>지자체 기본계획 비교</h2>
     <div class="cpsub">지자체를 선택하면 핵심 지표를 나란히 비교합니다 (최대 3개)</div>
     <div class="searchrow">
-      <input id="planSearch" type="text" placeholder="지자체 이름 검색 (예: 노원, 성남)">
+      <input id="planSearch" type="text" placeholder="지자체 이름으로 목록 좁히기 (예: 노원, 성남)">
       <select id="regionFilter"><option value="">전체 지역</option></select>
     </div>
     <div id="planChips" class="planchips"></div>
@@ -180,7 +216,110 @@ Promise.all([
   renderPlans(); renderEvals(); renderMRV();
 });
 
-/* ═══════════ 탭1: 검색·비교 ═══════════ */
+/* ═══════════ 탭0: 챗봇형 원문 검색 ═══════════ */
+const FT_IDS = ['nowon','gangnam','gangbuk','seongnam','dongducheon'];  // 검색 대상 지자체
+let FT = null;          // 로드된 전문 데이터 캐시
+let ftLoading = null;   // 중복 로드 방지용 Promise
+
+// 전문 데이터를 처음 검색할 때 1회만 로드 (약 2.4MB)
+function loadFulltext(){
+  if (FT) return Promise.resolve(FT);
+  if (ftLoading) return ftLoading;
+  ftLoading = Promise.all(FT_IDS.map(id =>
+    fetch('data/fulltext/'+id+'.json').then(r=>r.json()).catch(()=>null)
+  )).then(list => {
+    FT = list.filter(Boolean);
+    // 공백 무시 매칭을 위해 정규화 텍스트를 미리 생성 (PDF 추출 시 공백이 깨진 문서 대응)
+    FT.forEach(doc => doc.chunks.forEach(c => { c.n = c.t.replace(/\s+/g,''); }));
+    return FT;
+  });
+  return ftLoading;
+}
+
+function chatAppend(html, who){
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.className = 'msg '+who;
+  div.innerHTML = '<div class="bubble">'+html+'</div>';
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+  return div;
+}
+
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// 발췌문에서 키워드 강조 표시
+function highlight(text, keywords){
+  let out = esc(text);
+  keywords.forEach(k=>{
+    if (!k) return;
+    const re = new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
+    out = out.replace(re, m=>'<mark>'+m+'</mark>');
+  });
+  return out;
+}
+
+function runSearch(){
+  const input = document.getElementById('chatQ');
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  chatAppend(esc(q), 'user');
+  const wait = chatAppend('기본계획 원문을 검색하는 중…', 'bot');
+
+  loadFulltext().then(docs=>{
+    const keywords = q.split(/\s+/).filter(Boolean);
+    const normKeys = keywords.map(k=>k.replace(/\s+/g,''));
+    const perDoc = [];
+    let totalHits = 0;
+
+    docs.forEach(doc=>{
+      // 모든 키워드를 포함하는 청크 찾기 (공백 무시 매칭)
+      const hits = [];
+      doc.chunks.forEach(c=>{
+        if (normKeys.every(k=>c.n.includes(k))){
+          // 등장 횟수를 점수로 사용
+          let score = 0;
+          normKeys.forEach(k=>{ score += c.n.split(k).length-1; });
+          hits.push({p:c.p, t:c.t, score});
+        }
+      });
+      totalHits += hits.length;
+      hits.sort((a,b)=>b.score-a.score);
+      if (hits.length) perDoc.push({name:doc.name, count:hits.length, top:hits.slice(0,3)});
+    });
+
+    if (!perDoc.length){
+      wait.querySelector('.bubble').innerHTML =
+        `"<b>${esc(q)}</b>"에 대한 내용을 찾지 못했습니다.<br><small style="color:#889">단어를 짧게 줄이거나(예: '그린리모델링'→'리모델링') 다른 표현으로 검색해 보세요.</small>`;
+      return;
+    }
+
+    const notFound = FT_IDS.length - perDoc.length;
+    let html = `"<b>${esc(q)}</b>" 관련 대목을 <b>${perDoc.length}개 지자체</b>에서 총 <b>${totalHits}곳</b> 찾았습니다. 지자체별 상위 결과입니다.`;
+    perDoc.sort((a,b)=>b.count-a.count);
+    perDoc.forEach(d=>{
+      html += `<div style="margin-top:10px;font-weight:800;color:#0b8a5f">${d.name} <span style="color:#889;font-weight:600;font-size:11.5px">(${d.count}곳 발견)</span></div>`;
+      d.top.forEach(h=>{
+        html += `<div class="hitcard"><div class="hithead">📄 ${d.name} 기본계획 · PDF ${h.p}페이지</div>${highlight(h.t, keywords)}</div>`;
+      });
+    });
+    html += `<div style="margin-top:8px"><small style="color:#889">※ 페이지 번호는 PDF 기준입니다. 원문 확인은 구글드라이브 「탄소중립기본계획」 폴더의 해당 PDF를 참조하세요.</small></div>`;
+    wait.querySelector('.bubble').innerHTML = html;
+    document.getElementById('chatArea').scrollTop = 1e9;
+  });
+}
+
+document.getElementById('chatBtn').onclick = runSearch;
+document.getElementById('chatQ').addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
+document.getElementById('chatArea').addEventListener('click', e=>{
+  if (e.target.classList.contains('qsug')){
+    document.getElementById('chatQ').value = e.target.dataset.q;
+    runSearch();
+  }
+});
+
+/* ═══════════ 탭1: 비교 ═══════════ */
 const selectedPlans = new Set();   // 선택된 지자체 id 목록 (최대 3개)
 
 function renderPlans(){
