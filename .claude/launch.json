@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mrv",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "http-server", "C:\\Users\\user\\projects\\nowon-mrv", "-p", "8737", "-c-1"],
+      "port": 8737
+    }
+  ]
+}

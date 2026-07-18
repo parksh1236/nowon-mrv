@@ -1,0 +1,2429 @@
+{
+    "mrv":  {
+                "intro":  "MRV는 온실가스 감축 실적을 측정(Measurement)하고 보고(Reporting)하며 검증(Verification)하는 체계입니다. 노원구는 통합 MRV 플랫폼과 건물 에너지플랫폼 \u0027제로빌\u0027을 연계해 부문별 데이터를 실시간 수집·분석하고, 외부 전문기관의 제3자 검증으로 객관성을 확보합니다.",
+                "steps":  [
+                              {
+                                  "k":  "M · 측정",
+                                  "t":  "활동자료 수집",
+                                  "d":  "국가 인증 스마트 계측기(전력량계 등)로 에너지 사용량·설비용량·이용실적 등 활동자료를 측정하고, 설비 명세서·시공 전후 증빙을 디지털로 관리"
+                              },
+                              {
+                                  "k":  "R · 보고",
+                                  "t":  "산정·보고",
+                                  "d":  "「지자체 온실가스 감축사업별 감축원단위 적용 가이드라인」(2024, 한국환경공단)의 원단위와 승인 방법론을 적용해 감축량을 산정하고 통합 MRV 플랫폼에 등록"
+                              },
+                              {
+                                  "k":  "V · 검증",
+                                  "t":  "제3자 검증",
+                                  "d":  "정기 데이터 품질 점검과 외부 전문기관 검증으로 객관성을 확보하고, 검증된 실적은 배출권 외부사업 크레딧 발행 등에 활용"
+                              }
+                          ],
+                "factors":  [
+                                {
+                                    "name":  "그린리모델링 (민간)",
+                                    "unit":  "㎡",
+                                    "factor":  0.009,
+                                    "note":  "가이드라인 43p"
+                                },
+                                {
+                                    "name":  "그린리모델링 (공공)",
+                                    "unit":  "㎡",
+                                    "factor":  0.008,
+                                    "note":  "공공건축물 성능개선"
+                                },
+                                {
+                                    "name":  "BEMS 설치·운영",
+                                    "unit":  "㎡",
+                                    "factor":  0.0038,
+                                    "note":  "가이드라인 53p"
+                                },
+                                {
+                                    "name":  "수요반응(DR) 구축",
+                                    "unit":  "MW",
+                                    "factor":  33.75,
+                                    "note":  "가이드라인 55p"
+                                },
+                                {
+                                    "name":  "태양광 발전",
+                                    "unit":  "kW",
+                                    "factor":  0.617,
+                                    "note":  "가이드라인 10p"
+                                },
+                                {
+                                    "name":  "미니(베란다) 태양광",
+                                    "unit":  "kW",
+                                    "factor":  0.4529,
+                                    "note":  "가이드라인 13p"
+                                },
+                                {
+                                    "name":  "자전거도로 신설",
+                                    "unit":  "km",
+                                    "factor":  7.527,
+                                    "note":  "가이드라인 119p"
+                                },
+                                {
+                                    "name":  "자전거 이용 전환",
+                                    "unit":  "회",
+                                    "factor":  0.0003245,
+                                    "note":  "가이드라인 117p, 1회 이용당"
+                                },
+                                {
+                                    "name":  "나무심기",
+                                    "unit":  "주",
+                                    "factor":  0.01459,
+                                    "note":  "수종별 흡수 원단위 평균"
+                                },
+                                {
+                                    "name":  "전력 절감",
+                                    "unit":  "kWh",
+                                    "factor":  0.0004871,
+                                    "note":  "전력배출계수 0.4871 tCO₂eq/MWh"
+                                }
+                            ],
+                "catalog":  [
+                                {
+                                    "section":  "전환",
+                                    "name":  "태양광 발전",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "시설용량",
+                                                        "value":  0.617,
+                                                        "unit":  "kW"
+                                                    },
+                                                    {
+                                                        "label":  "발전량",
+                                                        "value":  0.0004781,
+                                                        "unit":  "kWh"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "건물일체형(BIPV) 태양광발전",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "시설용량",
+                                                        "value":  0.4602,
+                                                        "unit":  "kW"
+                                                    },
+                                                    {
+                                                        "label":  "발전량",
+                                                        "value":  0.0004781,
+                                                        "unit":  "kWh"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "미니태양광 발전",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "시설용량",
+                                                        "value":  0.4529,
+                                                        "unit":  "kW"
+                                                    },
+                                                    {
+                                                        "label":  "발전량",
+                                                        "value":  0.0004781,
+                                                        "unit":  "kWh"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "수상태양광 발전",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "시설용량",
+                                                        "value":  0.6264,
+                                                        "unit":  "kW"
+                                                    },
+                                                    {
+                                                        "label":  "발전량",
+                                                        "value":  0.0004781,
+                                                        "unit":  "kWh"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "영농형 태양광 발전",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "시설용량",
+                                                        "value":  0.6836,
+                                                        "unit":  "kW"
+                                                    },
+                                                    {
+                                                        "label":  "설치면적",
+                                                        "value":  0.0224,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "발전량",
+                                                        "value":  0.0004781,
+                                                        "unit":  "kWh"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "태양열 시스템 보급 확대 (평판형, 공기식무창형, 공기식유창형, 단일진공관형, 이중진공관형)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "평판형",
+                                                        "value":  0.285,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "공기식무창형",
+                                                        "value":  0.233,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "공기식유창형",
+                                                        "value":  0.266,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "단일진공관형,이중진공관형",
+                                                        "value":  0.356,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "PVT (Photovoltaic Thermal, 태양광‧열 복합모듈) 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "PVT 패널 면적",
+                                                        "value":  0.116,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "PVT 설치 용량",
+                                                        "value":  0.743,
+                                                        "unit":  "kW"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "풍력 발전",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "시설용량",
+                                                        "value":  0.951,
+                                                        "unit":  "kW"
+                                                    },
+                                                    {
+                                                        "label":  "발전량",
+                                                        "value":  0.0004781,
+                                                        "unit":  "kWh"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "소수력 발전",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "설비용량",
+                                                        "value":  1.096,
+                                                        "unit":  "kW"
+                                                    },
+                                                    {
+                                                        "label":  "발전량",
+                                                        "value":  0.0004781,
+                                                        "unit":  "kWh"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "양수발전",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "시설용량",
+                                                        "value":  298.41,
+                                                        "unit":  "MW"
+                                                    },
+                                                    {
+                                                        "label":  "발전량",
+                                                        "value":  0.369,
+                                                        "unit":  "MWh"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "지열",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "보급물량",
+                                                        "value":  0.479,
+                                                        "unit":  "RT"
+                                                    },
+                                                    {
+                                                        "label":  "설치용량",
+                                                        "value":  0.413,
+                                                        "unit":  "kW"
+                                                    },
+                                                    {
+                                                        "label":  "열생산량",
+                                                        "value":  56.1,
+                                                        "unit":  "TJ"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "소각장 폐열 자원화",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "B-C유 대체",
+                                                        "value":  0.782,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "경유대체",
+                                                        "value":  0.713,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "LNG대체",
+                                                        "value":  0.545,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "하수열 및 하천수열 이용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  1.736,
+                                                        "unit":  "kW"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "전환",
+                                    "name":  "바이오가스 열병합 발전",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "보급용량",
+                                                        "value":  3590.7,
+                                                        "unit":  "MW"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "산업",
+                                    "name":  "청정연료 전환시설 지원",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "벙커C유 → LNG 연료 전환",
+                                                        "value":  130.44,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "정제연료유 → LNG 연료 전환",
+                                                        "value":  92.17,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "부생연료유 1호 → LNG 연료 전환",
+                                                        "value":  93.79,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "부생연료유 2호 → LNG 연료 전환",
+                                                        "value":  126.67,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "산업",
+                                    "name":  "산업체 저녹스버너 교체",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "산업체 저녹스 버너 교체 대수당",
+                                                        "value":  18.21,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "경유 → 경유",
+                                                        "value":  15.51,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "LNG → LNG",
+                                                        "value":  15.48,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "중유 → LNG",
+                                                        "value":  28.39,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "경유 → LNG",
+                                                        "value":  13.46,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "산업",
+                                    "name":  "건설기계(굴착기) 전동화",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  5.014,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "산업",
+                                    "name":  "산업용 냉동기 고효율 기기 설비교체",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "정격냉동능력 1,055 kW 이하인 경우",
+                                                        "value":  95.45,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "정격냉동능력 1,055 kW 초과 7,032 kW 이하인 경우",
+                                                        "value":  204.77,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "탄소(중립) 포인트제 운영(가입가구)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.107,
+                                                        "unit":  "가입가구"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "공공건축물 그린 리모델링",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "사업면적당 감축원단위",
+                                                        "value":  0.00459,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "민간 부문 그린 리모델링",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.009,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "기존 건물 BRP 사업",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.0139,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "BEMS 설치 및 운영",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.0038,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "수요반응시스템(DR) 구축",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  33.75,
+                                                        "unit":  "MW"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "공공 및 오피스 건물의 스마트 미터링 도입",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.00418,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "업무용 고효율 공조기의 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.000244,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "일과 중 냉난방기 1시간 운휴",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "냉방시기 1시간 운휴",
+                                                        "value":  4.5E-05,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "난방시기 1시간 운휴",
+                                                        "value":  3.7E-05,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "직장인 점심시간 소등",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.000595,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "냉방 온도 1도 높이기 / 난방 온도 2도 낮추기",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "냉방온도 1도 높이기",
+                                                        "value":  0.15,
+                                                        "unit":  "가구"
+                                                    },
+                                                    {
+                                                        "label":  "난방온도 2도 낮추기",
+                                                        "value":  0.132,
+                                                        "unit":  "가구"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "점심시간 컴퓨터 끄기",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.000608,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "불끄기 캠페인 (어스아워 / 지구의 날 행사 등)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.000196,
+                                                        "unit":  "가구"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "히트펌프 설치",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "기름(등유) 보일러 → 전기 히트펌프(SPF=3)",
+                                                        "value":  7.3,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "도시가스(LNG) 보일러 → 전기 히트펌프(SPF=3)",
+                                                        "value":  4.916,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "전기히터 보일러 → 전기 히트펌프(SPF=3)",
+                                                        "value":  4.781,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "기름(등유) 보일러 → 전기 히트펌프(SPF=6)",
+                                                        "value":  8.495,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "도시가스(LNG) 보일러 → 전기 히트펌프(SPF=6)",
+                                                        "value":  6.111,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "전기히터 보일러 → 전기 히트펌프(SPF=6)",
+                                                        "value":  5.976,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "잠열 회수형 온수 보일러 도입(가정)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.08,
+                                                        "unit":  "가구"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "가정용 환경표지인증 보일러 교체",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "노후 보일러(LPG) → 환경표지인증 보일러(LNG)",
+                                                        "value":  0.328,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "노후 보일러(등유) → 환경표지인증 보일러(LNG)",
+                                                        "value":  0.495,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "중수도 이용 확대",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.024,
+                                                        "unit":  "㎥"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "상수도 누수관 정비 사업",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "서울 및 6대 광역*",
+                                                        "value":  0.1746,
+                                                        "unit":  "km"
+                                                    },
+                                                    {
+                                                        "label":  "세종특별자치시",
+                                                        "value":  0.2566,
+                                                        "unit":  "km"
+                                                    },
+                                                    {
+                                                        "label":  "8개 광역**의 시",
+                                                        "value":  0.3056,
+                                                        "unit":  "km"
+                                                    },
+                                                    {
+                                                        "label":  "8개 광역**의 군",
+                                                        "value":  0.1766,
+                                                        "unit":  "km"
+                                                    },
+                                                    {
+                                                        "label":  "제주특별자치도",
+                                                        "value":  1.0817,
+                                                        "unit":  "km"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "절수기기 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.0078,
+                                                        "unit":  "가구"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "고단열 창호교체",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "전기대체",
+                                                        "value":  0.0153,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "경유대체",
+                                                        "value":  0.00859,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "등유대체",
+                                                        "value":  0.00833,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "가로등 LED 교체",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.1745,
+                                                        "unit":  "개"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "옥외광고 간판조명 LED화",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "간판면적",
+                                                        "value":  0.314,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "조명교체개수",
+                                                        "value":  0.0628,
+                                                        "unit":  "개"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "대기전력 차단기 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "보급가구",
+                                                        "value":  0.085,
+                                                        "unit":  "가구"
+                                                    },
+                                                    {
+                                                        "label":  "전용면적",
+                                                        "value":  0.0012,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "고효율 제품전환",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "전기냉장고",
+                                                        "value":  0.038,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "전기세탁기",
+                                                        "value":  0.01,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "전기밥솥",
+                                                        "value":  0.014,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "인덕션(전기레인지) 교체 사업",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "LPG(프로판) → 전기레인지",
+                                                        "value":  0.112,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "도시가스 → 전기레인지",
+                                                        "value":  0.048,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "옥상녹화사업",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.017,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "쿨루프",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.00341,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "차열, 단열페인트 시공",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.001016,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "그린 캠퍼스",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.00884,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "도시가스 공급확대(등유, 경유)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.09,
+                                                        "unit":  "가구"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "지역난방 노후배관 교체사업",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "교체세대수기준",
+                                                        "value":  0.2112,
+                                                        "unit":  "세대"
+                                                    },
+                                                    {
+                                                        "label":  "교체면적기준",
+                                                        "value":  0.00283,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "목재펠릿 보일러",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "설치대수",
+                                                        "value":  6.173,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "친환경 목조 건축물 조성",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.365,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "공동주택 승강기 자가발전 장치 도입",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "15층 이상",
+                                                        "value":  0.456,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "15층 미만",
+                                                        "value":  0.227,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "건물",
+                                    "name":  "자동운전 에스컬레이터 운행",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "일평균 24시간 운행",
+                                                        "value":  6.146,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "일평균 12시간 운행",
+                                                        "value":  3.073,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "일평균 8시간 운행",
+                                                        "value":  2.049,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "전기차 보급(승용차)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.97,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "전기차 보급(화물차)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  2.155,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "전기 버스",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "경유버스→전기버스",
+                                                        "value":  43.89,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "CNG버스→전기버스",
+                                                        "value":  39.43,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "경유자동차 전기차 전환 지원",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "경유차→전기차",
+                                                        "value":  1.18,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "전기 이륜차(오토바이) 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.6501,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "전기 자전거 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.0138,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "수소차 보급(버스)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  36.389,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "수소차 보급(승용차)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.923,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "수소차 보급(대형 화물차)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  10.6845,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "하이브리드차 보급(승용차)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.4331,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "경유자동차 저공해화 (LPG 엔진교체)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.135,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "CNG차량 보급확대(버스)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  4.455,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "공공자전거 이용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "공공자전거 이용횟수",
+                                                        "value":  0.0003245,
+                                                        "unit":  "회"
+                                                    },
+                                                    {
+                                                        "label":  "공공자전거 보급대수",
+                                                        "value":  0.04518,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "PM(전동킥보드) 이용 활성화",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.0099,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "대중교통 이용 확대",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "대중교통 이용, 지하철이 있는 지자체",
+                                                        "value":  0.0016757,
+                                                        "unit":  "인"
+                                                    },
+                                                    {
+                                                        "label":  "대중교통 이용, 지하철이 없는 지자체",
+                                                        "value":  0.0012928,
+                                                        "unit":  "인"
+                                                    },
+                                                    {
+                                                        "label":  "수송거리(버스)",
+                                                        "value":  0.000182,
+                                                        "unit":  "인·km"
+                                                    },
+                                                    {
+                                                        "label":  "수송거리(지하철)",
+                                                        "value":  0.0001824,
+                                                        "unit":  "인·km"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "자동차 마일리지(탄소중립포인트)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.2966,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "차량 공유(대여) 시스템",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "운영대수",
+                                                        "value":  3.834,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "산업단지 공동통근버스 운영확대",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "45인승",
+                                                        "value":  0.31,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "21인승",
+                                                        "value":  0.91,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "승용차 요일제 추진",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "운영대수",
+                                                        "value":  0.279,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "친환경 운전 문화 확산",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "승용차",
+                                                        "value":  0.3,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "버스(중형)",
+                                                        "value":  0.71,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "화물차",
+                                                        "value":  0.85,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "녹색 주차장 조성",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.000685,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "친환경 하이브리드 어선",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  80.0,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "전기 여객선 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  600.5,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "항만 육상전원공급설비(AMP)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "AMP 공급 선박대수",
+                                                        "value":  174.477,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "AMP 공급 선박톤수",
+                                                        "value":  0.0842,
+                                                        "unit":  "선박1톤"
+                                                    },
+                                                    {
+                                                        "label":  "AMP 공급 정박시간",
+                                                        "value":  0.0456,
+                                                        "unit":  "시간"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수송",
+                                    "name":  "도로 히팅 필름식 융설 공법 대체 적용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "서울, 경기, 인천권역",
+                                                        "value":  0.0408,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "경상권역",
+                                                        "value":  0.0133,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "전라권역",
+                                                        "value":  0.0311,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "강원권역",
+                                                        "value":  0.0301,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "충청권역",
+                                                        "value":  0.0447,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "제주권역",
+                                                        "value":  0.0214,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "가축분뇨 공동자원화시설 확충",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "처리용량 기준",
+                                                        "value":  0.034,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "생산량 기준",
+                                                        "value":  0.0009,
+                                                        "unit":  "㎥"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "순환식 수막재배 시설 설치",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "평균",
+                                                        "value":  0.0002,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "파프리카",
+                                                        "value":  4E-05,
+                                                        "unit":  "㎡"
+                                                    },
+                                                    {
+                                                        "label":  "오이",
+                                                        "value":  0.0004,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "농촌 지열히트펌프 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "보급용량",
+                                                        "value":  1.37,
+                                                        "unit":  "RT"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "논물관리",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  22.4,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "완효성 비료 시용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "완효성 비료 시용 면적당 (평균)",
+                                                        "value":  0.21,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "완효성 비료 시용 면적당 (콩)",
+                                                        "value":  0.1,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "완효성 비료 시용 면적당 (고추)",
+                                                        "value":  0.32,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "토양개량제(석회, 규산) 시용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "석회질비료",
+                                                        "value":  0.267,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "규산질비료",
+                                                        "value":  1.255,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "친환경 자가퇴비 사용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.397,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "녹비작물을 통한 대체 효과",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "녹비작물 대체 면적당",
+                                                        "value":  0.27,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "호기성 토양에서 바이오차 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "바이오차 투입량당",
+                                                        "value":  0.09,
+                                                        "unit":  "t-바이오차"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "(논) 무경운 재배",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "최소경운 1기작 재배 면적당",
+                                                        "value":  0.148,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "무경운 1기작 재배 면적당",
+                                                        "value":  0.153,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "건답 직파 재배",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "건답 직파 재배 면적당",
+                                                        "value":  1.77,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "한우 비육기간 단축",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "한우 비육기간 단축",
+                                                        "value":  1.21,
+                                                        "unit":  "두·개월"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "저메탄, 저단백질사료 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.471,
+                                                        "unit":  "두"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "저탄소 식사 문화 확산 (채식 보급 활성화)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "저탄소 식사 문화 확산 (일)",
+                                                        "value":  0.0003,
+                                                        "unit":  "일"
+                                                    },
+                                                    {
+                                                        "label":  "저탄소 식사 문화 확산 (식)",
+                                                        "value":  0.0001,
+                                                        "unit":  "식"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "친환경 농기계 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "경운기",
+                                                        "value":  0.043,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "트랙터",
+                                                        "value":  0.637,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "관리기",
+                                                        "value":  0.015,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "이앙기",
+                                                        "value":  0.014,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "콤바인",
+                                                        "value":  0.254,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "버섯 수확 후 배지 재활용 사업",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "버섯 수확 후 배지 재활용 사업",
+                                                        "value":  0.652,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "영농부산물 파쇄",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.685,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "농축수산",
+                                    "name":  "로컬푸드 직매장 활성화",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "로컬푸드 직매장 활성화",
+                                                        "value":  0.0272,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "준호기성 매립지",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.05,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "매립가스 자원화",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "매립(메탄)가스 포집",
+                                                        "value":  0.02,
+                                                        "unit":  "N㎥"
+                                                    },
+                                                    {
+                                                        "label":  "매립(메탄)가스 포집 및 보일러 연료로 활용",
+                                                        "value":  0.02004,
+                                                        "unit":  "N㎥"
+                                                    },
+                                                    {
+                                                        "label":  "매립(메탄)가스 포집 및 발전 연료로 활용",
+                                                        "value":  0.0212,
+                                                        "unit":  "N㎥"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "소각량 및 매립량 감량 (폐기물 운송량 감량)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "평균",
+                                                        "value":  0.012,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "공동주택",
+                                                        "value":  0.008,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "일반주택",
+                                                        "value":  0.01,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "농어촌",
+                                                        "value":  0.018,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "소각여열 회수 및 이용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  3E-05,
+                                                        "unit":  "MJ"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "유기성 폐기물 신재생에너지 생산",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "생산량기준",
+                                                        "value":  0.001,
+                                                        "unit":  "㎥"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "하수처리장 에너지자립화 사업",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "발전량",
+                                                        "value":  0.0004781,
+                                                        "unit":  "kWh"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "하수슬러지 소각재 재활용 (시멘트 원료화)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.52,
+                                                        "unit":  "t-클링커"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "하수처리수 재이용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.0002228,
+                                                        "unit":  "㎥"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "아이스팩, 커피찌꺼기 재활용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "아이스팩",
+                                                        "value":  0.002,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "커피찌꺼기",
+                                                        "value":  0.001,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "종이팩 재활용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.0135,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "폐플라스틱 자원화",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  1.3,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "바이오매스 플라스틱 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "바이오매스 플라스틱 보급",
+                                                        "value":  0.6,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "현수막 업사이클링",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "개수 기준",
+                                                        "value":  0.00092,
+                                                        "unit":  "장PE현수막"
+                                                    },
+                                                    {
+                                                        "label":  "중량 기준",
+                                                        "value":  0.00185,
+                                                        "unit":  "kgPE현수막"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "폐봉제 원단 재활용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  3.005,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "폐금속 및 폐합성수지 자원 재활용 (폐전자제품 수거·처리)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "냉장고",
+                                                        "value":  0.057,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "세탁기",
+                                                        "value":  0.04,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "TV",
+                                                        "value":  0.028,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "에어컨",
+                                                        "value":  0.025,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "RFID 종량기 보급",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "RFID 종량기 보급대수당",
+                                                        "value":  5.31,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "RFID 종량기 사용 세대당",
+                                                        "value":  0.08,
+                                                        "unit":  "세대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "가정용 음식물류 폐기물 감량기기 보급 지원",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.121,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "포장재 폐기물 저감(제로웨이스트 샵(리필스테이션) 이용 확대)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "비닐 포장재 저감 개수당",
+                                                        "value":  9E-05,
+                                                        "unit":  "개"
+                                                    },
+                                                    {
+                                                        "label":  "플라스틱 포장재 저감 개수당",
+                                                        "value":  8E-05,
+                                                        "unit":  "개"
+                                                    },
+                                                    {
+                                                        "label":  "제로웨이스트 샵 수당",
+                                                        "value":  0.18,
+                                                        "unit":  "가게"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "식품접객업 일회용 비닐봉투 사용 규제",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "일회용 비닐봉투 개당",
+                                                        "value":  6.8E-05,
+                                                        "unit":  "개"
+                                                    },
+                                                    {
+                                                        "label":  "가게당",
+                                                        "value":  2.08,
+                                                        "unit":  "가게"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "일회용 플라스틱 컵 사용 자제",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "일회용 플라스틱 컵당",
+                                                        "value":  4.8E-05,
+                                                        "unit":  "개"
+                                                    },
+                                                    {
+                                                        "label":  "가게당",
+                                                        "value":  2.34,
+                                                        "unit":  "가게"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "다회용기 보급사업 (포장 시 다회용기 이용 활성화)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.00025,
+                                                        "unit":  "회"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "지방세 종이 고지서의 전자 고지서 대체",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "건당 전자고지서 이용",
+                                                        "value":  5.72E-06,
+                                                        "unit":  "건"
+                                                    },
+                                                    {
+                                                        "label":  "가구당 전자고지서 이용",
+                                                        "value":  4.648E-05,
+                                                        "unit":  "가구"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "대형마트의 전자 영수증 이용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "전자영수증 발행 건수",
+                                                        "value":  5.9E-07,
+                                                        "unit":  "건"
+                                                    },
+                                                    {
+                                                        "label":  "전자영수증 발행 가게수",
+                                                        "value":  0.39,
+                                                        "unit":  "가게"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "종이 없는 행정 추진",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "구매절감량(박스) 기준",
+                                                        "value":  0.0243,
+                                                        "unit":  "박스"
+                                                    },
+                                                    {
+                                                        "label":  "구매절감량(장) 기준",
+                                                        "value":  9.7E-06,
+                                                        "unit":  "장"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "폐기물",
+                                    "name":  "플라스틱 조화 사용 금지",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  4.22,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수소",
+                                    "name":  "수소연료전지(LNG, 메탄, LPG)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "LNG",
+                                                        "value":  2.7657,
+                                                        "unit":  "t-LNG"
+                                                    },
+                                                    {
+                                                        "label":  "메탄",
+                                                        "value":  2.7518,
+                                                        "unit":  "t-바이오가스(메탄"
+                                                    },
+                                                    {
+                                                        "label":  "LPG",
+                                                        "value":  2.9864,
+                                                        "unit":  "t-LPG"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "수소",
+                                    "name":  "이산화탄소 포집 및 수소생산 이용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  8.33,
+                                                        "unit":  "tH2"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "조림조성(면적)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "임령10년",
+                                                        "value":  6.9,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "임령15년",
+                                                        "value":  9.8,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "임령20년",
+                                                        "value":  11.6,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "임령25년",
+                                                        "value":  12.1,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "임령30년",
+                                                        "value":  10.8,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "기후변화대응 난대림 조성",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "평균",
+                                                        "value":  20.87,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "종가시나무군락",
+                                                        "value":  38.52,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "구살잣밤나무군락",
+                                                        "value":  27.78,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "곰솔군락",
+                                                        "value":  5.15,
+                                                        "unit":  "ha"
+                                                    },
+                                                    {
+                                                        "label":  "참느릅나무군락",
+                                                        "value":  12.03,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "숲 가꾸기(간벌 및 가지치기)",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  1.188,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "근린공원(도시공원) 조성",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.012,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "녹지면적 확충",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.006,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "화훼류(지피식물) 조성 사업",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "화훼류(지피식물) 조성 면적당",
+                                                        "value":  0.0073,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "습지공원 조성",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.039,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "이끼공원(정원) 조성 사업",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.000847,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "바다숲 조성",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  7.97,
+                                                        "unit":  "ha"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "해초(잘피림) 식재",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "",
+                                                        "value":  0.0012,
+                                                        "unit":  "㎡"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "미이용 산림바이오매스 목재연료(목재펠릿, 목재칩) 활용",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "미이용 산림바이오매스 목재연료 활용",
+                                                        "value":  1.21,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "미이용 산림바이오매스 목재펠릿 활용",
+                                                        "value":  1.25,
+                                                        "unit":  "톤"
+                                                    },
+                                                    {
+                                                        "label":  "미이용 산림바이오매스 목재칩 활용",
+                                                        "value":  1.02,
+                                                        "unit":  "톤"
+                                                    }
+                                                ]
+                                },
+                                {
+                                    "section":  "흡수원",
+                                    "name":  "국내 목제품 이용 및 생활환경 시설 목재 활용 권장",
+                                    "entries":  [
+                                                    {
+                                                        "label":  "목제품 부피당",
+                                                        "value":  0.63,
+                                                        "unit":  "㎥"
+                                                    },
+                                                    {
+                                                        "label":  "책상 1대당",
+                                                        "value":  0.017,
+                                                        "unit":  "대"
+                                                    },
+                                                    {
+                                                        "label":  "테이블 1대당",
+                                                        "value":  0.021,
+                                                        "unit":  "대"
+                                                    }
+                                                ]
+                                }
+                            ],
+                "catalogNote":  "출처: 「지자체 온실가스 감축사업별 감축원단위 적용 가이드라인」(2024.10, 한국환경공단 지자체탄소중립ACT센터) — 8개 부문 135개 감축사업, 242개 원단위"
+            },
+    "projects":  [
+                     {
+                         "id":  "가-1",
+                         "name":  "노원형 에너지 다소비 건물 효율 개선 거점사업(E-BOT)",
+                         "sector":  "건물",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "거점시설 운영 실적"
+                                 }
+                     },
+                     {
+                         "id":  "나-2",
+                         "name":  "친환경보일러 교체 사업",
+                         "sector":  "건물",
+                         "reduction":  804.0,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "교체 대수(대)",
+                                     "formula":  "감축원단위(가이드라인 69p) × 교체 대수 = 804 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "나-3",
+                         "name":  "노원에너지제로주택 운영",
+                         "sector":  "건물",
+                         "reduction":  282.4,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "단지 에너지 자립률(%)",
+                                     "formula":  "가이드라인 원단위 기반 282.4 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "다-4",
+                         "name":  "공공건축물 그린리모델링사업",
+                         "sector":  "건물",
+                         "reduction":  3056.4,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "리모델링 개소·연면적(㎡)",
+                                     "formula":  "감축원단위 × 연면적 = 3,056.4 tCO₂eq (연 20개소)"
+                                 }
+                     },
+                     {
+                         "id":  "다-5",
+                         "name":  "신축건축물 ZEB 조기 추진",
+                         "sector":  "건물",
+                         "reduction":  14981.5,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "ZEB 인증 연면적(㎡)",
+                                     "formula":  "신축(재건축) ZEB 시행 원단위 기반 14,981.5 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "다-6",
+                         "name":  "공동주택에코마일리지",
+                         "sector":  "건물",
+                         "reduction":  2140.0,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "참여 가구 수(가구), 절감률(%)",
+                                     "formula":  "에너지 절감 실적 기반 2,140 tCO₂eq (연 4,000가구)"
+                                 }
+                     },
+                     {
+                         "id":  "라-7",
+                         "name":  "[신규] 노원형 그린 홈패키지 사업",
+                         "sector":  "건물",
+                         "reduction":  108.0,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "리모델링 면적(㎡), 전력·재생에너지 사용량(kWh)",
+                                     "formula":  "0.0090 tCO₂eq/㎡ × 60㎡ × 200가구 = 108 tCO₂eq",
+                                     "method":  "03A-025(재생에너지 이용), 03A-029(효율관리·고효율조명) 방법론"
+                                 }
+                     },
+                     {
+                         "id":  "라-8",
+                         "name":  "[신규] 소규모 공공건축 그린리모델링 사업",
+                         "sector":  "건물",
+                         "reduction":  39.6,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "리모델링 연면적(㎡)",
+                                     "formula":  "4,950㎡(11개소 연면적 합) × 0.008 tCO₂eq/㎡ = 39.6 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "라-9",
+                         "name":  "[신규] 건물 에너지통합관리 플랫폼 \u0027제로빌\u0027 구축",
+                         "sector":  "건물",
+                         "reduction":  6499.0,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "DR 참여용량(MW), BEMS 설치 면적(㎡)",
+                                     "formula":  "[DR] 192MW × 33.75 tCO₂eq/MWh = 6,480 + [BEMS] 10개소 × 500㎡ × 0.0038 tCO₂eq/㎡ = 19 → 합계 6,499 tCO₂eq",
+                                     "note":  "DR 192MW = 2026~2030 누적 16,000가구 × 가구당 12kW"
+                                 }
+                     },
+                     {
+                         "id":  "라-10",
+                         "name":  "[신규] 건물 온실가스 총량제 적용 선도사업",
+                         "sector":  "건물",
+                         "reduction":  17518.0,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "대상 건축물 수(개소), 개소당 평균배출량(tCO₂eq)",
+                                     "formula":  "200개소 × 875.9 tCO₂eq(’17~’19 상업공공 개소당 평균배출량) × 10%(감축률 목표) = 17,518 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "라-11",
+                         "name":  "[신규] 친환경건축센터 구성 및 운영",
+                         "sector":  "건물",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "컨설팅 매칭 실적(건)"
+                                 }
+                     },
+                     {
+                         "id":  "라-12",
+                         "name":  "[신규] 도시형 태양광 확대 및 이익공유 사업",
+                         "sector":  "건물",
+                         "reduction":  1904.8,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "설비용량(kW)",
+                                     "formula":  "[태양광] 2,500kW × 0.617 tCO₂eq/kW = 1,542.5 + [베란다] 800kW × 0.4529 tCO₂eq/kW = 362.3 → 합계 1,904.8 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "나-1",
+                         "name":  "공영주차장 전기차 충전인프라 보급사업",
+                         "sector":  "수송",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "충전기 누계 기수(기)"
+                                 }
+                     },
+                     {
+                         "id":  "다-2",
+                         "name":  "친환경차량보급 (전기차 전환 + 하이브리드 보급)",
+                         "sector":  "수송",
+                         "reduction":  2444.8,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "보급 대수(대)",
+                                     "formula":  "차종별 감축원단위 × 보급 대수 = 2,444.8 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "라-3",
+                         "name":  "[신규] 자전거 10분 도시 스마트자전거도로 전환",
+                         "sector":  "수송",
+                         "reduction":  1728.8,
+                         "mrv":  {
+                                     "mrvType":  "정량 (OBA 혼합)",
+                                     "indicator":  "도로 연장(km), 이용자 수(명), 이용횟수(회)",
+                                     "formula":  "[도로신설] 7.527 tCO₂eq/km × 5.5km = 41.4 + [이용전환] 0.0003245 × 10,000명 × 52주 × 5일 × 2회 = 1,687.4 → 합계 1,728.8 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "나-1",
+                         "name":  "새활용센터 운영",
+                         "sector":  "폐기물",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "새활용 실적(건·톤)"
+                                 }
+                     },
+                     {
+                         "id":  "다-2",
+                         "name":  "넷제로 행사추진 및 운영",
+                         "sector":  "폐기물",
+                         "reduction":  120.0,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "행사 수(건)",
+                                     "formula":  "행사당 감축 원단위 기반 120 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "라-3",
+                         "name":  "[신규] 도시형 자원순환 다회용기 사회적 기업 운영",
+                         "sector":  "폐기물",
+                         "reduction":  3317.8,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "다회용기 이용횟수(회), 회수율·재사용횟수, 일회용기 대체량(개)",
+                                     "formula":  "일회용기 생산·폐기 배출 원단위 × 다회용기 대체 이용횟수 = 3,317.8 tCO₂eq (QR·RFID 이용관리 시스템으로 실적 집계)"
+                                 }
+                     },
+                     {
+                         "id":  "라-1",
+                         "name":  "[신규] 우리마을 1인 1그루 나무심기사업 (공통사업)",
+                         "sector":  "흡수원",
+                         "reduction":  175.1,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "식재 그루 수(주)",
+                                     "formula":  "12,000주 × 0.01459 tCO₂eq/주 = 175.1 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "가-1",
+                         "name":  "에너지 블록 융합형 스마트 에너지타운 플랫폼 구축",
+                         "sector":  "전환",
+                         "reduction":  40.9,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "플랫폼 연계 발전·절감량",
+                                     "formula":  "40.9 tCO₂eq (산학협력 실증)"
+                                 }
+                     },
+                     {
+                         "id":  "가-2",
+                         "name":  "탄소중립 캠퍼스 마스터플랜 산학협력 정책연구",
+                         "sector":  "전환",
+                         "reduction":  1542.5,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "캠퍼스 감축 잠재량",
+                                     "formula":  "1,542.5 tCO₂eq (정책연구 기반 추정)"
+                                 }
+                     },
+                     {
+                         "id":  "다-3",
+                         "name":  "노원형 FIT 사업",
+                         "sector":  "전환",
+                         "reduction":  770.0,
+                         "mrv":  {
+                                     "mrvType":  "정량",
+                                     "indicator":  "지원 발전량(kWh)",
+                                     "formula":  "태양광 발전 원단위 기반 770 tCO₂eq"
+                                 }
+                     },
+                     {
+                         "id":  "가-1",
+                         "name":  "노원 탄소중립지원센터 운영",
+                         "sector":  "기후변화적응",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "센터 운영 실적"
+                                 }
+                     },
+                     {
+                         "id":  "다-2",
+                         "name":  "구민회의 활동",
+                         "sector":  "기후변화적응",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "회의·참여 실적"
+                                 }
+                     },
+                     {
+                         "id":  "다-3",
+                         "name":  "노원 환경재단 사업",
+                         "sector":  "기후변화적응",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "재단 사업 실적"
+                                 }
+                     },
+                     {
+                         "id":  "라-4",
+                         "name":  "[신규] 기후변화 적응 취약계층·지역 지원사업",
+                         "sector":  "기후변화적응",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "쉼터·그늘막 설치 개소"
+                                 }
+                     },
+                     {
+                         "id":  "라-5",
+                         "name":  "[신규] 사회전환 프로그램 \u0027탄소중립 도넛액션\u0027",
+                         "sector":  "기후변화적응",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "프로그램 참여자 수 (외부사업 방법론 준용 예정)"
+                                 }
+                     },
+                     {
+                         "id":  "라-6",
+                         "name":  "[신규] VPP 플랫폼 구축 사업 (공통사업)",
+                         "sector":  "기후변화적응",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "연계 자원 용량(MW)"
+                                 }
+                     },
+                     {
+                         "id":  "라-7",
+                         "name":  "[신규] 통합 MRV 플랫폼 구축사업 (공통사업)",
+                         "sector":  "기후변화적응",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "연계 데이터·사업 수"
+                                 }
+                     },
+                     {
+                         "id":  "라-8",
+                         "name":  "[신규] 사회전환캠페인 \u0027넷제로 라이프 커넥션\u0027 (공통사업)",
+                         "sector":  "기후변화적응",
+                         "reduction":  0,
+                         "mrv":  {
+                                     "mrvType":  "정성",
+                                     "indicator":  "캠페인 참여자 수, 개인 감축 실적"
+                                 }
+                     }
+                 ]
+}

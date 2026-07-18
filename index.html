@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>노원구 MRV 측정·검증·계산</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Pretendard','Malgun Gothic',sans-serif; background:#eef2f6; color:#223; }
+
+  /* ── 상단 헤더 ───────────────────────────────── */
+  header { background:#0f2540; color:#fff; padding:18px 28px; }
+  header h1 { font-size:19px; font-weight:800; }
+  header h1 span { color:#4fd1a5; }
+  header .sub { font-size:12px; color:#9db3cc; margin-top:4px; }
+
+  /* ── 본문 카드 ───────────────────────────────── */
+  main { max-width:1060px; margin:20px auto; padding:0 16px 40px; }
+  .card { background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.07); padding:22px 26px; margin-bottom:18px; }
+  h2 { font-size:18px; color:#0f2540; }
+  .cpsub { font-size:12px; color:#667; margin-top:5px; }
+  .dsec { font-size:13.5px; font-weight:800; color:#0f2540; margin:16px 0 8px; padding-bottom:4px; border-bottom:2px solid #4fd1a5; }
+  .dquote { background:#f4f7fa; border-left:4px solid #4fd1a5; border-radius:0 8px 8px 0; padding:10px 14px; font-size:13.5px; color:#223; line-height:1.6; }
+  .dnote { font-size:11px; color:#889; margin-top:6px; }
+  .dgrid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:12px; }
+  .dphase { background:#f8fafc; border:1px solid #e4eaf0; border-top:4px solid #4fd1a5; border-radius:10px; padding:12px 14px; }
+  .dpname { font-size:14px; font-weight:800; color:#0f2540; }
+  .dpyear { font-size:12px; color:#0b8a5f; font-weight:700; margin:2px 0 4px; }
+  @media (max-width:900px){ .dgrid3 { grid-template-columns:1fr; } }
+
+  /* ── 표 ─────────────────────────────────────── */
+  table.dt { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:14px; }
+  table.dt th { text-align:left; color:#667; font-weight:600; padding:7px 8px; background:#f4f7fa; border:1px solid #e4eaf0; vertical-align:top; }
+  table.dt td { padding:7px 10px; border:1px solid #e4eaf0; color:#223; line-height:1.55; }
+
+  /* ── MRV 계산기 ─────────────────────────────── */
+  .calcbox { display:flex; gap:8px; align-items:center; margin:12px 0; flex-wrap:wrap; }
+  .calcbox select { flex:1; min-width:220px; padding:9px 10px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; background:#fff; color:#223; }
+  .calcbox input { width:150px; padding:9px 10px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; }
+  .calcunit { font-size:12.5px; color:#667; min-width:32px; }
+  .calcbox button { padding:9px 22px; font-size:13px; font-weight:700; border:none; border-radius:8px; background:#0b8a5f; color:#fff; cursor:pointer; }
+  .calcbox button:hover { background:#0a7a54; }
+  .calcout { min-height:20px; margin-bottom:4px; }
+  .calcres { font-size:26px; font-weight:800; color:#0b8a5f; margin:6px 0 4px; }
+  .calcres small { font-size:14px; color:#667; font-weight:600; }
+  .calcdel { color:#c0392b; cursor:pointer; font-weight:700; }
+  .calcdel:hover { opacity:.7; }
+
+  /* ── 사업별 MRV 지표 ────────────────────────── */
+  .ptag { display:inline-block; padding:3px 10px; font-size:11px; border-radius:20px; font-weight:700; background:#e6f7f0; color:#0b8a5f; margin-right:6px; }
+  details.pj { border:1px solid #e4eaf0; border-radius:10px; margin-top:10px; background:#f8fafc; }
+  details.pj summary { cursor:pointer; padding:11px 14px; font-size:13px; font-weight:700; color:#0f2540; list-style:none; }
+  details.pj summary::-webkit-details-marker { display:none; }
+  details.pj summary .pid { color:#0b8a5f; margin-right:4px; }
+  details.pj summary .pm { font-size:11px; color:#889; font-weight:400; margin-left:6px; }
+  details.pj[open] summary { border-bottom:1px solid #e4eaf0; }
+  details.pj .pbody { padding:4px 14px 14px; }
+  .secfilter { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .secfilter button { padding:6px 14px; font-size:12px; font-weight:700; border:1px solid #cfd8e3; border-radius:20px; background:#fff; color:#445; cursor:pointer; }
+  .secfilter button.on { background:#0b8a5f; border-color:#0b8a5f; color:#fff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧮 노원구 <span>MRV 측정 · 검증 · 계산</span></h1>
+  <div class="sub">Measurement(측정) · Reporting(보고) · Verification(검증) — 노원구 탄소중립계획 기반</div>
+</header>
+
+<main>
+  <!-- MRV 개념 -->
+  <section class="card">
+    <h2>🧮 MRV 측정 · 검증 · 계산</h2>
+    <div class="cpsub">Measurement(측정) · Reporting(보고) · Verification(검증)</div>
+    <div class="dquote" style="margin-top:12px" id="mrvIntro"></div>
+    <div class="dgrid3" id="mrvSteps"></div>
+  </section>
+
+  <!-- 감축량 계산기 -->
+  <section class="card">
+    <div class="dsec" style="margin-top:0">감축량 계산기</div>
+    <div class="dnote"><span id="catalogNote"></span><br>부문 → 감축사업 → 산정기준을 선택하고 활동량을 입력한 뒤 [추가]를 누르세요. 여러 사업을 추가하면 합계가 자동 계산됩니다.</div>
+    <div class="calcbox">
+      <select id="calcSec" style="flex:0 0 130px"></select>
+      <select id="calcMeasure"></select>
+    </div>
+    <div class="calcbox">
+      <select id="calcEntry" style="flex:0 0 260px"></select>
+      <input id="calcVal" type="number" min="0" placeholder="활동량 입력">
+      <span id="calcUnit" class="calcunit"></span>
+      <button id="calcBtn">➕ 추가</button>
+    </div>
+    <div id="calcList"></div>
+    <div id="calcOut" class="calcout"></div>
+  </section>
+
+  <!-- 주요 감축원단위 -->
+  <section class="card">
+    <div class="dsec" style="margin-top:0">노원구 계획 주요 감축원단위</div>
+    <table class="dt">
+      <thead><tr><th>감축수단</th><th>원단위 (tCO₂eq)</th><th>근거</th></tr></thead>
+      <tbody id="factorRows"></tbody>
+    </table>
+  </section>
+
+  <!-- 사업별 MRV·정량지표 -->
+  <section class="card">
+    <div class="dsec" style="margin-top:0">사업별 MRV · 정량지표</div>
+    <div class="dnote">노원구 탄소중립계획 세부사업의 정량지표와 산출식입니다. 부문을 선택해 필터링할 수 있습니다.</div>
+    <div class="secfilter" id="secFilter"></div>
+    <div id="pjList"></div>
+  </section>
+</main>
+
+<script>
+const fmt = n => (n==null||isNaN(n)) ? '-' : Number(n).toLocaleString('ko-KR');
+let DATA = null;
+
+fetch('mrv.json').then(r=>r.json()).then(d=>{ DATA=d; render(); });
+
+function render(){
+  const m = DATA.mrv;
+
+  // ── 개념 · 3단계 ──────────────────────────────
+  document.getElementById('mrvIntro').textContent = m.intro;
+  document.getElementById('mrvSteps').innerHTML = m.steps.map(s=>`
+    <div class="dphase">
+      <div class="dpname">${s.k}</div>
+      <div class="dpyear">${s.t}</div>
+      <div style="font-size:12px;color:#334;line-height:1.6">${s.d}</div>
+    </div>`).join('');
+
+  // ── 원단위 표 ─────────────────────────────────
+  document.getElementById('catalogNote').textContent = m.catalogNote;
+  document.getElementById('factorRows').innerHTML = m.factors.map(f=>
+    `<tr><td>${f.name}</td><td>${f.factor} / ${f.unit}</td><td>${f.note}</td></tr>`).join('');
+
+  // ── 계산기 (부문 → 사업 → 산정기준, 다중 항목 합산) ──
+  const cat = m.catalog;
+  const selS = document.getElementById('calcSec');
+  const selM = document.getElementById('calcMeasure');
+  const selE = document.getElementById('calcEntry');
+  const val  = document.getElementById('calcVal');
+  const unit = document.getElementById('calcUnit');
+  const out  = document.getElementById('calcOut');
+  const listEl = document.getElementById('calcList');
+
+  const secs = [...new Set(cat.map(c=>c.section))];
+  selS.innerHTML = secs.map(s=>`<option value="${s}">${s}</option>`).join('');
+
+  function fillMeasures(){
+    const list = cat.filter(c=>c.section===selS.value);
+    selM.innerHTML = list.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('');
+    fillEntries();
+  }
+  function curMeasure(){ return cat.filter(c=>c.section===selS.value)[+selM.value]; }
+  function fillEntries(){
+    const ms = curMeasure();
+    selE.innerHTML = ms.entries.map((e,i)=>
+      `<option value="${i}">${e.label?e.label+' — ':''}${e.value} tCO₂eq/${e.unit}</option>`).join('');
+    updUnit();
+  }
+  function updUnit(){ unit.textContent = curMeasure().entries[+selE.value].unit; }
+  selS.onchange = fillMeasures;
+  selM.onchange = fillEntries;
+  selE.onchange = updUnit;
+  fillMeasures();
+
+  const calcItems = [];
+  function renderList(){
+    if (!calcItems.length){ listEl.innerHTML=''; out.innerHTML=''; return; }
+    const total = calcItems.reduce((s,it)=>s+it.result,0);
+    listEl.innerHTML = `
+      <table class="dt" style="margin-top:10px">
+        <tr><th>부문</th><th>감축사업 (산정기준)</th><th>활동량</th><th>원단위</th>
+            <th>감축량 (tCO₂eq)</th><th style="width:34px"></th></tr>
+        ${calcItems.map((it,i)=>`
+          <tr><td>${it.section}</td><td>${it.name}${it.label?` (${it.label})`:''}</td>
+          <td>${it.value.toLocaleString()} ${it.unit}</td><td>${it.factor}</td>
+          <td><b>${it.result.toLocaleString('ko-KR',{maximumFractionDigits:2})}</b></td>
+          <td style="text-align:center"><span class="calcdel" data-i="${i}">✕</span></td></tr>`).join('')}
+      </table>`;
+    out.innerHTML = `
+      <div class="calcres">합계 ${total.toLocaleString('ko-KR',{maximumFractionDigits:2})} <small>tCO₂eq</small></div>
+      <div class="dnote">30년생 소나무 약 ${Math.round(total/0.01459).toLocaleString()}그루의 연간 흡수량에 해당
+      &nbsp;·&nbsp; 승용차 약 ${Math.round(total/2.29).toLocaleString()}대의 연간 배출량에 해당</div>
+      <div class="dnote">※ 산정 결과는 계획 수립용 추정치입니다. 실적 인정을 위해서는 계측 데이터 기반 보고와 제3자 검증 절차가 필요합니다.</div>`;
+    listEl.querySelectorAll('.calcdel').forEach(el=>{
+      el.onclick = ()=>{ calcItems.splice(+el.dataset.i,1); renderList(); };
+    });
+  }
+
+  const add = ()=>{
+    const ms = curMeasure();
+    const e = ms.entries[+selE.value];
+    const v = parseFloat(val.value);
+    if (isNaN(v) || v<=0){ out.innerHTML='<span style="color:#c0392b">활동량을 숫자로 입력해 주세요.</span>'; return; }
+    calcItems.push({section:ms.section, name:ms.name, label:e.label, unit:e.unit,
+                    factor:e.value, value:v, result:v*e.value});
+    val.value='';
+    renderList();
+  };
+  document.getElementById('calcBtn').onclick = add;
+  val.onkeydown = e=>{ if(e.key==='Enter') add(); };
+
+  // ── 사업별 MRV·정량지표 ───────────────────────
+  const pjSecs = ['전체', ...new Set(DATA.projects.map(p=>p.sector))];
+  const filterEl = document.getElementById('secFilter');
+  filterEl.innerHTML = pjSecs.map((s,i)=>`<button class="${i?'':'on'}" data-s="${s}">${s}</button>`).join('');
+  filterEl.querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>{
+      filterEl.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      renderProjects(b.dataset.s);
+    };
+  });
+  renderProjects('전체');
+
+  function renderProjects(sec){
+    const list = sec==='전체' ? DATA.projects : DATA.projects.filter(p=>p.sector===sec);
+    document.getElementById('pjList').innerHTML = list.map(p=>`
+      <details class="pj">
+        <summary><span class="pid">${p.id}</span> ${p.name}
+          <span class="pm">${p.sector} 부문${p.reduction?` · 감축목표 ${fmt(p.reduction)} tCO₂eq`:''}</span></summary>
+        <div class="pbody">
+          <table class="dt" style="margin-top:6px">
+            <tr><th style="width:110px">MRV 유형</th><td>${p.mrv.mrvType}</td></tr>
+            ${p.mrv.indicator?`<tr><th>정량지표</th><td>${p.mrv.indicator}</td></tr>`:''}
+            ${p.mrv.formula?`<tr><th>산출식</th><td>${p.mrv.formula}</td></tr>`:''}
+            ${p.mrv.method?`<tr><th>적용 방법론</th><td>${p.mrv.method}</td></tr>`:''}
+            ${p.mrv.note?`<tr><th>비고</th><td>${p.mrv.note}</td></tr>`:''}
+          </table>
+        </div>
+      </details>`).join('');
+  }
+}
+</script>
+</body>
+</html>
