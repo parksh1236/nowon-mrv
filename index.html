@@ -117,7 +117,10 @@
 <div id="t0" class="tabpane on">
   <section class="card">
     <h2>지자체 기본계획 열람</h2>
-    <div class="cpsub">지자체를 선택하면 기본계획 개요와 전체 감축사업 목록이 표시됩니다. 사업명을 클릭하면 원문에서 구체적인 내용을 찾아드립니다.</div>
+    <div class="cpsub">지역을 선택해 지자체를 좁힌 뒤 클릭하면 기본계획 개요와 전체 감축사업 목록이 표시됩니다. 사업명을 클릭하면 원문에서 구체적인 내용을 찾아드립니다.</div>
+    <div class="searchrow">
+      <select id="browseRegion"><option value="">전체 지역</option></select>
+    </div>
     <div id="browseChips" class="planchips"></div>
     <div id="browseArea"></div>
   </section>
@@ -360,20 +363,32 @@ function runSearch(){
 
 /* ── 탭0: 지자체 기본계획 열람 ── */
 function renderBrowse(){
-  const chips = document.getElementById('browseChips');
-  const area  = document.getElementById('browseArea');
+  const chips  = document.getElementById('browseChips');
+  const area   = document.getElementById('browseArea');
+  const region = document.getElementById('browseRegion');
   if (!PLANS.plans.length){ area.innerHTML='<div class="empty">등록된 기본계획이 없습니다.</div>'; return; }
 
   let curId = null;
-  chips.innerHTML = PLANS.plans.map(p=>`<span class="chip" data-id="${p.id}">${p.name}</span>`).join('');
 
-  chips.querySelectorAll('.chip').forEach(c=>{
-    c.onclick = ()=>{
-      curId = c.dataset.id;
-      chips.querySelectorAll('.chip').forEach(x=>x.classList.toggle('sel', x.dataset.id===curId));
-      drawPlan(PLANS.plans.find(p=>p.id===curId));
-    };
-  });
+  // 지역 필터 옵션 채우기 (비교 탭과 동일한 방식)
+  const regions = [...new Set(PLANS.plans.map(p=>p.region))];
+  region.innerHTML = '<option value="">전체 지역</option>' + regions.map(r=>`<option>${r}</option>`).join('');
+
+  function drawChips(){
+    const list = PLANS.plans.filter(p=>!region.value || p.region===region.value);
+    chips.innerHTML = list.map(p=>
+      `<span class="chip ${p.id===curId?'sel':''}" data-id="${p.id}">${p.name}</span>`).join('')
+      || '<span class="dnote">해당 지역에 등록된 지자체가 없습니다.</span>';
+    chips.querySelectorAll('.chip').forEach(c=>{
+      c.onclick = ()=>{
+        curId = c.dataset.id;
+        chips.querySelectorAll('.chip').forEach(x=>x.classList.toggle('sel', x.dataset.id===curId));
+        drawPlan(PLANS.plans.find(p=>p.id===curId));
+      };
+    });
+  }
+  region.onchange = ()=>{ curId=null; area.innerHTML=''; drawChips(); };
+  drawChips();
 
   // 지자체 개요 + 감축사업 전체 목록 표시
   function drawPlan(p){
