@@ -132,7 +132,7 @@
       궁금한 키워드를 입력해 보세요. 예: <span class="qsug" data-q="그린리모델링">그린리모델링</span>,
       <span class="qsug" data-q="태양광">태양광</span>, <span class="qsug" data-q="전기차 충전">전기차 충전</span>,
       <span class="qsug" data-q="정의로운 전환">정의로운 전환</span>, <span class="qsug" data-q="기후예산">기후예산</span><br>
-      <small style="color:#889">여러 단어를 띄어 쓰면 모두 포함된 대목을 찾습니다. 현재 검색 대상: 노원구·강남구·강북구·성남시·동두천시·강동구·강서구·관악구·광진구·구로구</small></div></div>
+      <small style="color:#889">여러 단어를 띄어 쓰면 모두 포함된 대목을 찾습니다. 현재 검색 대상: 노원구·강남구·강북구·성남시·동두천시·강동구·강서구·관악구·광진구·구로구·금천구·도봉구·동대문구·동작구·마포구</small></div></div>
     </div>
     <div class="chatinput">
       <input id="chatQ" type="text" placeholder="검색어 입력 (예: 그린리모델링)">
@@ -265,7 +265,7 @@ Promise.all([
 });
 
 /* ═══════════ 탭0: 챗봇형 원문 검색 ═══════════ */
-const FT_IDS = ['nowon','gangnam','gangbuk','seongnam','dongducheon','gangdong','gangseo','gwanak','gwangjin','guro'];  // 검색 대상 지자체
+const FT_IDS = ['nowon','gangnam','gangbuk','seongnam','dongducheon','gangdong','gangseo','gwanak','gwangjin','guro','geumcheon','dobong','dongdaemun','dongjak','mapo'];  // 검색 대상 지자체
 let FT = null;          // 로드된 전문 데이터 캐시
 let ftLoading = null;   // 중복 로드 방지용 Promise
 
