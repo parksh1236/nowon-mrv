@@ -58,6 +58,14 @@
   .projbtn:hover { border-color:#0b8a5f; color:#0b8a5f; }
   .projbtn.sel { background:#0b8a5f; border-color:#0b8a5f; color:#fff; }
   #projDetail { margin-top:14px; }
+  .browseLayout { display:flex; gap:18px; align-items:flex-start; margin-top:12px; }
+  .browseMain { flex:1; min-width:0; }
+  .notebookbox { flex:0 0 240px; background:#f4f7fa; border:1px solid #e4eaf0; border-top:4px solid #4285f4; border-radius:10px; padding:14px; position:sticky; top:16px; }
+  .notebookbox-title { font-size:13px; font-weight:800; color:#0f2540; margin-bottom:6px; }
+  .notebookbox-desc { font-size:11.5px; color:#667; line-height:1.5; margin-bottom:10px; }
+  .notebookbox a { display:inline-block; padding:8px 14px; font-size:12.5px; font-weight:700; background:#4285f4; color:#fff; border-radius:8px; text-decoration:none; }
+  .notebookbox a:hover { background:#3367d6; }
+  @media (max-width:760px){ .browseLayout { flex-direction:column; } .notebookbox { flex:none; width:100%; position:static; } }
 
   /* ── 탭0: 챗봇형 검색 ────────────────────────── */
   .chatarea { margin-top:14px; max-height:520px; overflow-y:auto; padding:6px 2px; display:flex; flex-direction:column; gap:10px; }
@@ -121,8 +129,17 @@
     <div class="searchrow">
       <select id="browseRegion"><option value="">전체 지역</option></select>
     </div>
-    <div id="browseChips" class="planchips"></div>
-    <div id="browseArea"></div>
+    <div class="browseLayout">
+      <div class="browseMain">
+        <div id="browseChips" class="planchips"></div>
+        <div id="browseArea"></div>
+      </div>
+      <div id="notebookLink" class="notebookbox" style="display:none">
+        <div class="notebookbox-title">🔗 서울시 자치구 탄소중립 계획 챗봇</div>
+        <div class="notebookbox-desc">서울 25개 자치구 기본계획을 학습한 구글 노트북LM 챗봇에서 자유롭게 질의응답할 수 있습니다.</div>
+        <a href="https://notebooklm.google.com/notebook/7b1e31d2-d9c1-43a7-854f-aba5068dd0df?authuser=3" target="_blank" rel="noopener">챗봇 열기 ↗</a>
+      </div>
+    </div>
   </section>
   <section class="card">
     <h2>기본계획 원문 검색</h2>
@@ -362,10 +379,15 @@ function renderBrowse(){
   if (!PLANS.plans.length){ area.innerHTML='<div class="empty">등록된 기본계획이 없습니다.</div>'; return; }
 
   let curId = null;
+  const notebookLink = document.getElementById('notebookLink');
 
   // 지역 필터 옵션 채우기 (비교 탭과 동일한 방식)
   const regions = [...new Set(PLANS.plans.map(p=>p.region))];
   region.innerHTML = '<option value="">전체 지역</option>' + regions.map(r=>`<option>${r}</option>`).join('');
+
+  function updateNotebookLink(){
+    notebookLink.style.display = (region.value === '서울') ? '' : 'none';
+  }
 
   function drawChips(){
     const list = PLANS.plans.filter(p=>!region.value || p.region===region.value);
@@ -380,8 +402,9 @@ function renderBrowse(){
       };
     });
   }
-  region.onchange = ()=>{ curId=null; area.innerHTML=''; drawChips(); };
+  region.onchange = ()=>{ curId=null; area.innerHTML=''; drawChips(); updateNotebookLink(); };
   drawChips();
+  updateNotebookLink();
 
   // 지자체 개요 + 감축사업 전체 목록 표시
   function drawPlan(p){
