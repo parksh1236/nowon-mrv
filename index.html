@@ -105,6 +105,19 @@
   .calcres small { font-size:14px; color:#667; font-weight:600; }
   .calcdel { color:#c0392b; cursor:pointer; font-weight:700; }
   .calcdel:hover { opacity:.7; }
+
+  /* ── 탭M: 전기가스 사용량 지도 ────────────────── */
+  #kakaoMap { width:100%; height:520px; border-radius:10px; background:#e4eaf0; }
+  .mapsearchrow { display:flex; gap:8px; margin-top:12px; }
+  .mapsearchrow input { flex:1; padding:9px 12px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; }
+  .mapsearchrow button { padding:9px 18px; font-size:13px; font-weight:700; border:none; border-radius:8px; background:#0b8a5f; color:#fff; cursor:pointer; }
+  .infopanel { margin-top:14px; }
+  .infogrid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:10px; }
+  .infocard { background:#f8fafc; border:1px solid #e4eaf0; border-top:4px solid #4fd1a5; border-radius:10px; padding:14px; }
+  .infocard .ic-label { font-size:12px; color:#667; font-weight:700; }
+  .infocard .ic-value { font-size:20px; font-weight:800; color:#0f2540; margin-top:4px; }
+  .infocard .ic-sub { font-size:11px; color:#889; margin-top:3px; }
+  @media (max-width:700px){ .infogrid { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -112,6 +125,7 @@
   <h1>🌱 탄소중립 녹색성장 <span>기본계획 플랫폼</span></h1>
   <div class="sub">지자체 탄소중립 녹색성장 기본계획 검색·비교, 프레임워크 평가, 감축량 계산</div>
   <nav class="tabs">
+    <button data-tab="tMap">🗺️ 전기가스 사용량 지도</button>
     <button data-tab="t0" class="on">💬 검색</button>
     <button data-tab="t1">📊 비교</button>
     <button data-tab="t2">📋 프레임워크 평가</button>
@@ -120,6 +134,39 @@
 </header>
 
 <main>
+
+<!-- ══════════ 탭M: 전기가스 사용량 지도 ══════════ -->
+<div id="tMap" class="tabpane">
+  <section class="card">
+    <h2>🗺️ 전기·가스 사용량 지도</h2>
+    <div class="cpsub">주소를 검색하면 해당 위치로 이동하고, 건물 용도·전기·가스 사용량 정보를 표시합니다</div>
+    <div class="mapsearchrow">
+      <input id="mapAddrInput" type="text" placeholder="주소 또는 건물명 검색 (예: 노원구청)">
+      <button id="mapSearchBtn">검색</button>
+    </div>
+    <div id="kakaoMap"></div>
+    <div class="infopanel">
+      <div class="dnote" id="mapStatus">주소를 검색하면 아래에 건물 용도·전기·가스 사용량 정보가 표시됩니다.</div>
+      <div class="infogrid" id="mapInfoGrid" style="display:none">
+        <div class="infocard">
+          <div class="ic-label">건물 용도</div>
+          <div class="ic-value" id="infoBuildingType">-</div>
+          <div class="ic-sub" id="infoBuildingSub">건축물대장 정보 서비스</div>
+        </div>
+        <div class="infocard">
+          <div class="ic-label">전기 사용량</div>
+          <div class="ic-value" id="infoElectric">-</div>
+          <div class="ic-sub">한국전력공사 지역별 전력사용량</div>
+        </div>
+        <div class="infocard">
+          <div class="ic-label">가스 사용량</div>
+          <div class="ic-value" id="infoGas">-</div>
+          <div class="ic-sub">공공데이터포털 도시가스 사용량</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
 
 <!-- ══════════ 탭0: 기본계획 열람·검색 ══════════ -->
 <div id="t0" class="tabpane on">
@@ -269,6 +316,7 @@ document.querySelectorAll('nav.tabs button').forEach(btn=>{
     document.querySelectorAll('.tabpane').forEach(p=>p.classList.remove('on'));
     btn.classList.add('on');
     document.getElementById(btn.dataset.tab).classList.add('on');
+    if (btn.dataset.tab === 'tMap') ensureKakaoMap();
   };
 });
 
@@ -713,6 +761,77 @@ function renderMRV(){
   document.getElementById('calcBtn').onclick = add;
   val.onkeydown = e=>{ if(e.key==='Enter') add(); };
 }
+
+/* ═══════════ 탭M: 전기가스 사용량 지도 ═══════════ */
+let kakaoMap = null, kakaoMarker = null, kakaoGeocoder = null;
+
+function initKakaoMap(){
+  const container = document.getElementById('kakaoMap');
+  kakaoMap = new kakao.maps.Map(container, {
+    center: new kakao.maps.LatLng(37.6541, 127.0568), // 노원구청 기본 중심
+    level: 5
+  });
+  kakaoGeocoder = new kakao.maps.services.Geocoder();
+  kakaoMarker = new kakao.maps.Marker({ position: kakaoMap.getCenter() });
+  kakaoMarker.setMap(kakaoMap);
+
+  const input = document.getElementById('mapAddrInput');
+  const status = document.getElementById('mapStatus');
+  const grid = document.getElementById('mapInfoGrid');
+
+  function search(){
+    const q = input.value.trim();
+    if (!q) return;
+    status.textContent = '검색 중…';
+    // 주소 검색 우선 시도, 실패하면 키워드(장소명) 검색으로 폴백
+    kakaoGeocoder.addressSearch(q, (result, status2)=>{
+      if (status2 === kakao.maps.services.Status.OK){
+        moveTo(result[0].y, result[0].x, result[0].address_name);
+      } else {
+        const places = new kakao.maps.services.Places();
+        places.keywordSearch(q, (data, status3)=>{
+          if (status3 === kakao.maps.services.Status.OK && data.length){
+            moveTo(data[0].y, data[0].x, data[0].place_name);
+          } else {
+            status.textContent = `"${q}"에 대한 검색 결과를 찾지 못했습니다.`;
+            grid.style.display = 'none';
+          }
+        });
+      }
+    });
+  }
+
+  function moveTo(lat, lng, label){
+    const coord = new kakao.maps.LatLng(lat, lng);
+    kakaoMap.setCenter(coord);
+    kakaoMap.setLevel(3);
+    kakaoMarker.setPosition(coord);
+    status.textContent = `📍 ${label} — 아래 정보는 전기·가스·건물 공공데이터 API 연동 후 표시됩니다.`;
+    loadBuildingGasElectric(lat, lng, label);
+  }
+
+  // 건물 용도(건축물대장)·전기·가스 사용량 조회
+  // 공공데이터포털 인증키 연동 전까지는 안내 문구만 표시
+  function loadBuildingGasElectric(lat, lng, label){
+    grid.style.display = 'grid';
+    document.getElementById('infoBuildingType').textContent = '연동 대기';
+    document.getElementById('infoElectric').textContent = '연동 대기';
+    document.getElementById('infoGas').textContent = '연동 대기';
+  }
+
+  document.getElementById('mapSearchBtn').onclick = search;
+  input.onkeydown = e=>{ if(e.key==='Enter') search(); };
+}
+
+// Kakao SDK 로드 완료 후 지도 초기화 (지도 탭을 처음 열 때 1회)
+let kakaoMapLoaded = false;
+function ensureKakaoMap(){
+  if (kakaoMapLoaded) return;
+  if (typeof kakao !== 'undefined' && kakao.maps){
+    kakao.maps.load(()=>{ initKakaoMap(); kakaoMapLoaded = true; });
+  }
+}
 </script>
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=fc301a566a4a2276d0ed3e27ded7ba85&libraries=services&autoload=false"></script>
 </body>
 </html>
