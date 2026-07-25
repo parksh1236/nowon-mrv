@@ -765,6 +765,82 @@ function renderMRV(){
 /* ═══════════ 탭M: 전기가스 사용량 지도 ═══════════ */
 let kakaoMap = null, kakaoMarker = null, kakaoGeocoder = null;
 
+// 공공데이터포털(data.go.kr) 인증키 — 건물에너지(전기·가스) API, 건축물대장 API 공용
+const DATA_GO_KR_KEY = '7e30bb2fb9af78e89ac8240a5c7a295c68754482fc838f43e2df6842d7da95ca';
+const BLDENGY_BASE = 'https://apis.data.go.kr/1613000/BldEngyHubService';
+const BLDRGST_BASE = 'https://apis.data.go.kr/1613000/BldRgstHubService';
+
+// 최근 N개월 YYYYMM 목록 생성 (당월은 집계 전일 수 있어 전월부터 시작)
+function recentYearMonths(n){
+  const list = [];
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  for (let i=0; i<n; i++){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    list.push(`${y}${m}`);
+    d.setMonth(d.getMonth() - 1);
+  }
+  return list;
+}
+
+// 공공데이터포털 API 공통 호출 — 응답이 JSON이 아니면(Forbidden 등) 에러로 처리
+async function callDataGoKr(url){
+  const res = await fetch(url);
+  const text = await res.text();
+  try {
+    return { ok: true, data: JSON.parse(text) };
+  } catch(e){
+    return { ok: false, raw: text.slice(0,200) };
+  }
+}
+
+async function fetchBeUsage(op, sigunguCd, bjdongCd, bun, ji, useYm){
+  const url = `${BLDENGY_BASE}/${op}?serviceKey=${DATA_GO_KR_KEY}&sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}&useYm=${useYm}&_type=json&numOfRows=1&pageNo=1`;
+  const r = await callDataGoKr(url);
+  if (!r.ok) return { found:false, error:r.raw };
+  const body = r.data.response && r.data.response.body;
+  const total = body ? Number(body.totalCount) : 0;
+  if (!total) return { found:false };
+  let item = body.items.item;
+  if (Array.isArray(item)) item = item[0];
+  return { found:true, useQty:item.useQty };
+}
+
+// 시군구코드별 총괄표제부(건물유형) 로컬 자료 캐시 — hub.go.kr에서 수동 다운로드한 CSV를
+// data/building/<시군구코드>.json 으로 변환해 배치. 공공데이터포털 건축물대장 API가
+// 계속 Forbidden을 반환하는 동안의 대체 수단이며, 다운로드된 시군구만 지원됨.
+const buildingLocalCache = {};
+async function loadBuildingLocal(sigunguCd){
+  if (buildingLocalCache[sigunguCd] !== undefined) return buildingLocalCache[sigunguCd];
+  try {
+    const res = await fetch(`data/building/${sigunguCd}.json`);
+    if (!res.ok) { buildingLocalCache[sigunguCd] = null; return null; }
+    const data = await res.json();
+    buildingLocalCache[sigunguCd] = data;
+    return data;
+  } catch(e){ buildingLocalCache[sigunguCd] = null; return null; }
+}
+
+async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji){
+  // 1) 로컬 총괄표제부 자료(수동 다운로드분)에서 우선 조회
+  const local = await loadBuildingLocal(sigunguCd);
+  if (local){
+    const match = local.find(x => x.bjdongCd === bjdongCd && x.bun === bun && x.ji === ji);
+    if (match) return { found:true, mainPurpsCdNm:match.mainPurpsCdNm, etcPurps:match.etcPurps, source:'local' };
+  }
+  // 2) 없으면 공공데이터포털 건축물대장 API 시도 (현재 Forbidden 응답 중)
+  const url = `${BLDRGST_BASE}/getBrTitleInfo?serviceKey=${DATA_GO_KR_KEY}&sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}&_type=json&numOfRows=1&pageNo=1`;
+  const r = await callDataGoKr(url);
+  if (!r.ok) return { found:false, error:r.raw };
+  const body = r.data.response && r.data.response.body;
+  const total = body ? Number(body.totalCount) : 0;
+  if (!total) return { found:false };
+  let item = body.items.item;
+  if (Array.isArray(item)) item = item[0];
+  return { found:true, mainPurpsCdNm:item.mainPurpsCdNm, etcPurps:item.etcPurps, source:'api' };
+}
+
 function initKakaoMap(){
   const container = document.getElementById('kakaoMap');
   kakaoMap = new kakao.maps.Map(container, {
@@ -786,12 +862,20 @@ function initKakaoMap(){
     // 주소 검색 우선 시도, 실패하면 키워드(장소명) 검색으로 폴백
     kakaoGeocoder.addressSearch(q, (result, status2)=>{
       if (status2 === kakao.maps.services.Status.OK){
-        moveTo(result[0].y, result[0].x, result[0].address_name);
+        moveTo(result[0]);
       } else {
         const places = new kakao.maps.services.Places();
         places.keywordSearch(q, (data, status3)=>{
           if (status3 === kakao.maps.services.Status.OK && data.length){
-            moveTo(data[0].y, data[0].x, data[0].place_name);
+            // 장소 검색 결과는 법정동코드가 없으므로, 지번주소로 재검색해 법정동코드를 얻음
+            const place = data[0];
+            kakaoGeocoder.addressSearch(place.address_name, (r2, s2)=>{
+              if (s2 === kakao.maps.services.Status.OK && r2.length){
+                moveTo(Object.assign({}, r2[0], { y: place.y, x: place.x, place_name: place.place_name }));
+              } else {
+                moveTo({ y: place.y, x: place.x, address_name: place.place_name });
+              }
+            });
           } else {
             status.textContent = `"${q}"에 대한 검색 결과를 찾지 못했습니다.`;
             grid.style.display = 'none';
@@ -801,22 +885,64 @@ function initKakaoMap(){
     });
   }
 
-  function moveTo(lat, lng, label){
+  function moveTo(r){
+    const lat = r.y, lng = r.x;
+    const label = r.place_name || r.address_name;
     const coord = new kakao.maps.LatLng(lat, lng);
     kakaoMap.setCenter(coord);
     kakaoMap.setLevel(3);
     kakaoMarker.setPosition(coord);
-    status.textContent = `📍 ${label} — 아래 정보는 전기·가스·건물 공공데이터 API 연동 후 표시됩니다.`;
-    loadBuildingGasElectric(lat, lng, label);
+    status.textContent = `📍 ${label} — 데이터 조회 중…`;
+    loadBuildingGasElectric(r, label);
   }
 
   // 건물 용도(건축물대장)·전기·가스 사용량 조회
-  // 공공데이터포털 인증키 연동 전까지는 안내 문구만 표시
-  function loadBuildingGasElectric(lat, lng, label){
+  async function loadBuildingGasElectric(r, label){
     grid.style.display = 'grid';
-    document.getElementById('infoBuildingType').textContent = '연동 대기';
-    document.getElementById('infoElectric').textContent = '연동 대기';
-    document.getElementById('infoGas').textContent = '연동 대기';
+    const elBType = document.getElementById('infoBuildingType');
+    const elElec = document.getElementById('infoElectric');
+    const elGas = document.getElementById('infoGas');
+    elBType.textContent = '조회 중…';
+    elElec.textContent = '조회 중…';
+    elGas.textContent = '조회 중…';
+
+    const addr = r.address; // 지번 주소 상세 (b_code, main_address_no, sub_address_no)
+    if (!addr || !addr.b_code){
+      status.textContent = `📍 ${label} — 지번 정보를 확인할 수 없어 건물 데이터를 조회할 수 없습니다.`;
+      elBType.textContent = '확인 불가';
+      elElec.textContent = '확인 불가';
+      elGas.textContent = '확인 불가';
+      return;
+    }
+    const sigunguCd = addr.b_code.slice(0,5);
+    const bjdongCd = addr.b_code.slice(5,10);
+    const bun = String(addr.main_address_no || '0').padStart(4,'0');
+    const ji = String(addr.sub_address_no || '0').padStart(4,'0');
+
+    // 건축물대장(건물 용도) 조회
+    try {
+      const bt = await fetchBuildingType(sigunguCd, bjdongCd, bun, ji);
+      if (bt.found) elBType.textContent = bt.mainPurpsCdNm + (bt.etcPurps ? ` (${bt.etcPurps})` : '');
+      else if (bt.error) elBType.textContent = '조회 권한 확인 필요';
+      else elBType.textContent = '자료 없음';
+    } catch(e){ elBType.textContent = '조회 실패'; }
+
+    // 전기·가스 사용량 조회 — 최근 12개월 중 데이터가 있는 최신 월 탐색
+    const months = recentYearMonths(12);
+    let foundYm = null, elec = {found:false}, gas = {found:false};
+    for (const ym of months){
+      const [e, g] = await Promise.all([
+        fetchBeUsage('getBeElctyUsgInfo', sigunguCd, bjdongCd, bun, ji, ym),
+        fetchBeUsage('getBeGasUsgInfo', sigunguCd, bjdongCd, bun, ji, ym)
+      ]);
+      if (e.found || g.found){ foundYm = ym; elec = e; gas = g; break; }
+    }
+    elElec.textContent = elec.found ? `${Number(elec.useQty).toLocaleString()} kWh` : (elec.error ? '조회 권한 확인 필요' : '자료 없음');
+    elGas.textContent = gas.found ? `${Number(gas.useQty).toLocaleString()} kWh` : (gas.error ? '조회 권한 확인 필요' : '자료 없음');
+    document.getElementById('infoBuildingSub').textContent = '건축물대장 정보 서비스';
+    status.textContent = foundYm
+      ? `📍 ${label} — 전기·가스 사용량은 ${foundYm.slice(0,4)}년 ${foundYm.slice(4)}월 기준 (단독주택·소규모 공동주택 등 일부 건물은 제외될 수 있음)`
+      : `📍 ${label} — 최근 12개월 내 전기·가스 사용량 자료를 찾지 못했습니다.`;
   }
 
   document.getElementById('mapSearchBtn').onclick = search;
