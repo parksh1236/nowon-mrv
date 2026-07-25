@@ -1090,16 +1090,15 @@ function initKakaoMap(){
     legendBox.style.display = 'block';
     status.textContent = `${region.name} — 지도를 축척 1km 이내로 확대하면 건물별 점이, 2km 이상으로 축소하면 지역 총 배출량이 표시됩니다.`;
 
-    // 컨테이너 레이아웃이 완전히 반영된 뒤 확대범위를 계산해야 정확한 줌 레벨이 나옴 (rAF 2회로 레이아웃 확정 대기)
+    // 컨테이너 레이아웃이 완전히 반영된 뒤 확대범위를 계산해야 정확한 줌 레벨이 나옴
+    // (백그라운드 탭 등에서 requestAnimationFrame이 지연/미실행될 수 있어 setTimeout 사용)
     if (currentBuildings.length){
-      requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>{
-          kakaoMap.relayout();
-          kakaoMap.setBounds(bounds);
-          displayMode = null; // 강제 재계산
-          updateDisplayMode();
-        });
-      });
+      setTimeout(()=>{
+        kakaoMap.relayout();
+        kakaoMap.setBounds(bounds);
+        displayMode = null; // 강제 재계산
+        updateDisplayMode();
+      }, 80);
     }
   }
 
