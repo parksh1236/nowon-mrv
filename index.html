@@ -994,9 +994,9 @@ function initKakaoMap(){
 
   function renderDistrictLabel(){
     if (!currentRegion || !currentBuildings.length) return;
-    let sumLat=0, sumLng=0;
-    currentBuildings.forEach(b=>{ sumLat += b.lat; sumLng += b.lng; });
-    const centerLat = sumLat/currentBuildings.length, centerLng = sumLng/currentBuildings.length;
+    // 건물 표본의 산술 중심점은 현재 화면 범위 밖에 위치할 수 있어(카카오맵이 화면 밖 오버레이를
+    // 렌더링하지 않음) 라벨은 항상 현재 지도 중심에 표시한다.
+    const mapCenter = kakaoMap.getCenter();
 
     const official = officialGhg(currentRegion.name);
     const label = document.createElement('div');
@@ -1017,27 +1017,20 @@ function initKakaoMap(){
       label.innerHTML = `<b>${currentRegion.name}</b> ${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq (${ym ? ym.slice(0,4) : '추정'})`;
     }
     districtOverlay = new kakao.maps.CustomOverlay({
-      position: new kakao.maps.LatLng(centerLat, centerLng), content: label, yAnchor:0.5, xAnchor:0.5, zIndex:10
+      position: mapCenter, content: label, yAnchor:0.5, xAnchor:0.5, zIndex:10
     });
     districtOverlay.setMap(kakaoMap);
   }
 
   function updateDisplayMode(){
-    console.log('[map-debug] updateDisplayMode called, currentBuildings.length=', currentBuildings.length);
     if (!currentBuildings.length) return;
     const widthKm = visibleWidthKm();
     displayMode = widthKm > 1 ? 'district' : 'building';
-    console.log('[map-debug] widthKm=', widthKm, 'displayMode=', displayMode);
     if (districtOverlay){ districtOverlay.setMap(null); districtOverlay = null; }
     buildingOverlays.forEach(o=>o.setMap(null));
     buildingOverlays = [];
-    try {
-      if (displayMode === 'building') renderBuildingDots();
-      else renderDistrictLabel();
-      console.log('[map-debug] render done, districtOverlay=', !!districtOverlay, 'buildingOverlays.length=', buildingOverlays.length);
-    } catch(e){
-      console.error('[map-debug] render error:', e);
-    }
+    if (displayMode === 'building') renderBuildingDots();
+    else renderDistrictLabel();
   }
 
   kakao.maps.event.addListener(kakaoMap, 'idle', updateDisplayMode);
