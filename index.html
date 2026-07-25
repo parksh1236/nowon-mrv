@@ -161,7 +161,7 @@
           <select id="mapRegionSelect"><option value="">시·도를 먼저 선택하세요</option></select>
         </div>
         <div class="sidebox" id="mapStatBox" style="display:none">
-          <div class="sidebox-title">온실가스 배출량 합계 (추정, 최근월)</div>
+          <div class="sidebox-title">온실가스 배출량 총액</div>
           <div class="statbig" id="statTotalElec">-</div>
           <div class="statsub" id="statMeta">-</div>
           <div class="statsub" style="margin-top:4px">전력배출계수 0.4871 · 도시가스배출계수 0.202 kgCO₂eq/kWh 적용 추정치</div>
@@ -801,6 +801,15 @@ function renderMRV(){
 
 /* ═══════════ 탭M: 전기가스 사용량 지도 ═══════════ */
 let kakaoMap = null, kakaoMarker = null, kakaoGeocoder = null;
+let GHG_TARGETS = null;
+async function loadGhgTargets(){
+  if (GHG_TARGETS) return GHG_TARGETS;
+  try {
+    const res = await fetch('data/ghg_targets.json');
+    GHG_TARGETS = await res.json();
+  } catch(e){ GHG_TARGETS = { regions:{} }; }
+  return GHG_TARGETS;
+}
 
 // 공공데이터포털(data.go.kr) 인증키 — 건물에너지(전기·가스) API
 const DATA_GO_KR_KEY = '7e30bb2fb9af78e89ac8240a5c7a295c68754482fc838f43e2df6842d7da95ca';
@@ -977,23 +986,38 @@ function initKakaoMap(){
     });
   }
 
+  function officialGhg(name){
+    const r = GHG_TARGETS && GHG_TARGETS.regions && GHG_TARGETS.regions[name];
+    if (!r) return null;
+    return { tCO2: r.value * 1000, type: r.type, year: GHG_TARGETS.year };
+  }
+
   function renderDistrictLabel(){
     if (!currentRegion || !currentBuildings.length) return;
-    let sumLat=0, sumLng=0, totalKg=0, withData=0, ym=null;
-    currentBuildings.forEach(b=>{
-      sumLat += b.lat; sumLng += b.lng;
-      if (b.elec != null || b.gas != null){
-        totalKg += (b.elec||0)*EF_ELEC_KG_PER_KWH + (b.gas||0)*EF_GAS_KG_PER_KWH;
-        withData++; ym = b.ym || ym;
-      }
-    });
+    let sumLat=0, sumLng=0;
+    currentBuildings.forEach(b=>{ sumLat += b.lat; sumLng += b.lng; });
     const centerLat = sumLat/currentBuildings.length, centerLng = sumLng/currentBuildings.length;
-    const tCO2 = totalKg/1000;
+
+    const official = officialGhg(currentRegion.name);
     const label = document.createElement('div');
     label.className = 'bldg-pop';
     label.style.cursor = 'default';
-    label.innerHTML = `<b>${currentRegion.name}</b><br>총 온실가스 배출량(추정) <b>${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq</b>` +
-      (ym ? `<br><span style="color:#889">${ym.slice(0,4)}년 ${ym.slice(4)}월 · 자료 있음 ${withData}/${currentBuildings.length}개소</span>` : '');
+    if (official){
+      const typeLabel = official.type === 'bau' ? '전망배출량(BAU)' : '목표배출량';
+      label.innerHTML = `<b>${currentRegion.name}</b><br>${official.year}년 ${typeLabel} <b>${Math.round(official.tCO2).toLocaleString()} tCO₂eq</b>` +
+        `<br><span style="color:#889">기본계획 공식 수치 (구·시 전체)</span>`;
+    } else {
+      let totalKg = 0, withData = 0, ym = null;
+      currentBuildings.forEach(b=>{
+        if (b.elec != null || b.gas != null){
+          totalKg += (b.elec||0)*EF_ELEC_KG_PER_KWH + (b.gas||0)*EF_GAS_KG_PER_KWH;
+          withData++; ym = b.ym || ym;
+        }
+      });
+      const tCO2 = totalKg/1000;
+      label.innerHTML = `<b>${currentRegion.name}</b><br>표본 건물 배출량(추정) <b>${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq</b>` +
+        (ym ? `<br><span style="color:#889">${ym.slice(0,4)}년 ${ym.slice(4)}월 · 자료 있음 ${withData}/${currentBuildings.length}개소 (구·시 전체 아님)</span>` : '');
+    }
     districtOverlay = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(centerLat, centerLng), content: label, yAnchor:0.5, xAnchor:0.5, zIndex:10
     });
@@ -1034,6 +1058,7 @@ function initKakaoMap(){
     }
     currentRegion = region;
     status.textContent = `${region.name} 건물별 사용량 불러오는 중…`;
+    await loadGhgTargets();
     const res = await fetch(region.file);
     currentBuildings = await res.json();
 
@@ -1047,15 +1072,35 @@ function initKakaoMap(){
       }
     });
 
-    if (currentBuildings.length){ kakaoMap.relayout(); kakaoMap.setBounds(bounds); }
-    const tCO2 = totalKg/1000;
-    document.getElementById('statTotalElec').textContent = `${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq`;
-    document.getElementById('statMeta').textContent = `${region.name} · 대상 ${currentBuildings.length}개소 (자료 있음 ${withData}개소)` + (ym ? ` · ${ym.slice(0,4)}년 ${ym.slice(4)}월 기준` : '');
+    const official = officialGhg(region.name);
+    const statBox = document.getElementById('mapStatBox');
+    const statMetaNote = statBox.querySelector('.statsub:last-child');
+    if (official){
+      const typeLabel = official.type === 'bau' ? '전망배출량(BAU)' : '목표배출량';
+      document.getElementById('statTotalElec').textContent = `${Math.round(official.tCO2).toLocaleString()} tCO₂eq`;
+      document.getElementById('statMeta').textContent = `${region.name} 전체 · ${official.year}년 ${typeLabel} (기본계획 공식 수치)`;
+      statMetaNote.textContent = `참고: 지도 위 건물 표본(${currentBuildings.length}개소, 자료 있음 ${withData}개소)은 별도 추정치이며 위 공식 수치와 다릅니다.`;
+    } else {
+      const tCO2 = totalKg/1000;
+      document.getElementById('statTotalElec').textContent = `${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq`;
+      document.getElementById('statMeta').textContent = `${region.name} · 표본 건물 ${currentBuildings.length}개소 중 자료 있음 ${withData}개소 (구·시 전체 수치 아님)` + (ym ? ` · ${ym.slice(0,4)}년 ${ym.slice(4)}월 기준` : '');
+      statMetaNote.textContent = `전력배출계수 0.4871 · 도시가스배출계수 0.202 kgCO₂eq/kWh 적용 추정치`;
+    }
     document.getElementById('mapStatBox').style.display = 'block';
     legendBox.style.display = 'block';
     status.textContent = `${region.name} — 지도를 축척 1km 이내로 확대하면 건물별 점이, 2km 이상으로 축소하면 지역 총 배출량이 표시됩니다.`;
-    displayMode = null; // 강제 재계산
-    updateDisplayMode();
+
+    // 컨테이너 레이아웃이 완전히 반영된 뒤 확대범위를 계산해야 정확한 줌 레벨이 나옴 (rAF 2회로 레이아웃 확정 대기)
+    if (currentBuildings.length){
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          kakaoMap.relayout();
+          kakaoMap.setBounds(bounds);
+          displayMode = null; // 강제 재계산
+          updateDisplayMode();
+        });
+      });
+    }
   }
 
   function showBuildingInfo(b){
