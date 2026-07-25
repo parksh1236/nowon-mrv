@@ -157,12 +157,14 @@
       <div class="mapside">
         <div class="sidebox">
           <div class="sidebox-title">📍 지역 선택 (건물별 사용량 보기)</div>
-          <select id="mapRegionSelect"><option value="">지역 선택 안 함</option></select>
+          <select id="mapProvinceSelect" style="margin-bottom:8px"><option value="">시·도 선택</option></select>
+          <select id="mapRegionSelect"><option value="">시·도를 먼저 선택하세요</option></select>
         </div>
         <div class="sidebox" id="mapStatBox" style="display:none">
-          <div class="sidebox-title">전기 사용량 합계 (최근월)</div>
+          <div class="sidebox-title">온실가스 배출량 합계 (추정, 최근월)</div>
           <div class="statbig" id="statTotalElec">-</div>
           <div class="statsub" id="statMeta">-</div>
+          <div class="statsub" style="margin-top:4px">전력배출계수 0.4871 · 도시가스배출계수 0.202 kgCO₂eq/kWh 적용 추정치</div>
         </div>
         <div class="sidebox" id="mapLegendBox" style="display:none">
           <div class="sidebox-title">전기 사용량 (kWh) 범례</div>
@@ -865,10 +867,14 @@ async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji){
   return { found:true, mainPurpsCdNm:match[3], etcPurps:match[4], houseHold:match[5], source:'local' };
 }
 
-// 건물별 사용량 일괄 시각화가 준비된 지역 목록 (시군구코드 → 표시명·데이터파일)
+// 건물별 사용량 일괄 시각화가 준비된 지역 목록 (시군구코드 → 표시명·소속 시도·데이터파일)
 const ENERGY_MAP_REGIONS = {
-  '11680': { name:'서울 강남구', file:'data/energy/11680.json' }
+  '11680': { name:'강남구', province:'서울', file:'data/energy/11680.json' }
 };
+
+// 온실가스 배출계수 (mrv.json 감축량 계산기와 동일한 전력배출계수 사용, 도시가스는 통용 근사치)
+const EF_ELEC_KG_PER_KWH = 0.4871;
+const EF_GAS_KG_PER_KWH = 0.202;
 
 // 전기 사용량(kWh) 구간별 색상 (범례와 동일한 순서)
 const USAGE_BUCKETS = [
@@ -886,6 +892,15 @@ function usageColor(elec){
   return USAGE_BUCKETS[USAGE_BUCKETS.length-1].color;
 }
 
+// 지도 위 두 좌표 사이의 대략적인 거리(km) — 하버사인 공식
+function haversineKm(lat1, lng1, lat2, lng2){
+  const R = 6371;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLng = (lng2-lng1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
 function initKakaoMap(){
   const container = document.getElementById('kakaoMap');
   kakaoMap = new kakao.maps.Map(container, {
@@ -901,13 +916,26 @@ function initKakaoMap(){
   const status = document.getElementById('mapStatus');
   const grid = document.getElementById('mapInfoGrid');
 
-  // ── 지역 선택: 건물별 전기·가스 사용량 일괄 표시 ──
+  // ── 지역 선택: 시·도 → 시군구 2단 선택 ──
+  const provinceSelect = document.getElementById('mapProvinceSelect');
   const regionSelect = document.getElementById('mapRegionSelect');
-  for (const code in ENERGY_MAP_REGIONS){
+  const provinces = [...new Set(Object.values(ENERGY_MAP_REGIONS).map(r=>r.province))];
+  provinces.forEach(p=>{
     const opt = document.createElement('option');
-    opt.value = code; opt.textContent = ENERGY_MAP_REGIONS[code].name;
-    regionSelect.appendChild(opt);
+    opt.value = p; opt.textContent = p;
+    provinceSelect.appendChild(opt);
+  });
+  function fillRegionSelect(province){
+    regionSelect.innerHTML = '';
+    const codes = Object.entries(ENERGY_MAP_REGIONS).filter(([,r])=>r.province===province);
+    if (!codes.length){
+      regionSelect.innerHTML = '<option value="">시·도를 먼저 선택하세요</option>';
+      return;
+    }
+    regionSelect.innerHTML = '<option value="">시군구 선택</option>' +
+      codes.map(([code,r])=>`<option value="${code}">${r.name}</option>`).join('');
   }
+  provinceSelect.onchange = ()=>{ fillRegionSelect(provinceSelect.value); loadRegion(''); };
 
   const legendBox = document.getElementById('mapLegendBox');
   const legendEl = document.getElementById('mapLegend');
@@ -915,14 +943,87 @@ function initKakaoMap(){
     `<div class="legendrow"><span class="legenddot" style="background:${b.color}"></span>${b.label} kWh</div>`
   ).join('') + `<div class="legendrow"><span class="legenddot" style="background:${USAGE_NODATA_COLOR}"></span>자료 없음</div>`;
 
-  let districtOverlays = [];
-  function clearDistrictOverlays(){
-    districtOverlays.forEach(o=>o.setMap(null));
-    districtOverlays = [];
+  let buildingOverlays = [];   // 개별 건물 점 (줌인 시 표시)
+  let districtOverlay = null; // 시군구 집계 라벨 (줌아웃 시 표시)
+  let currentBuildings = [];
+  let currentRegion = null;
+  let displayMode = 'district'; // 'building' | 'district'
+
+  function clearOverlays(){
+    buildingOverlays.forEach(o=>o.setMap(null));
+    buildingOverlays = [];
+    if (districtOverlay){ districtOverlay.setMap(null); districtOverlay = null; }
   }
 
+  // 지도에 보이는 영역의 가로 폭(km)을 계산해 줌 스케일 판단 기준으로 사용
+  function visibleWidthKm(){
+    const b = kakaoMap.getBounds();
+    const sw = b.getSouthWest(), ne = b.getNorthEast();
+    return haversineKm(sw.getLat(), sw.getLng(), sw.getLat(), ne.getLng());
+  }
+
+  function renderBuildingDots(){
+    buildingOverlays.forEach(o=>o.setMap(null));
+    buildingOverlays = currentBuildings.map(b=>{
+      const dot = document.createElement('div');
+      dot.className = 'bldg-dot';
+      dot.style.background = usageColor(b.elec);
+      const overlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(b.lat, b.lng), content: dot, yAnchor:0.5, xAnchor:0.5, zIndex:10
+      });
+      overlay.setMap(kakaoMap);
+      dot.addEventListener('click', ()=> showBuildingInfo(b));
+      return overlay;
+    });
+  }
+
+  function renderDistrictLabel(){
+    if (!currentRegion || !currentBuildings.length) return;
+    let sumLat=0, sumLng=0, totalKg=0, withData=0, ym=null;
+    currentBuildings.forEach(b=>{
+      sumLat += b.lat; sumLng += b.lng;
+      if (b.elec != null || b.gas != null){
+        totalKg += (b.elec||0)*EF_ELEC_KG_PER_KWH + (b.gas||0)*EF_GAS_KG_PER_KWH;
+        withData++; ym = b.ym || ym;
+      }
+    });
+    const centerLat = sumLat/currentBuildings.length, centerLng = sumLng/currentBuildings.length;
+    const tCO2 = totalKg/1000;
+    const label = document.createElement('div');
+    label.className = 'bldg-pop';
+    label.style.cursor = 'default';
+    label.innerHTML = `<b>${currentRegion.name}</b><br>총 온실가스 배출량(추정) <b>${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq</b>` +
+      (ym ? `<br><span style="color:#889">${ym.slice(0,4)}년 ${ym.slice(4)}월 · 자료 있음 ${withData}/${currentBuildings.length}개소</span>` : '');
+    districtOverlay = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(centerLat, centerLng), content: label, yAnchor:0.5, xAnchor:0.5, zIndex:10
+    });
+    districtOverlay.setMap(kakaoMap);
+  }
+
+  function updateDisplayMode(){
+    if (!currentBuildings.length) return;
+    const widthKm = visibleWidthKm();
+    let mode = displayMode;
+    if (widthKm <= 1) mode = 'building';
+    else if (widthKm >= 2) mode = 'district';
+    if (mode === displayMode && (buildingOverlays.length || districtOverlay)) return;
+    displayMode = mode;
+    if (displayMode === 'building'){
+      if (districtOverlay){ districtOverlay.setMap(null); districtOverlay = null; }
+      renderBuildingDots();
+    } else {
+      buildingOverlays.forEach(o=>o.setMap(null));
+      buildingOverlays = [];
+      renderDistrictLabel();
+    }
+  }
+
+  kakao.maps.event.addListener(kakaoMap, 'idle', updateDisplayMode);
+
   async function loadRegion(code){
-    clearDistrictOverlays();
+    clearOverlays();
+    currentBuildings = [];
+    currentRegion = null;
     grid.style.display = 'none';
     const region = ENERGY_MAP_REGIONS[code];
     if (!region){
@@ -931,32 +1032,30 @@ function initKakaoMap(){
       status.textContent = '지역을 선택하거나 주소를 검색해 보세요.';
       return;
     }
+    currentRegion = region;
     status.textContent = `${region.name} 건물별 사용량 불러오는 중…`;
     const res = await fetch(region.file);
-    const buildings = await res.json();
+    currentBuildings = await res.json();
 
     const bounds = new kakao.maps.LatLngBounds();
-    let totalElec = 0, withData = 0, ym = null;
-    buildings.forEach(b=>{
-      const pos = new kakao.maps.LatLng(b.lat, b.lng);
-      bounds.extend(pos);
-      if (b.elec != null){ totalElec += b.elec; withData++; ym = b.ym || ym; }
-
-      const dot = document.createElement('div');
-      dot.className = 'bldg-dot';
-      dot.style.background = usageColor(b.elec);
-      const overlay = new kakao.maps.CustomOverlay({ position: pos, content: dot, yAnchor:0.5, xAnchor:0.5, zIndex:10 });
-      overlay.setMap(kakaoMap);
-      dot.addEventListener('click', ()=> showBuildingInfo(b));
-      districtOverlays.push(overlay);
+    let totalKg = 0, withData = 0, ym = null;
+    currentBuildings.forEach(b=>{
+      bounds.extend(new kakao.maps.LatLng(b.lat, b.lng));
+      if (b.elec != null || b.gas != null){
+        totalKg += (b.elec||0)*EF_ELEC_KG_PER_KWH + (b.gas||0)*EF_GAS_KG_PER_KWH;
+        withData++; ym = b.ym || ym;
+      }
     });
 
-    if (buildings.length){ kakaoMap.relayout(); kakaoMap.setBounds(bounds); }
-    document.getElementById('statTotalElec').textContent = `${Math.round(totalElec).toLocaleString()} kWh`;
-    document.getElementById('statMeta').textContent = `${region.name} · 대상 ${buildings.length}개소 (자료 있음 ${withData}개소)` + (ym ? ` · ${ym.slice(0,4)}년 ${ym.slice(4)}월 기준` : '');
+    if (currentBuildings.length){ kakaoMap.relayout(); kakaoMap.setBounds(bounds); }
+    const tCO2 = totalKg/1000;
+    document.getElementById('statTotalElec').textContent = `${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq`;
+    document.getElementById('statMeta').textContent = `${region.name} · 대상 ${currentBuildings.length}개소 (자료 있음 ${withData}개소)` + (ym ? ` · ${ym.slice(0,4)}년 ${ym.slice(4)}월 기준` : '');
     document.getElementById('mapStatBox').style.display = 'block';
     legendBox.style.display = 'block';
-    status.textContent = `${region.name} — 점을 클릭하면 건물별 상세 정보가 표시됩니다. (총괄표제부·건물에너지 API 기준, 소규모/미신고 건물은 회색으로 표시)`;
+    status.textContent = `${region.name} — 지도를 축척 1km 이내로 확대하면 건물별 점이, 2km 이상으로 축소하면 지역 총 배출량이 표시됩니다.`;
+    displayMode = null; // 강제 재계산
+    updateDisplayMode();
   }
 
   function showBuildingInfo(b){
