@@ -1003,20 +1003,18 @@ function initKakaoMap(){
     label.className = 'bldg-pop';
     label.style.cursor = 'default';
     if (official){
-      const typeLabel = official.type === 'bau' ? '전망배출량(BAU)' : '목표배출량';
-      label.innerHTML = `<b>${currentRegion.name}</b><br>${official.year}년 ${typeLabel} <b>${Math.round(official.tCO2).toLocaleString()} tCO₂eq</b>` +
-        `<br><span style="color:#889">기본계획 공식 수치 (구·시 전체)</span>`;
+      label.innerHTML = `<b>${currentRegion.name}</b> ${Math.round(official.tCO2).toLocaleString()} tCO₂eq (${official.year})`;
     } else {
-      let totalKg = 0, withData = 0, ym = null;
+      let totalKg = 0;
+      let ym = null;
       currentBuildings.forEach(b=>{
         if (b.elec != null || b.gas != null){
           totalKg += (b.elec||0)*EF_ELEC_KG_PER_KWH + (b.gas||0)*EF_GAS_KG_PER_KWH;
-          withData++; ym = b.ym || ym;
+          ym = b.ym || ym;
         }
       });
       const tCO2 = totalKg/1000;
-      label.innerHTML = `<b>${currentRegion.name}</b><br>표본 건물 배출량(추정) <b>${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq</b>` +
-        (ym ? `<br><span style="color:#889">${ym.slice(0,4)}년 ${ym.slice(4)}월 · 자료 있음 ${withData}/${currentBuildings.length}개소 (구·시 전체 아님)</span>` : '');
+      label.innerHTML = `<b>${currentRegion.name}</b> ${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq (${ym ? ym.slice(0,4) : '추정'})`;
     }
     districtOverlay = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(centerLat, centerLng), content: label, yAnchor:0.5, xAnchor:0.5, zIndex:10
@@ -1027,9 +1025,7 @@ function initKakaoMap(){
   function updateDisplayMode(){
     if (!currentBuildings.length) return;
     const widthKm = visibleWidthKm();
-    let mode = displayMode;
-    if (widthKm <= 1) mode = 'building';
-    else if (widthKm >= 2) mode = 'district';
+    const mode = widthKm > 1 ? 'district' : 'building';
     if (mode === displayMode && (buildingOverlays.length || districtOverlay)) return;
     displayMode = mode;
     if (displayMode === 'building'){
@@ -1088,7 +1084,7 @@ function initKakaoMap(){
     }
     document.getElementById('mapStatBox').style.display = 'block';
     legendBox.style.display = 'block';
-    status.textContent = `${region.name} — 지도를 축척 1km 이내로 확대하면 건물별 점이, 2km 이상으로 축소하면 지역 총 배출량이 표시됩니다.`;
+    status.textContent = `${region.name} — 지도 축척이 1km 이내면 건물별 점이, 1km를 초과하면 지역 총 배출량이 표시됩니다.`;
 
     // 컨테이너 레이아웃이 완전히 반영된 뒤 확대범위를 계산해야 정확한 줌 레벨이 나옴
     // (백그라운드 탭 등에서 requestAnimationFrame이 지연/미실행될 수 있어 setTimeout 사용)
