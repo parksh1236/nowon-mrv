@@ -811,6 +811,17 @@ async function loadGhgTargets(){
   return GHG_TARGETS;
 }
 
+// 시군구별 대표 좌표(구청·시청 위치) — 지역 라벨을 항상 해당 지역 내에 고정 표시하기 위한 앵커
+let REGION_CENTERS = null;
+async function loadRegionCenters(){
+  if (REGION_CENTERS) return REGION_CENTERS;
+  try {
+    const res = await fetch('data/region_centers.json');
+    REGION_CENTERS = await res.json();
+  } catch(e){ REGION_CENTERS = {}; }
+  return REGION_CENTERS;
+}
+
 // 공공데이터포털(data.go.kr) 인증키 — 건물에너지(전기·가스) API
 const DATA_GO_KR_KEY = '7e30bb2fb9af78e89ac8240a5c7a295c68754482fc838f43e2df6842d7da95ca';
 const BLDENGY_BASE = 'https://apis.data.go.kr/1613000/BldEngyHubService';
@@ -876,9 +887,11 @@ async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji){
   return { found:true, mainPurpsCdNm:match[3], etcPurps:match[4], houseHold:match[5], source:'local' };
 }
 
-// 건물별 사용량 일괄 시각화가 준비된 지역 목록 (시군구코드 → 표시명·소속 시도·데이터파일)
+// 건물별 사용량(전기·가스) 표본 데이터가 준비된 지역 (시군구코드 → 데이터파일)
+// 선택 가능한 전체 지역 목록은 data/region_centers.json 기준이며, 여기 없는 지역은
+// 공식 목표/전망 배출량만 표시하고 건물별 점은 표시하지 않음
 const ENERGY_MAP_REGIONS = {
-  '11680': { name:'강남구', province:'서울', file:'data/energy/11680.json' }
+  '11680': { file:'data/energy/11680.json' }
 };
 
 // 온실가스 배출계수 (mrv.json 감축량 계산기와 동일한 전력배출계수 사용, 도시가스는 통용 근사치)
@@ -925,26 +938,28 @@ function initKakaoMap(){
   const status = document.getElementById('mapStatus');
   const grid = document.getElementById('mapInfoGrid');
 
-  // ── 지역 선택: 시·도 → 시군구 2단 선택 ──
+  // ── 지역 선택: 시·도 → 시군구 2단 선택 (data/region_centers.json 기준) ──
   const provinceSelect = document.getElementById('mapProvinceSelect');
   const regionSelect = document.getElementById('mapRegionSelect');
-  const provinces = [...new Set(Object.values(ENERGY_MAP_REGIONS).map(r=>r.province))];
-  provinces.forEach(p=>{
-    const opt = document.createElement('option');
-    opt.value = p; opt.textContent = p;
-    provinceSelect.appendChild(opt);
-  });
   function fillRegionSelect(province){
     regionSelect.innerHTML = '';
-    const codes = Object.entries(ENERGY_MAP_REGIONS).filter(([,r])=>r.province===province);
-    if (!codes.length){
+    const names = Object.entries(REGION_CENTERS).filter(([,r])=>r.province===province).map(([name])=>name);
+    if (!names.length){
       regionSelect.innerHTML = '<option value="">시·도를 먼저 선택하세요</option>';
       return;
     }
     regionSelect.innerHTML = '<option value="">시군구 선택</option>' +
-      codes.map(([code,r])=>`<option value="${code}">${r.name}</option>`).join('');
+      names.map(name=>`<option value="${name}">${name}</option>`).join('');
   }
   provinceSelect.onchange = ()=>{ fillRegionSelect(provinceSelect.value); loadRegion(''); };
+  loadRegionCenters().then(()=>{
+    const provinces = [...new Set(Object.values(REGION_CENTERS).map(r=>r.province))];
+    provinces.forEach(p=>{
+      const opt = document.createElement('option');
+      opt.value = p; opt.textContent = p;
+      provinceSelect.appendChild(opt);
+    });
+  });
 
   const legendBox = document.getElementById('mapLegendBox');
   const legendEl = document.getElementById('mapLegend');
@@ -992,11 +1007,13 @@ function initKakaoMap(){
     return { tCO2: r.value * 1000, type: r.type, year: GHG_TARGETS.year };
   }
 
+  const DISTRICT_MODE_THRESHOLD_KM = 4;
+
   function renderDistrictLabel(){
-    if (!currentRegion || !currentBuildings.length) return;
-    // 건물 표본의 산술 중심점은 현재 화면 범위 밖에 위치할 수 있어(카카오맵이 화면 밖 오버레이를
-    // 렌더링하지 않음) 라벨은 항상 현재 지도 중심에 표시한다.
-    const mapCenter = kakaoMap.getCenter();
+    if (!currentRegion) return;
+    // 라벨은 건물 표본 중심점이나 현재 지도 중심이 아니라, 항상 해당 지역의 대표 좌표(구청·시청)에
+    // 고정 표시한다 — 화면을 이동해도 엉뚱한 곳에 라벨이 뜨지 않고, 화면 밖으로 나가 사라지지도 않는다.
+    const anchor = new kakao.maps.LatLng(currentRegion.center.lat, currentRegion.center.lng);
 
     const official = officialGhg(currentRegion.name);
     const label = document.createElement('div');
@@ -1004,7 +1021,7 @@ function initKakaoMap(){
     label.style.cursor = 'default';
     if (official){
       label.innerHTML = `<b>${currentRegion.name}</b> ${Math.round(official.tCO2).toLocaleString()} tCO₂eq (${official.year})`;
-    } else {
+    } else if (currentBuildings.length){
       let totalKg = 0;
       let ym = null;
       currentBuildings.forEach(b=>{
@@ -1015,17 +1032,19 @@ function initKakaoMap(){
       });
       const tCO2 = totalKg/1000;
       label.innerHTML = `<b>${currentRegion.name}</b> ${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq (${ym ? ym.slice(0,4) : '추정'})`;
+    } else {
+      label.innerHTML = `<b>${currentRegion.name}</b> <span style="color:#889">배출량 자료 없음</span>`;
     }
     districtOverlay = new kakao.maps.CustomOverlay({
-      position: mapCenter, content: label, yAnchor:0.5, xAnchor:0.5, zIndex:10
+      position: anchor, content: label, yAnchor:0.5, xAnchor:0.5, zIndex:10
     });
     districtOverlay.setMap(kakaoMap);
   }
 
   function updateDisplayMode(){
-    if (!currentBuildings.length) return;
+    if (!currentRegion) return;
     const widthKm = visibleWidthKm();
-    displayMode = widthKm > 1 ? 'district' : 'building';
+    displayMode = widthKm >= DISTRICT_MODE_THRESHOLD_KM ? 'district' : 'building';
     if (districtOverlay){ districtOverlay.setMap(null); districtOverlay = null; }
     buildingOverlays.forEach(o=>o.setMap(null));
     buildingOverlays = [];
@@ -1035,62 +1054,74 @@ function initKakaoMap(){
 
   kakao.maps.event.addListener(kakaoMap, 'idle', updateDisplayMode);
 
-  async function loadRegion(code){
+  async function loadRegion(name){
     clearOverlays();
     currentBuildings = [];
     currentRegion = null;
     grid.style.display = 'none';
-    const region = ENERGY_MAP_REGIONS[code];
-    if (!region){
+    const center = REGION_CENTERS[name];
+    if (!center){
       document.getElementById('mapStatBox').style.display = 'none';
       legendBox.style.display = 'none';
       status.textContent = '지역을 선택하거나 주소를 검색해 보세요.';
       return;
     }
-    currentRegion = region;
-    status.textContent = `${region.name} 건물별 사용량 불러오는 중…`;
+    currentRegion = { name, center };
+    status.textContent = `${name} 자료 불러오는 중…`;
     await loadGhgTargets();
-    const res = await fetch(region.file);
-    currentBuildings = await res.json();
 
-    const bounds = new kakao.maps.LatLngBounds();
-    let totalKg = 0, withData = 0, ym = null;
-    currentBuildings.forEach(b=>{
-      bounds.extend(new kakao.maps.LatLng(b.lat, b.lng));
-      if (b.elec != null || b.gas != null){
-        totalKg += (b.elec||0)*EF_ELEC_KG_PER_KWH + (b.gas||0)*EF_GAS_KG_PER_KWH;
-        withData++; ym = b.ym || ym;
-      }
-    });
+    const buildingFile = ENERGY_MAP_REGIONS[center.sigunguCd] && ENERGY_MAP_REGIONS[center.sigunguCd].file;
+    let withData = 0, totalKg = 0, ym = null;
+    if (buildingFile){
+      const res = await fetch(buildingFile);
+      currentBuildings = await res.json();
+      currentBuildings.forEach(b=>{
+        if (b.elec != null || b.gas != null){
+          totalKg += (b.elec||0)*EF_ELEC_KG_PER_KWH + (b.gas||0)*EF_GAS_KG_PER_KWH;
+          withData++; ym = b.ym || ym;
+        }
+      });
+    }
 
-    const official = officialGhg(region.name);
+    const official = officialGhg(name);
     const statBox = document.getElementById('mapStatBox');
     const statMetaNote = statBox.querySelector('.statsub:last-child');
     if (official){
       const typeLabel = official.type === 'bau' ? '전망배출량(BAU)' : '목표배출량';
       document.getElementById('statTotalElec').textContent = `${Math.round(official.tCO2).toLocaleString()} tCO₂eq`;
-      document.getElementById('statMeta').textContent = `${region.name} 전체 · ${official.year}년 ${typeLabel} (기본계획 공식 수치)`;
-      statMetaNote.textContent = `참고: 지도 위 건물 표본(${currentBuildings.length}개소, 자료 있음 ${withData}개소)은 별도 추정치이며 위 공식 수치와 다릅니다.`;
-    } else {
+      document.getElementById('statMeta').textContent = `${name} 전체 · ${official.year}년 ${typeLabel} (기본계획 공식 수치)`;
+      statMetaNote.textContent = currentBuildings.length
+        ? `참고: 지도 위 건물 표본(${currentBuildings.length}개소, 자료 있음 ${withData}개소)은 별도 추정치이며 위 공식 수치와 다릅니다.`
+        : `건물별 전기·가스 사용량 표본은 아직 확보되지 않았습니다.`;
+    } else if (currentBuildings.length){
       const tCO2 = totalKg/1000;
       document.getElementById('statTotalElec').textContent = `${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq`;
-      document.getElementById('statMeta').textContent = `${region.name} · 표본 건물 ${currentBuildings.length}개소 중 자료 있음 ${withData}개소 (구·시 전체 수치 아님)` + (ym ? ` · ${ym.slice(0,4)}년 ${ym.slice(4)}월 기준` : '');
+      document.getElementById('statMeta').textContent = `${name} · 표본 건물 ${currentBuildings.length}개소 중 자료 있음 ${withData}개소 (구·시 전체 수치 아님)` + (ym ? ` · ${ym.slice(0,4)}년 ${ym.slice(4)}월 기준` : '');
       statMetaNote.textContent = `전력배출계수 0.4871 · 도시가스배출계수 0.202 kgCO₂eq/kWh 적용 추정치`;
+    } else {
+      document.getElementById('statTotalElec').textContent = '자료 없음';
+      document.getElementById('statMeta').textContent = `${name} · 공식 배출량·건물 표본 자료가 아직 없습니다`;
+      statMetaNote.textContent = '';
     }
     document.getElementById('mapStatBox').style.display = 'block';
     legendBox.style.display = 'block';
-    status.textContent = `${region.name} — 지도 축척이 1km 이내면 건물별 점이, 1km를 초과하면 지역 총 배출량이 표시됩니다.`;
+    status.textContent = `${name} — 지도 축척이 ${DISTRICT_MODE_THRESHOLD_KM}km 미만이면 건물별 점이, ${DISTRICT_MODE_THRESHOLD_KM}km 이상이면 지역 총 배출량이 표시됩니다.`;
 
     // 컨테이너 레이아웃이 완전히 반영된 뒤 확대범위를 계산해야 정확한 줌 레벨이 나옴
     // (백그라운드 탭 등에서 requestAnimationFrame이 지연/미실행될 수 있어 setTimeout 사용)
-    if (currentBuildings.length){
-      setTimeout(()=>{
-        kakaoMap.relayout();
+    setTimeout(()=>{
+      kakaoMap.relayout();
+      if (currentBuildings.length){
+        const bounds = new kakao.maps.LatLngBounds();
+        currentBuildings.forEach(b=> bounds.extend(new kakao.maps.LatLng(b.lat, b.lng)));
         kakaoMap.setBounds(bounds);
-        displayMode = null; // 강제 재계산
-        updateDisplayMode();
-      }, 80);
-    }
+      } else {
+        kakaoMap.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
+        kakaoMap.setLevel(7);
+      }
+      displayMode = null; // 강제 재계산
+      updateDisplayMode();
+    }, 80);
   }
 
   function showBuildingInfo(b){
