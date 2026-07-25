@@ -151,7 +151,7 @@
         <div class="infocard">
           <div class="ic-label">건물 용도</div>
           <div class="ic-value" id="infoBuildingType">-</div>
-          <div class="ic-sub" id="infoBuildingSub">건축물대장 정보 서비스</div>
+          <div class="ic-sub" id="infoBuildingSub">총괄표제부(건축물대장) 자료 — 지역별 수동 확보</div>
         </div>
         <div class="infocard">
           <div class="ic-label">전기 사용량</div>
@@ -765,10 +765,9 @@ function renderMRV(){
 /* ═══════════ 탭M: 전기가스 사용량 지도 ═══════════ */
 let kakaoMap = null, kakaoMarker = null, kakaoGeocoder = null;
 
-// 공공데이터포털(data.go.kr) 인증키 — 건물에너지(전기·가스) API, 건축물대장 API 공용
+// 공공데이터포털(data.go.kr) 인증키 — 건물에너지(전기·가스) API
 const DATA_GO_KR_KEY = '7e30bb2fb9af78e89ac8240a5c7a295c68754482fc838f43e2df6842d7da95ca';
 const BLDENGY_BASE = 'https://apis.data.go.kr/1613000/BldEngyHubService';
-const BLDRGST_BASE = 'https://apis.data.go.kr/1613000/BldRgstHubService';
 
 // 최근 N개월 YYYYMM 목록 생성 (당월은 집계 전일 수 있어 전월부터 시작)
 function recentYearMonths(n){
@@ -807,9 +806,10 @@ async function fetchBeUsage(op, sigunguCd, bjdongCd, bun, ji, useYm){
   return { found:true, useQty:item.useQty };
 }
 
-// 시군구코드별 총괄표제부(건물유형) 로컬 자료 캐시 — hub.go.kr에서 수동 다운로드한 CSV를
-// data/building/<시군구코드>.json 으로 변환해 배치. 공공데이터포털 건축물대장 API가
-// 계속 Forbidden을 반환하는 동안의 대체 수단이며, 다운로드된 시군구만 지원됨.
+// 시군구코드별 총괄표제부(건물유형) 로컬 자료 — 공공데이터포털 건축물대장 API(BldRgstHubService)가
+// 계속 Forbidden을 반환해, hub.go.kr에서 수동 다운로드한 총괄표제부 CSV를 구글드라이브에서
+// data/building/<시군구코드>.json (배열 압축 포맷: [법정동코드,번,지,주용도명,기타용도,세대수])으로
+// 변환해 배치하는 방식으로 완전히 대체함. 다운로드된 시군구만 지원됨.
 const buildingLocalCache = {};
 async function loadBuildingLocal(sigunguCd){
   if (buildingLocalCache[sigunguCd] !== undefined) return buildingLocalCache[sigunguCd];
@@ -823,22 +823,11 @@ async function loadBuildingLocal(sigunguCd){
 }
 
 async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji){
-  // 1) 로컬 총괄표제부 자료(수동 다운로드분)에서 우선 조회
   const local = await loadBuildingLocal(sigunguCd);
-  if (local){
-    const match = local.find(x => x.bjdongCd === bjdongCd && x.bun === bun && x.ji === ji);
-    if (match) return { found:true, mainPurpsCdNm:match.mainPurpsCdNm, etcPurps:match.etcPurps, source:'local' };
-  }
-  // 2) 없으면 공공데이터포털 건축물대장 API 시도 (현재 Forbidden 응답 중)
-  const url = `${BLDRGST_BASE}/getBrTitleInfo?serviceKey=${DATA_GO_KR_KEY}&sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}&_type=json&numOfRows=1&pageNo=1`;
-  const r = await callDataGoKr(url);
-  if (!r.ok) return { found:false, error:r.raw };
-  const body = r.data.response && r.data.response.body;
-  const total = body ? Number(body.totalCount) : 0;
-  if (!total) return { found:false };
-  let item = body.items.item;
-  if (Array.isArray(item)) item = item[0];
-  return { found:true, mainPurpsCdNm:item.mainPurpsCdNm, etcPurps:item.etcPurps, source:'api' };
+  if (!local) return { found:false };
+  const match = local.find(row => row[0] === bjdongCd && row[1] === bun && row[2] === ji);
+  if (!match) return { found:false };
+  return { found:true, mainPurpsCdNm:match[3], etcPurps:match[4], houseHold:match[5], source:'local' };
 }
 
 function initKakaoMap(){
@@ -923,8 +912,7 @@ function initKakaoMap(){
     try {
       const bt = await fetchBuildingType(sigunguCd, bjdongCd, bun, ji);
       if (bt.found) elBType.textContent = bt.mainPurpsCdNm + (bt.etcPurps ? ` (${bt.etcPurps})` : '');
-      else if (bt.error) elBType.textContent = '조회 권한 확인 필요';
-      else elBType.textContent = '자료 없음';
+      else elBType.textContent = '자료 없음 (다운로드된 지역이 아니거나 등록되지 않은 필지)';
     } catch(e){ elBType.textContent = '조회 실패'; }
 
     // 전기·가스 사용량 조회 — 최근 12개월 중 데이터가 있는 최신 월 탐색
@@ -939,7 +927,7 @@ function initKakaoMap(){
     }
     elElec.textContent = elec.found ? `${Number(elec.useQty).toLocaleString()} kWh` : (elec.error ? '조회 권한 확인 필요' : '자료 없음');
     elGas.textContent = gas.found ? `${Number(gas.useQty).toLocaleString()} kWh` : (gas.error ? '조회 권한 확인 필요' : '자료 없음');
-    document.getElementById('infoBuildingSub').textContent = '건축물대장 정보 서비스';
+    document.getElementById('infoBuildingSub').textContent = '총괄표제부(건축물대장) 자료 — 지역별 수동 확보';
     status.textContent = foundYm
       ? `📍 ${label} — 전기·가스 사용량은 ${foundYm.slice(0,4)}년 ${foundYm.slice(4)}월 기준 (단독주택·소규모 공동주택 등 일부 건물은 제외될 수 있음)`
       : `📍 ${label} — 최근 12개월 내 전기·가스 사용량 자료를 찾지 못했습니다.`;
