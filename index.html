@@ -1025,17 +1025,12 @@ function initKakaoMap(){
   function updateDisplayMode(){
     if (!currentBuildings.length) return;
     const widthKm = visibleWidthKm();
-    const mode = widthKm > 1 ? 'district' : 'building';
-    if (mode === displayMode && (buildingOverlays.length || districtOverlay)) return;
-    displayMode = mode;
-    if (displayMode === 'building'){
-      if (districtOverlay){ districtOverlay.setMap(null); districtOverlay = null; }
-      renderBuildingDots();
-    } else {
-      buildingOverlays.forEach(o=>o.setMap(null));
-      buildingOverlays = [];
-      renderDistrictLabel();
-    }
+    displayMode = widthKm > 1 ? 'district' : 'building';
+    if (districtOverlay){ districtOverlay.setMap(null); districtOverlay = null; }
+    buildingOverlays.forEach(o=>o.setMap(null));
+    buildingOverlays = [];
+    if (displayMode === 'building') renderBuildingDots();
+    else renderDistrictLabel();
   }
 
   kakao.maps.event.addListener(kakaoMap, 'idle', updateDisplayMode);
