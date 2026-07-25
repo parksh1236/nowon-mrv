@@ -1023,14 +1023,21 @@ function initKakaoMap(){
   }
 
   function updateDisplayMode(){
+    console.log('[map-debug] updateDisplayMode called, currentBuildings.length=', currentBuildings.length);
     if (!currentBuildings.length) return;
     const widthKm = visibleWidthKm();
     displayMode = widthKm > 1 ? 'district' : 'building';
+    console.log('[map-debug] widthKm=', widthKm, 'displayMode=', displayMode);
     if (districtOverlay){ districtOverlay.setMap(null); districtOverlay = null; }
     buildingOverlays.forEach(o=>o.setMap(null));
     buildingOverlays = [];
-    if (displayMode === 'building') renderBuildingDots();
-    else renderDistrictLabel();
+    try {
+      if (displayMode === 'building') renderBuildingDots();
+      else renderDistrictLabel();
+      console.log('[map-debug] render done, districtOverlay=', !!districtOverlay, 'buildingOverlays.length=', buildingOverlays.length);
+    } catch(e){
+      console.error('[map-debug] render error:', e);
+    }
   }
 
   kakao.maps.event.addListener(kakaoMap, 'idle', updateDisplayMode);
