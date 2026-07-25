@@ -144,6 +144,11 @@
         <div class="notebookbox-desc">경기도 시군 기본계획을 학습한 구글 노트북LM 챗봇에서 자유롭게 질의응답할 수 있습니다.</div>
         <a href="https://notebooklm.google.com/notebook/b09adfe8-85b3-4b1c-a2a1-873ca73135fd?authuser=3" target="_blank" rel="noopener">챗봇 열기 ↗</a>
       </div>
+      <div id="notebookLinkJN" class="notebookbox" style="display:none">
+        <div class="notebookbox-title">🔗 전라남북도 탄소중립 계획 챗봇</div>
+        <div class="notebookbox-desc">전라남북도 기본계획을 학습한 구글 노트북LM 챗봇에서 자유롭게 질의응답할 수 있습니다.</div>
+        <a href="https://notebooklm.google.com/notebook/1c73a794-2134-4fb0-9ab5-425c36f9c0ad?authuser=3" target="_blank" rel="noopener">챗봇 열기 ↗</a>
+      </div>
     </div>
   </section>
   <section class="card">
@@ -386,6 +391,7 @@ function renderBrowse(){
   let curId = null;
   const notebookLink = document.getElementById('notebookLink');
   const notebookLinkGG = document.getElementById('notebookLinkGG');
+  const notebookLinkJN = document.getElementById('notebookLinkJN');
 
   // 지역 필터 옵션 채우기 (비교 탭과 동일한 방식)
   const regions = [...new Set(PLANS.plans.map(p=>p.region))];
@@ -394,6 +400,7 @@ function renderBrowse(){
   function updateNotebookLink(){
     notebookLink.style.display = (region.value === '서울') ? '' : 'none';
     notebookLinkGG.style.display = (region.value === '경기') ? '' : 'none';
+    notebookLinkJN.style.display = (region.value === '전남') ? '' : 'none';
   }
 
   function drawChips(){
