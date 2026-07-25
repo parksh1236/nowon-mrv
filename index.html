@@ -951,7 +951,7 @@ function initKakaoMap(){
       districtOverlays.push(overlay);
     });
 
-    if (buildings.length) kakaoMap.setBounds(bounds);
+    if (buildings.length){ kakaoMap.relayout(); kakaoMap.setBounds(bounds); }
     document.getElementById('statTotalElec').textContent = `${Math.round(totalElec).toLocaleString()} kWh`;
     document.getElementById('statMeta').textContent = `${region.name} · 대상 ${buildings.length}개소 (자료 있음 ${withData}개소)` + (ym ? ` · ${ym.slice(0,4)}년 ${ym.slice(4)}월 기준` : '');
     document.getElementById('mapStatBox').style.display = 'block';
