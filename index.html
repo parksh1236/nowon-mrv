@@ -4,67 +4,71 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>탄소중립 녹색성장 기본계획 플랫폼</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Pretendard','Malgun Gothic',sans-serif; background:#eef2f6; color:#223; }
+  body { font-family:'Pretendard','Malgun Gothic',sans-serif; background:#f3ede0; color:#26231c; }
+  h1,h2,.dsec,.dpname,.sidebox-title,.notebookbox-title,.statbig,.calcres,.ic-value { font-family:'Noto Serif KR',serif; }
 
-  /* ── 상단 헤더 ───────────────────────────────── */
-  header { background:#0f2540; color:#fff; padding:18px 28px 0; }
-  header h1 { font-size:19px; font-weight:800; }
-  header h1 span { color:#4fd1a5; }
-  header .sub { font-size:12px; color:#9db3cc; margin-top:4px; }
+  /* ── 상단 헤더 (masthead) ───────────────────── */
+  header { background:#1c1a15; color:#fff; padding:22px 28px 0; border-bottom:3px solid #9c7a3e; }
+  header .eyebrow { font-size:10.5px; letter-spacing:.22em; color:#9c7a3e; font-weight:700; }
+  header h1 { font-size:21px; font-weight:900; letter-spacing:.01em; margin-top:4px; }
+  header h1 span { color:#9c7a3e; }
+  header .sub { font-size:11.5px; color:#cbbfa0; margin-top:5px; padding-bottom:16px; }
 
-  /* ── 탭 내비게이션 ────────────────────────────── */
-  nav.tabs { display:flex; gap:4px; margin-top:14px; }
-  nav.tabs button { padding:10px 20px; font-size:13.5px; font-weight:700; border:none; cursor:pointer;
-    background:#1b3a5e; color:#9db3cc; border-radius:10px 10px 0 0; }
-  nav.tabs button.on { background:#eef2f6; color:#0f2540; }
+  /* ── 탭 내비게이션 (editorial underline tabs) ── */
+  nav.tabs { display:flex; gap:22px; margin-top:6px; }
+  nav.tabs button { padding:0 0 12px; font-size:12px; font-weight:700; letter-spacing:.06em; border:none; cursor:pointer;
+    background:none; color:#948c74; border-bottom:2px solid transparent; }
+  nav.tabs button.on { color:#fff; border-bottom-color:#9c7a3e; }
   .tabpane { display:none; }
   .tabpane.on { display:block; }
 
   /* ── 본문 카드 ───────────────────────────────── */
   main { max-width:1060px; margin:20px auto; padding:0 16px 40px; }
-  .card { background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.07); padding:22px 26px; margin-bottom:18px; }
-  h2 { font-size:18px; color:#0f2540; }
-  .cpsub { font-size:12px; color:#667; margin-top:5px; }
-  .dsec { font-size:13.5px; font-weight:800; color:#0f2540; margin:16px 0 8px; padding-bottom:4px; border-bottom:2px solid #4fd1a5; }
-  .dquote { background:#f4f7fa; border-left:4px solid #4fd1a5; border-radius:0 8px 8px 0; padding:10px 14px; font-size:13.5px; color:#223; line-height:1.6; }
-  .dnote { font-size:11px; color:#889; margin-top:6px; }
+  .card { background:#fff; border:1px solid #ddd3ba; border-radius:4px; padding:22px 26px; margin-bottom:18px; }
+  h2 { font-size:19px; color:#1c1a15; font-weight:700; }
+  .cpsub { font-size:12px; color:#7a7360; margin-top:5px; }
+  .dsec { font-size:11.5px; font-weight:700; letter-spacing:.08em; color:#9c7a3e; margin:18px 0 10px; padding-bottom:6px; border-bottom:1px solid #ddd3ba; }
+  .dquote { background:#ece4d2; border-left:4px solid #9c7a3e; border-radius:0 8px 8px 0; padding:10px 14px; font-size:13.5px; color:#26231c; line-height:1.6; }
+  .dnote { font-size:11px; color:#948c74; margin-top:6px; }
   .dgrid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:12px; }
-  .dphase { background:#f8fafc; border:1px solid #e4eaf0; border-top:4px solid #4fd1a5; border-radius:10px; padding:12px 14px; }
-  .dpname { font-size:14px; font-weight:800; color:#0f2540; }
-  .dpyear { font-size:12px; color:#0b8a5f; font-weight:700; margin:2px 0 4px; }
+  .dphase { background:#f6f0e2; border:1px solid #ddd3ba; border-top:4px solid #9c7a3e; border-radius:10px; padding:12px 14px; }
+  .dpname { font-size:14px; font-weight:800; color:#1c1a15; }
+  .dpyear { font-size:12px; color:#1c1a15; font-weight:700; margin:2px 0 4px; }
   @media (max-width:900px){ .dgrid3 { grid-template-columns:1fr; } }
 
   /* ── 표 ─────────────────────────────────────── */
   table.dt { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:14px; }
-  table.dt th { text-align:left; color:#667; font-weight:600; padding:7px 8px; background:#f4f7fa; border:1px solid #e4eaf0; vertical-align:top; }
-  table.dt td { padding:7px 10px; border:1px solid #e4eaf0; color:#223; line-height:1.55; vertical-align:top; }
+  table.dt th { text-align:left; color:#7a7360; font-weight:600; padding:7px 8px; background:#ece4d2; border:1px solid #ddd3ba; vertical-align:top; }
+  table.dt td { padding:7px 10px; border:1px solid #ddd3ba; color:#26231c; line-height:1.55; vertical-align:top; }
 
   /* ── 탭1: 검색·비교 ──────────────────────────── */
   .searchrow { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
-  .searchrow input { flex:1; min-width:200px; padding:9px 12px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; }
-  .searchrow select { padding:9px 10px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; background:#fff; }
+  .searchrow input { flex:1; min-width:200px; padding:9px 12px; font-size:13px; border:1px solid #cabd9c; border-radius:8px; }
+  .searchrow select { padding:9px 10px; font-size:13px; border:1px solid #cabd9c; border-radius:8px; background:#fff; }
   .planchips { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
-  .chip { padding:7px 14px; font-size:12.5px; font-weight:700; border:1.5px solid #cfd8e3; border-radius:20px; background:#fff; cursor:pointer; color:#445; }
-  .chip.sel { background:#0b8a5f; border-color:#0b8a5f; color:#fff; }
-  .empty { padding:26px; text-align:center; color:#889; font-size:13px; background:#f8fafc; border:1px dashed #cfd8e3; border-radius:10px; margin-top:14px; }
+  .chip { padding:7px 14px; font-size:12.5px; font-weight:700; border:1.5px solid #cabd9c; border-radius:3px; background:#fff; cursor:pointer; color:#4a4433; }
+  .chip.sel { background:#1c1a15; border-color:#1c1a15; color:#fff; }
+  .empty { padding:26px; text-align:center; color:#948c74; font-size:13px; background:#f6f0e2; border:1px dashed #cabd9c; border-radius:10px; margin-top:14px; }
 
   /* ── 탭0: 기본계획 열람 ──────────────────────── */
   .sectorblock { margin-top:12px; }
-  .sectorhead { font-size:13px; font-weight:800; color:#0f2540; background:#f4f7fa; border:1px solid #e4eaf0; border-left:4px solid #4fd1a5; border-radius:6px; padding:8px 12px; }
+  .sectorhead { font-size:13px; font-weight:800; color:#1c1a15; background:#ece4d2; border:1px solid #ddd3ba; border-left:4px solid #9c7a3e; border-radius:6px; padding:8px 12px; }
   .projlist { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .projbtn { padding:6px 12px; font-size:12px; border:1px solid #cfd8e3; border-radius:16px; background:#fff; cursor:pointer; color:#334; }
-  .projbtn:hover { border-color:#0b8a5f; color:#0b8a5f; }
-  .projbtn.sel { background:#0b8a5f; border-color:#0b8a5f; color:#fff; }
+  .projbtn { padding:6px 12px; font-size:12px; border:1px solid #cabd9c; border-radius:3px; background:#fff; cursor:pointer; color:#3a3527; }
+  .projbtn:hover { border-color:#1c1a15; color:#1c1a15; }
+  .projbtn.sel { background:#1c1a15; border-color:#1c1a15; color:#fff; }
   #projDetail { margin-top:14px; }
   .browseLayout { display:flex; gap:18px; align-items:flex-start; margin-top:12px; }
   .browseMain { flex:1; min-width:0; }
-  .notebookbox { flex:0 0 240px; background:#f4f7fa; border:1px solid #e4eaf0; border-top:4px solid #4285f4; border-radius:10px; padding:14px; position:sticky; top:16px; }
-  .notebookbox-title { font-size:13px; font-weight:800; color:#0f2540; margin-bottom:6px; }
-  .notebookbox-desc { font-size:11.5px; color:#667; line-height:1.5; margin-bottom:10px; }
-  .notebookbox a { display:inline-block; padding:8px 14px; font-size:12.5px; font-weight:700; background:#4285f4; color:#fff; border-radius:8px; text-decoration:none; }
-  .notebookbox a:hover { background:#3367d6; }
+  .notebookbox { flex:0 0 240px; background:#ece4d2; border:1px solid #ddd3ba; border-top:4px solid #1c1a15; border-radius:10px; padding:14px; position:sticky; top:16px; }
+  .notebookbox-title { font-size:13px; font-weight:800; color:#1c1a15; margin-bottom:6px; }
+  .notebookbox-desc { font-size:11.5px; color:#7a7360; line-height:1.5; margin-bottom:10px; }
+  .notebookbox a { display:inline-block; padding:8px 14px; font-size:12.5px; font-weight:700; background:#1c1a15; color:#fff; border-radius:8px; text-decoration:none; }
+  .notebookbox a:hover { background:#332f24; }
   @media (max-width:760px){ .browseLayout { flex-direction:column; } .notebookbox { flex:none; width:100%; position:static; } }
 
   /* ── 탭0: 챗봇형 검색 ────────────────────────── */
@@ -72,37 +76,37 @@
   .msg { display:flex; }
   .msg.user { justify-content:flex-end; }
   .msg .bubble { max-width:82%; padding:11px 14px; border-radius:14px; font-size:13px; line-height:1.65; }
-  .msg.bot .bubble { background:#f4f7fa; border:1px solid #e4eaf0; border-top-left-radius:4px; }
-  .msg.user .bubble { background:#0b8a5f; color:#fff; border-top-right-radius:4px; }
+  .msg.bot .bubble { background:#ece4d2; border:1px solid #ddd3ba; border-top-left-radius:4px; }
+  .msg.user .bubble { background:#1c1a15; color:#fff; border-top-right-radius:4px; }
   .qsug { color:#2e86de; font-weight:700; cursor:pointer; text-decoration:underline; }
-  .hitcard { background:#fff; border:1px solid #e4eaf0; border-left:4px solid #4fd1a5; border-radius:8px; padding:9px 12px; margin-top:8px; font-size:12.5px; line-height:1.6; }
-  .hitcard .hithead { font-weight:800; color:#0f2540; font-size:12px; margin-bottom:3px; }
+  .hitcard { background:#fff; border:1px solid #ddd3ba; border-left:4px solid #9c7a3e; border-radius:8px; padding:9px 12px; margin-top:8px; font-size:12.5px; line-height:1.6; }
+  .hitcard .hithead { font-weight:800; color:#1c1a15; font-size:12px; margin-bottom:3px; }
   .hitcard mark { background:#ffe9a8; padding:0 2px; border-radius:3px; }
   .chatinput { display:flex; gap:8px; margin-top:14px; }
-  .chatinput input { flex:1; padding:11px 14px; font-size:13.5px; border:1.5px solid #cfd8e3; border-radius:10px; }
-  .chatinput button { padding:11px 26px; font-size:13.5px; font-weight:700; border:none; border-radius:10px; background:#0b8a5f; color:#fff; cursor:pointer; }
-  .chatinput button:hover { background:#0a7a54; }
+  .chatinput input { flex:1; padding:11px 14px; font-size:13.5px; border:1.5px solid #cabd9c; border-radius:10px; }
+  .chatinput button { padding:11px 26px; font-size:13.5px; font-weight:700; border:none; border-radius:10px; background:#1c1a15; color:#fff; cursor:pointer; }
+  .chatinput button:hover { background:#332f24; }
 
   /* ── 탭2: 평가 ───────────────────────────────── */
   .gradebadge { display:inline-block; min-width:44px; text-align:center; padding:6px 12px; border-radius:10px; font-size:20px; font-weight:800; color:#fff; }
   .g-S { background:#0b8a5f; } .g-A { background:#2e86de; } .g-B { background:#f39c12; }
   .g-C { background:#e67e22; } .g-F { background:#c0392b; }
-  .scorebar { height:10px; background:#e4eaf0; border-radius:5px; overflow:hidden; }
-  .scorebar i { display:block; height:100%; background:#4fd1a5; }
+  .scorebar { height:10px; background:#ddd3ba; border-radius:5px; overflow:hidden; }
+  .scorebar i { display:block; height:100%; background:#9c7a3e; }
   .critical-warn { color:#c0392b; font-weight:700; font-size:11.5px; }
   details.rubric { margin-top:6px; font-size:12px; }
   details.rubric summary { cursor:pointer; color:#2e86de; font-weight:600; }
 
   /* ── MRV 계산기 ─────────────────────────────── */
   .calcbox { display:flex; gap:8px; align-items:center; margin:12px 0; flex-wrap:wrap; }
-  .calcbox select { flex:1; min-width:220px; padding:9px 10px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; background:#fff; color:#223; }
-  .calcbox input { width:150px; padding:9px 10px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; }
-  .calcunit { font-size:12.5px; color:#667; min-width:32px; }
-  .calcbox button { padding:9px 22px; font-size:13px; font-weight:700; border:none; border-radius:8px; background:#0b8a5f; color:#fff; cursor:pointer; }
-  .calcbox button:hover { background:#0a7a54; }
+  .calcbox select { flex:1; min-width:220px; padding:9px 10px; font-size:13px; border:1px solid #cabd9c; border-radius:8px; background:#fff; color:#26231c; }
+  .calcbox input { width:150px; padding:9px 10px; font-size:13px; border:1px solid #cabd9c; border-radius:8px; }
+  .calcunit { font-size:12.5px; color:#7a7360; min-width:32px; }
+  .calcbox button { padding:9px 22px; font-size:13px; font-weight:700; border:none; border-radius:8px; background:#1c1a15; color:#fff; cursor:pointer; }
+  .calcbox button:hover { background:#332f24; }
   .calcout { min-height:20px; margin-bottom:4px; }
-  .calcres { font-size:26px; font-weight:800; color:#0b8a5f; margin:6px 0 4px; }
-  .calcres small { font-size:14px; color:#667; font-weight:600; }
+  .calcres { font-size:26px; font-weight:800; color:#1c1a15; margin:6px 0 4px; }
+  .calcres small { font-size:14px; color:#7a7360; font-weight:600; }
   .calcdel { color:#c0392b; cursor:pointer; font-weight:700; }
   .calcdel:hover { opacity:.7; }
 
@@ -110,32 +114,33 @@
   .maplayout { display:flex; gap:16px; align-items:flex-start; margin-top:14px; }
   .mapside { flex:0 0 268px; display:flex; flex-direction:column; gap:14px; }
   .mapmain { flex:1; min-width:0; }
-  .sidebox { background:#f8fafc; border:1px solid #e4eaf0; border-radius:10px; padding:14px; }
-  .sidebox-title { font-size:12.5px; font-weight:800; color:#0f2540; margin-bottom:8px; }
-  .sidebox select { width:100%; padding:9px 10px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; background:#fff; color:#223; }
-  .statbig { font-size:24px; font-weight:800; color:#0b8a5f; margin:4px 0 2px; }
-  .statsub { font-size:11.5px; color:#667; }
-  .legendrow { display:flex; align-items:center; gap:8px; font-size:12px; color:#445; padding:3px 0; }
+  .sidebox { background:#f6f0e2; border:1px solid #ddd3ba; border-radius:10px; padding:14px; }
+  .sidebox-title { font-size:12.5px; font-weight:800; color:#1c1a15; margin-bottom:8px; }
+  .sidebox select { width:100%; padding:9px 10px; font-size:13px; border:1px solid #cabd9c; border-radius:8px; background:#fff; color:#26231c; }
+  .statbig { font-size:24px; font-weight:800; color:#1c1a15; margin:4px 0 2px; }
+  .statsub { font-size:11.5px; color:#7a7360; }
+  .legendrow { display:flex; align-items:center; gap:8px; font-size:12px; color:#4a4433; padding:3px 0; }
   .legenddot { width:11px; height:11px; border-radius:50%; flex:0 0 11px; }
   .mapsearchrow { display:flex; gap:8px; }
-  .mapsearchrow input { flex:1; padding:9px 12px; font-size:13px; border:1px solid #cfd8e3; border-radius:8px; }
-  .mapsearchrow button { padding:9px 16px; font-size:13px; font-weight:700; border:none; border-radius:8px; background:#0b8a5f; color:#fff; cursor:pointer; }
-  #kakaoMap { width:100%; height:600px; border-radius:10px; background:#e4eaf0; }
+  .mapsearchrow input { flex:1; padding:9px 12px; font-size:13px; border:1px solid #cabd9c; border-radius:8px; }
+  .mapsearchrow button { padding:9px 16px; font-size:13px; font-weight:700; border:none; border-radius:8px; background:#1c1a15; color:#fff; cursor:pointer; }
+  #kakaoMap { width:100%; height:600px; border-radius:10px; background:#ddd3ba; }
   .infopanel { margin-top:12px; }
   .infogrid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:10px; }
-  .infocard { background:#f8fafc; border:1px solid #e4eaf0; border-top:4px solid #4fd1a5; border-radius:10px; padding:14px; }
-  .infocard .ic-label { font-size:12px; color:#667; font-weight:700; }
-  .infocard .ic-value { font-size:20px; font-weight:800; color:#0f2540; margin-top:4px; }
-  .infocard .ic-sub { font-size:11px; color:#889; margin-top:3px; }
+  .infocard { background:#f6f0e2; border:1px solid #ddd3ba; border-top:4px solid #9c7a3e; border-radius:10px; padding:14px; }
+  .infocard .ic-label { font-size:12px; color:#7a7360; font-weight:700; }
+  .infocard .ic-value { font-size:20px; font-weight:800; color:#1c1a15; margin-top:4px; }
+  .infocard .ic-sub { font-size:11px; color:#948c74; margin-top:3px; }
   .bldg-dot { width:14px; height:14px; border-radius:50%; border:1.5px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.35); cursor:pointer; }
-  .bldg-pop { background:#fff; border:1px solid #e4eaf0; border-radius:10px; padding:10px 13px; font-size:12px; line-height:1.6; box-shadow:0 4px 16px rgba(0,0,0,.18); min-width:190px; }
-  .bldg-pop b { color:#0f2540; }
+  .bldg-pop { background:#fff; border:1px solid #ddd3ba; border-radius:10px; padding:10px 13px; font-size:12px; line-height:1.6; box-shadow:0 4px 16px rgba(0,0,0,.18); min-width:190px; }
+  .bldg-pop b { color:#1c1a15; }
   @media (max-width:820px){ .maplayout { flex-direction:column; } .mapside { flex:none; width:100%; } .infogrid { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>🌱 탄소중립 녹색성장 <span>기본계획 플랫폼</span></h1>
+  <div class="eyebrow">SEOUL · GYEONGGI · 2025~2034</div>
+  <h1>탄소중립 녹색성장 <span>기본계획 플랫폼</span></h1>
   <div class="sub">지자체 탄소중립 녹색성장 기본계획 검색·비교, 프레임워크 평가, 감축량 계산</div>
   <nav class="tabs">
     <button data-tab="tMap">🌍 탄소중립 지도</button>
@@ -243,7 +248,7 @@
       궁금한 키워드를 입력해 보세요. 예: <span class="qsug" data-q="그린리모델링">그린리모델링</span>,
       <span class="qsug" data-q="태양광">태양광</span>, <span class="qsug" data-q="전기차 충전">전기차 충전</span>,
       <span class="qsug" data-q="정의로운 전환">정의로운 전환</span>, <span class="qsug" data-q="기후예산">기후예산</span><br>
-      <small style="color:#889">여러 단어를 띄어 쓰면 모두 포함된 대목을 찾습니다. 현재 검색 대상: 서울특별시·노원구·강남구·강북구·성남시·동두천시·강동구·강서구·관악구·광진구·구로구·금천구·도봉구·동대문구·동작구·마포구·서대문구·서초구·성동구·성북구·송파구·양천구·영등포구·중구·용산구·종로구·은평구·중랑구·남양주시·고양시·과천시·광명시·광주시·구리시·강진군·고흥군·곡성군</small></div></div>
+      <small style="color:#948c74">여러 단어를 띄어 쓰면 모두 포함된 대목을 찾습니다. 현재 검색 대상: 서울특별시·노원구·강남구·강북구·성남시·동두천시·강동구·강서구·관악구·광진구·구로구·금천구·도봉구·동대문구·동작구·마포구·서대문구·서초구·성동구·성북구·송파구·양천구·영등포구·중구·용산구·종로구·은평구·중랑구·남양주시·고양시·과천시·광명시·광주시·구리시·강진군·고흥군·곡성군</small></div></div>
     </div>
     <div class="chatinput">
       <input id="chatQ" type="text" placeholder="검색어 입력 (예: 그린리모델링)">
@@ -341,8 +346,8 @@
 
 </main>
 
-<footer style="background:#0f2540;color:#9db3cc;text-align:center;padding:18px 16px;font-size:12.5px;line-height:1.7">
-  문의 : <a href="mailto:parksh1236@gmail.com" style="color:#4fd1a5;text-decoration:none">parksh1236@gmail.com</a>
+<footer style="background:#1c1a15;color:#cbbfa0;text-align:center;padding:18px 16px;font-size:12.5px;line-height:1.7">
+  문의 : <a href="mailto:parksh1236@gmail.com" style="color:#9c7a3e;text-decoration:none">parksh1236@gmail.com</a>
 </footer>
 
 <script>
@@ -447,7 +452,7 @@ function runSearch(){
 
     if (!perDoc.length){
       wait.querySelector('.bubble').innerHTML =
-        `"<b>${esc(q)}</b>"에 대한 내용을 찾지 못했습니다.<br><small style="color:#889">단어를 짧게 줄이거나(예: '그린리모델링'→'리모델링') 다른 표현으로 검색해 보세요.</small>`;
+        `"<b>${esc(q)}</b>"에 대한 내용을 찾지 못했습니다.<br><small style="color:#948c74">단어를 짧게 줄이거나(예: '그린리모델링'→'리모델링') 다른 표현으로 검색해 보세요.</small>`;
       return;
     }
 
@@ -455,12 +460,12 @@ function runSearch(){
     let html = `"<b>${esc(q)}</b>" 관련 대목을 <b>${perDoc.length}개 지자체</b>에서 총 <b>${totalHits}곳</b> 찾았습니다. 지자체별 상위 결과입니다.`;
     perDoc.sort((a,b)=>b.count-a.count);
     perDoc.forEach(d=>{
-      html += `<div style="margin-top:10px;font-weight:800;color:#0b8a5f">${d.name} <span style="color:#889;font-weight:600;font-size:11.5px">(${d.count}곳 발견)</span></div>`;
+      html += `<div style="margin-top:10px;font-weight:800;color:#1c1a15">${d.name} <span style="color:#948c74;font-weight:600;font-size:11.5px">(${d.count}곳 발견)</span></div>`;
       d.top.forEach(h=>{
         html += `<div class="hitcard"><div class="hithead">📄 ${d.name} 기본계획 · PDF ${h.p}페이지</div>${highlight(h.t, keywords)}</div>`;
       });
     });
-    html += `<div style="margin-top:8px"><small style="color:#889">※ 페이지 번호는 PDF 기준입니다. 원문 확인은 구글드라이브 「탄소중립기본계획」 폴더의 해당 PDF를 참조하세요.</small></div>`;
+    html += `<div style="margin-top:8px"><small style="color:#948c74">※ 페이지 번호는 PDF 기준입니다. 원문 확인은 구글드라이브 「탄소중립기본계획」 폴더의 해당 PDF를 참조하세요.</small></div>`;
     wait.querySelector('.bubble').innerHTML = html;
     document.getElementById('chatArea').scrollTop = 1e9;
   });
@@ -526,7 +531,7 @@ function renderBrowse(){
       <div class="dsec">감축사업 목록 (총 ${nProj}개) — 사업명을 클릭하면 원문 내용을 보여드립니다</div>
       ${(p.projects||[]).map((g,gi)=>`
         <div class="sectorblock">
-          <div class="sectorhead">${g.sector} <span style="color:#889;font-weight:600">(${g.items.length}개)</span></div>
+          <div class="sectorhead">${g.sector} <span style="color:#948c74;font-weight:600">(${g.items.length}개)</span></div>
           <div class="projlist">${g.items.map(it=>`<span class="projbtn" data-t="${esc(it)}">${esc(it)}</span>`).join('')}</div>
         </div>`).join('')}
       <div id="projDetail"></div>`;
@@ -623,7 +628,7 @@ function renderPlans(){
     if (!sel.length){ area.innerHTML='<div class="empty">위에서 지자체를 선택하면 비교 표가 표시됩니다.</div>'; return; }
     const row = (label, fn) => `<tr><th style="width:150px">${label}</th>${sel.map(p=>`<td>${fn(p)??'—'}</td>`).join('')}</tr>`;
     area.innerHTML = `<table class="dt">
-      <tr><th></th>${sel.map(p=>`<th style="font-size:14px;color:#0f2540">${p.name}</th>`).join('')}</tr>
+      <tr><th></th>${sel.map(p=>`<th style="font-size:14px;color:#1c1a15">${p.name}</th>`).join('')}</tr>
       ${row('지역 / 유형', p=>`${p.region} · ${p.level}`)}
       ${row('계획 기간', p=>p.period)}
       ${row('기준연도 배출량', p=>p.baseEmissions ? `${p.baseEmissions.toLocaleString()} tCO₂eq (${p.baseYear})` : null)}
@@ -679,7 +684,7 @@ function renderEvals(){
       <div style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap">
         <span class="gradebadge g-${ev.grade}">${ev.grade}</span>
         <div>
-          <div style="font-size:20px;font-weight:800;color:#0f2540">${ev.name} — 총 ${ev.total}점 / 100점</div>
+          <div style="font-size:20px;font-weight:800;color:#1c1a15">${ev.name} — 총 ${ev.total}점 / 100점</div>
           <div class="dnote">평가일 ${ev.date}${critWarn ? ' · <span class="critical-warn">④재원 4점 이하 → C등급 자동 강등 적용</span>' : ''}</div>
         </div>
       </div>
@@ -698,7 +703,7 @@ function renderEvals(){
               const txt = c.rubric[String(sc)];
               if (!txt) continue;
               const cur = sc === s.score;
-              rows.push(`<div style="margin-top:4px;${cur?'color:#0b8a5f;font-weight:700':'color:#667'}">
+              rows.push(`<div style="margin-top:4px;${cur?'color:#1c1a15;font-weight:700':'color:#7a7360'}">
                 ${cur?'▶':'&nbsp;&nbsp;'} ${sc}점: ${txt}${cur?' <span style="font-size:11px">(받은 점수)</span>':''}</div>`);
             }
             rubricHtml = `<details class="rubric"><summary>배점 기준 보기 (위·아래 점수 포함)</summary>${rows.join('')}</details>`;
@@ -1033,7 +1038,7 @@ function initKakaoMap(){
       const tCO2 = totalKg/1000;
       label.innerHTML = `<b>${currentRegion.name}</b> ${tCO2.toLocaleString(undefined,{maximumFractionDigits:0})} tCO₂eq (${ym ? ym.slice(0,4) : '추정'})`;
     } else {
-      label.innerHTML = `<b>${currentRegion.name}</b> <span style="color:#889">배출량 자료 없음</span>`;
+      label.innerHTML = `<b>${currentRegion.name}</b> <span style="color:#948c74">배출량 자료 없음</span>`;
     }
     districtOverlay = new kakao.maps.CustomOverlay({
       position: anchor, content: label, yAnchor:0.5, xAnchor:0.5, zIndex:10
