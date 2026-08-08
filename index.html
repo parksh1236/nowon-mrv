@@ -1315,17 +1315,21 @@ function updateShadowTime(){
   // 대한민국 표준시(KST, UTC+9) 기준 지정 날짜·시각 → UTC로 변환해 클록에 반영
   const local = new Date(`${dateStr}T${h}:${m}:00+09:00`);
   const jd = Cesium.JulianDate.fromDate(local);
+  vworldViewer.clock.shouldAnimate = false; // 자동 흐름 방지, 슬라이더로만 시각 제어
   vworldViewer.clock.currentTime = jd;
   vworldViewer.clock.startTime = jd.clone();
   const stop = jd.clone();
   Cesium.JulianDate.addSeconds(stop, 1, stop);
   vworldViewer.clock.stopTime = stop;
+  vworldViewer.scene.requestRender && vworldViewer.scene.requestRender();
 }
 
 function toggleShadow(on){
   if (!vworldViewer) return;
   vworldViewer.shadows = on;
   vworldViewer.terrainShadows = on ? 1 : 0; // Cesium.ShadowMode.ENABLED
+  vworldViewer.scene.globe.enableLighting = on; // 태양 위치에 따른 명암/그림자 반영
+  if (vworldViewer.setting) vworldViewer.setting.useSunLighting = on; // VWorld 자체 조명 스위치
   if (on) updateShadowTime();
 }
 
