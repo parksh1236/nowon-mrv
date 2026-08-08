@@ -859,46 +859,6 @@ async function loadRegionCenters(){
   return REGION_CENTERS;
 }
 
-// 지역 선택 메뉴는 카카오 지도 SDK와 독립적으로 초기화한다.
-// 지도 SDK 로드가 늦거나 실패해도 서울·노원구 선택 메뉴는 항상 표시된다.
-let mapRegionLoader = null;
-async function initMapRegionSelectors(){
-  const provinceSelect = document.getElementById('mapProvinceSelect');
-  const regionSelect = document.getElementById('mapRegionSelect');
-  if (!provinceSelect || !regionSelect) return;
-
-  const centers = await loadRegionCenters();
-  const provinces = [...new Set(Object.values(centers).map(r=>r.province))];
-  const selectedProvince = provinces.includes(provinceSelect.value) ? provinceSelect.value : '서울';
-
-  provinceSelect.innerHTML = '<option value="">시·도 선택</option>' +
-    provinces.map(p=>`<option value="${p}">${p}</option>`).join('');
-  provinceSelect.value = selectedProvince;
-
-  function fillRegions(province, preferredRegion){
-    const names = Object.entries(centers)
-      .filter(([,r])=>r.province===province)
-      .map(([name])=>name);
-    regionSelect.innerHTML = '<option value="">시군구 선택</option>' +
-      names.map(name=>`<option value="${name}">${name}</option>`).join('');
-    const nextRegion = names.includes(preferredRegion) ? preferredRegion :
-      (province === '서울' && names.includes('노원구') ? '노원구' : '');
-    regionSelect.value = nextRegion;
-    return nextRegion;
-  }
-
-  const selectedRegion = fillRegions(selectedProvince, regionSelect.value);
-  provinceSelect.onchange = ()=>{
-    const region = fillRegions(provinceSelect.value, '');
-    if (mapRegionLoader) mapRegionLoader(region);
-  };
-  regionSelect.onchange = ()=>{
-    if (mapRegionLoader) mapRegionLoader(regionSelect.value);
-  };
-
-  if (mapRegionLoader && selectedRegion) mapRegionLoader(selectedRegion);
-}
-
 // 공공데이터포털(data.go.kr) 인증키 — 건물에너지(전기·가스) API
 const DATA_GO_KR_KEY = '7e30bb2fb9af78e89ac8240a5c7a295c68754482fc838f43e2df6842d7da95ca';
 const BLDENGY_BASE = 'https://apis.data.go.kr/1613000/BldEngyHubService';
@@ -1014,6 +974,29 @@ function initKakaoMap(){
   const input = document.getElementById('mapAddrInput');
   const status = document.getElementById('mapStatus');
   const grid = document.getElementById('mapInfoGrid');
+
+  // ── 지역 선택: 시·도 → 시군구 2단 선택 (data/region_centers.json 기준) ──
+  const provinceSelect = document.getElementById('mapProvinceSelect');
+  const regionSelect = document.getElementById('mapRegionSelect');
+  function fillRegionSelect(province){
+    regionSelect.innerHTML = '';
+    const names = Object.entries(REGION_CENTERS).filter(([,r])=>r.province===province).map(([name])=>name);
+    if (!names.length){
+      regionSelect.innerHTML = '<option value="">시·도를 먼저 선택하세요</option>';
+      return;
+    }
+    regionSelect.innerHTML = '<option value="">시군구 선택</option>' +
+      names.map(name=>`<option value="${name}">${name}</option>`).join('');
+  }
+  provinceSelect.onchange = ()=>{ fillRegionSelect(provinceSelect.value); loadRegion(''); };
+  loadRegionCenters().then(()=>{
+    const provinces = [...new Set(Object.values(REGION_CENTERS).map(r=>r.province))];
+    provinces.forEach(p=>{
+      const opt = document.createElement('option');
+      opt.value = p; opt.textContent = p;
+      provinceSelect.appendChild(opt);
+    });
+  });
 
   const legendBox = document.getElementById('mapLegendBox');
   const legendEl = document.getElementById('mapLegend');
@@ -1187,8 +1170,7 @@ function initKakaoMap(){
     status.textContent = `📍 ${b.addr}` + (b.ym ? ` — ${b.ym.slice(0,4)}년 ${b.ym.slice(4)}월 기준` : '');
   }
 
-  mapRegionLoader = loadRegion;
-  initMapRegionSelectors();
+  regionSelect.onchange = ()=> loadRegion(regionSelect.value);
 
   function search(){
     const q = input.value.trim();
@@ -1285,23 +1267,12 @@ function initKakaoMap(){
 
 // Kakao SDK 로드 완료 후 지도 초기화 (지도 탭을 처음 열 때 1회)
 let kakaoMapLoaded = false;
-let kakaoMapLoadAttempts = 0;
 function ensureKakaoMap(){
   if (kakaoMapLoaded) return;
   if (typeof kakao !== 'undefined' && kakao.maps){
     kakao.maps.load(()=>{ initKakaoMap(); kakaoMapLoaded = true; });
-    return;
-  }
-  if (kakaoMapLoadAttempts++ < 20){
-    setTimeout(ensureKakaoMap, 300);
-  } else {
-    document.getElementById('mapStatus').textContent =
-      '카카오 지도 API를 불러오지 못했습니다. 카카오 개발자 콘솔의 JavaScript 키와 사이트 도메인을 확인해 주세요.';
   }
 }
-
-// 페이지가 열리면 지도 SDK 상태와 무관하게 지역 선택 메뉴부터 준비한다.
-initMapRegionSelectors();
 
 // 브이월드(VWorld) WebGL 3D 지도 초기화 (3D 지도 탭을 처음 열 때 1회)
 let vworldMapLoaded = false;
