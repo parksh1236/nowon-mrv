@@ -1,6 +1,35 @@
 const EARTH_RADIUS_M = 6_371_000;
 const radians = (degrees) => (degrees * Math.PI) / 180;
 const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
+const projectFields = ['mode', 'roof', 'exclusions', 'heightM', 'formValues', 'dirty'];
+
+export function serializeProject(state = {}) {
+  const project = {};
+  for (const field of projectFields) {
+    if (Object.hasOwn(state, field)) project[field] = state[field];
+  }
+  return JSON.stringify(project);
+}
+
+export function deserializeProject(value) {
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !Object.keys(parsed).length) return null;
+    const project = {};
+    for (const field of projectFields) {
+      if (Object.hasOwn(parsed, field)) project[field] = parsed[field];
+    }
+    return Object.keys(project).length ? project : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isInsideNowon(points) {
+  return Array.isArray(points) && points.length > 0 && points.every(({ lat, lon } = {}) => (
+    Number.isFinite(lat) && Number.isFinite(lon) && lat >= 37.58 && lat <= 37.70 && lon >= 127.00 && lon <= 127.12
+  ));
+}
 
 export function validateInputs(input = {}) {
   if (!input || typeof input !== 'object') return ['입력값이 올바르지 않습니다.'];

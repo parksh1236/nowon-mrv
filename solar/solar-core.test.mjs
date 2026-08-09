@@ -1,13 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateDetailed, calculateRough, polygonMetrics, sunPosition, validateInputs } from './solar-core.mjs';
+import {
+  calculateDetailed, calculateRough, deserializeProject, isInsideNowon, polygonMetrics, serializeProject, sunPosition, validateInputs,
+} from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
   roofAreaM2: 120, exclusionAreaM2: 20, perimeterM: 0, edgeSetbackM: 0,
   layoutRatio: 0.8, panelAreaM2: 2, panelPowerKw: 0.45,
   moduleEfficiency: 0.2, systemLossRatio: 0.15, tiltDeg: 30, azimuthDeg: 180,
   ...overrides,
+});
+
+test('project state round-trips without map objects', () => {
+  const state = { mode: 'virtual', roof: [{ lat: 37.65, lon: 127.05 }], exclusions: [], heightM: 24 };
+  assert.deepEqual(deserializeProject(serializeProject(state)), state);
+});
+
+test('project deserialization rejects malformed JSON without throwing', () => {
+  assert.equal(deserializeProject('{'), null);
+});
+
+test('Nowon boundary accepts inside points and rejects outside points', () => {
+  assert.equal(isInsideNowon([{ lat: 37.65, lon: 127.05 }]), true);
+  assert.equal(isInsideNowon([{ lat: 37.57, lon: 127.05 }]), false);
 });
 
 test('노원구 인근 10m × 11m 사각형의 면적과 둘레를 계산한다', () => {

@@ -6,39 +6,30 @@
     <title>NOWON SOLAR LAB</title>
     <style>
       :root { color-scheme: light; font-family: system-ui, sans-serif; color: #17251d; background: #f4f7f1; }
-      * { box-sizing: border-box; }
-      body { margin: 0; }
+      * { box-sizing: border-box; } body { margin: 0; }
       header { padding: 1.5rem clamp(1rem, 4vw, 3rem); background: #153d2e; color: #fff; }
-      h1, h2, p { margin: 0; }
-      h1 { font-size: clamp(1.5rem, 3vw, 2.2rem); letter-spacing: .06em; }
-      header p { margin-top: .35rem; color: #d4ead8; }
-      .notice { margin-top: .75rem; font-size: .9rem; }
+      h1, h2, p { margin: 0; } h1 { font-size: clamp(1.5rem, 3vw, 2.2rem); letter-spacing: .06em; }
+      header p { margin-top: .35rem; color: #d4ead8; } .notice { margin-top: .75rem; font-size: .9rem; }
       main { display: grid; grid-template-columns: minmax(17rem, .8fr) minmax(22rem, 1.3fr) minmax(18rem, .9fr); gap: 1rem; padding: 1rem; max-width: 1600px; margin: auto; }
-      section, form { min-width: 0; }
-      .panel { padding: 1rem; border: 1px solid #d5dfd3; border-radius: .75rem; background: #fff; box-shadow: 0 1px 2px #17251d10; }
-      fieldset { border: 0; margin: 0 0 1rem; padding: 0; }
-      legend { font-weight: 700; margin-bottom: .45rem; }
-      .choice { display: flex; gap: .9rem; flex-wrap: wrap; }
-      .choice label { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 4px; }
+      section, form { min-width: 0; } .panel { padding: 1rem; border: 1px solid #d5dfd3; border-radius: .75rem; background: #fff; box-shadow: 0 1px 2px #17251d10; }
+      fieldset { border: 0; margin: 0 0 1rem; padding: 0; } legend { font-weight: 700; margin-bottom: .45rem; }
+      .choice { display: flex; gap: .9rem; flex-wrap: wrap; } .choice label { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 4px; }
       .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
       label { display: grid; gap: .25rem; font-size: .9rem; }
-      input { width: 100%; min-height: 2.4rem; padding: .45rem; border: 1px solid #a9b8aa; border-radius: .35rem; font: inherit; }
-      input[type="radio"] { width: auto; min-height: auto; }
+      input, textarea { width: 100%; min-height: 2.4rem; padding: .45rem; border: 1px solid #a9b8aa; border-radius: .35rem; font: inherit; }
+      textarea { min-height: 6rem; resize: vertical; } input[type="radio"] { width: auto; min-height: auto; }
       button { width: 100%; margin-top: 1rem; min-height: 2.7rem; border: 0; border-radius: .35rem; background: #167044; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
-      input:focus-visible, button:focus-visible { outline: 3px solid #005a2e; outline-offset: 3px; }
+      input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 3px solid #005a2e; outline-offset: 3px; }
+      .button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; } .button-row button { margin-top: .5rem; }
+      .secondary { background: #35614b; } .geometry-list { margin: .5rem 0 0; padding-left: 1.25rem; }
       #map { min-height: 29rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
       #status { margin-top: .75rem; padding: .65rem; border-left: 4px solid #167044; background: #edf7ed; line-height: 1.45; }
-      .map-description { margin: .75rem 0 0; line-height: 1.45; }
-      #results { display: grid; gap: 1rem; }
-      .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
-      .card { padding: .8rem; border-radius: .5rem; background: #eef6ed; }
-      .card strong { display: block; margin-top: .25rem; font-size: 1.25rem; }
-      .estimate { font-size: .9rem; color: #3d4e42; }
-      .warnings { margin: 0; padding-left: 1.25rem; color: #773b16; }
-      .months { display: grid; gap: .4rem; }
+      .map-description { margin: .75rem 0 0; line-height: 1.45; } #results { display: grid; gap: 1rem; }
+      .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; } .card { padding: .8rem; border-radius: .5rem; background: #eef6ed; }
+      .card strong { display: block; margin-top: .25rem; font-size: 1.25rem; } .estimate { font-size: .9rem; color: #3d4e42; }
+      .warnings { margin: 0; padding-left: 1.25rem; color: #773b16; } .months { display: grid; gap: .4rem; }
       .month { display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: center; gap: .5rem; font-size: .9rem; }
-      .bar-track { height: .8rem; overflow: hidden; border-radius: 999px; background: #e2e9e1; }
-      .bar { height: 100%; border-radius: inherit; background: #e99b22; }
+      .bar-track { height: .8rem; overflow: hidden; border-radius: 999px; background: #e2e9e1; } .bar { height: 100%; border-radius: inherit; background: #e99b22; }
       @media (max-width: 1100px) { main { grid-template-columns: 1fr; } #map { min-height: 22rem; } }
       @media (max-width: 420px) { .fields, .cards { grid-template-columns: 1fr; } }
     </style>
@@ -47,7 +38,7 @@
     <header>
       <h1>NOWON SOLAR LAB</h1>
       <p>태양광 건축 사전분석</p>
-      <p class="notice">노원구 한정 · 결과는 사전 추정치이며 설계·인허가 확정치가 아닙니다.</p>
+      <p class="notice">노원구 설정 및 결과는 사전 추정치이며 설계·인허가 확정치가 아닙니다.</p>
     </header>
     <main>
       <section class="panel" aria-label="분석 입력">
@@ -58,6 +49,26 @@
               <label><input type="radio" name="buildingMode" value="existing" checked> 기존 건물</label>
               <label><input type="radio" name="buildingMode" value="virtual"> 가상 건물</label>
             </div>
+          </fieldset>
+          <fieldset id="existing-tools">
+            <legend>기존 건물 찾기</legend>
+            <label for="address-query">도로명 주소<input id="address-query" type="search" autocomplete="street-address"></label>
+            <div class="button-row"><button id="search-building" type="button">건물 찾기</button><button id="select-building" class="secondary" type="button">지도에서 선택</button></div>
+          </fieldset>
+          <fieldset id="virtual-tools" hidden>
+            <legend>가상 건물 지붕</legend>
+            <div class="button-row"><button id="start-roof-drawing" type="button">지붕 외곽 그리기</button><button id="undo-roof-point" class="secondary" type="button">마지막 점 취소</button><button id="finish-roof-drawing" type="button">완료</button><button id="reset-roof" class="secondary" type="button">초기화</button></div>
+          </fieldset>
+          <fieldset>
+            <legend>지붕 좌표 (한 줄에 lat, lon)</legend>
+            <label for="roof-coordinates">좌표<textarea id="roof-coordinates" placeholder="37.654, 127.056"></textarea></label>
+            <label for="building-height">건물 높이 (m)<input id="building-height" type="number" min="0" step="0.1" value="0"></label>
+          </fieldset>
+          <fieldset>
+            <legend>제외 영역</legend>
+            <label for="exclusion-coordinates">제외 좌표 (한 줄에 lat, lon)<textarea id="exclusion-coordinates" placeholder="37.654, 127.056"></textarea></label>
+            <div class="button-row"><button id="start-exclusion-drawing" type="button">제외 영역 그리기</button><button id="add-exclusion" class="secondary" type="button">제외 영역 추가</button></div>
+            <ul id="exclusion-list" class="geometry-list"></ul>
           </fieldset>
           <fieldset id="analysis-mode">
             <legend>분석 방식</legend>
@@ -75,17 +86,18 @@
             <label for="panel-area">패널 면적 (㎡)<input id="panel-area" name="panelAreaM2" type="number" min="0" step="0.01" value="2" required></label>
             <label for="panel-power">패널 정격 (kW)<input id="panel-power" name="panelPowerKw" type="number" min="0" step="0.01" value="0.45" required></label>
             <label for="efficiency">모듈 효율 (%)<input id="efficiency" name="moduleEfficiency" type="number" min="0" max="100" step="0.1" value="22.5" required></label>
-            <label for="loss">손실률 (%)<input id="loss" name="systemLossRatio" type="number" min="0" max="100" step="0.1" value="14" required></label>
+            <label for="loss">시스템 손실률 (%)<input id="loss" name="systemLossRatio" type="number" min="0" max="100" step="0.1" value="14" required></label>
             <label for="tilt">경사 (°)<input id="tilt" name="tiltDeg" type="number" min="0" max="90" step="0.1" value="20" required></label>
             <label for="azimuth">방위 (°)<input id="azimuth" name="azimuthDeg" type="number" min="0" max="360" step="0.1" value="180" required></label>
           </div>
+          <button id="save-project" class="secondary" type="button">프로젝트 저장</button>
           <button type="submit">분석 실행</button>
         </form>
       </section>
       <section class="panel" aria-labelledby="map-heading">
         <h2 id="map-heading">노원구 지도</h2>
         <div id="map" aria-describedby="map-description"></div>
-        <p id="map-description" class="map-description">지도에 접근하거나 키보드로 조작할 수 없는 경우에도 왼쪽 입력란에 값을 넣어 동일한 개략 분석을 실행할 수 있습니다.</p>
+        <p id="map-description" class="map-description">지도를 조작할 수 없는 경우에도 왼쪽 좌표와 면적을 입력하여 같은 개략 분석을 실행할 수 있습니다.</p>
         <p id="status" role="status">VWorld 지도를 준비합니다.</p>
       </section>
       <section class="panel" aria-label="분석 결과">
