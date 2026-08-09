@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NOWON SOLAR LAB</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #17251d; background: #f4f7f1; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      header { padding: 1.5rem clamp(1rem, 4vw, 3rem); background: #153d2e; color: #fff; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(1.5rem, 3vw, 2.2rem); letter-spacing: .06em; }
+      header p { margin-top: .35rem; color: #d4ead8; }
+      .notice { margin-top: .75rem; font-size: .9rem; }
+      main { display: grid; grid-template-columns: minmax(17rem, .8fr) minmax(22rem, 1.3fr) minmax(18rem, .9fr); gap: 1rem; padding: 1rem; max-width: 1600px; margin: auto; }
+      section, form { min-width: 0; }
+      .panel { padding: 1rem; border: 1px solid #d5dfd3; border-radius: .75rem; background: #fff; box-shadow: 0 1px 2px #17251d10; }
+      fieldset { border: 0; margin: 0 0 1rem; padding: 0; }
+      legend { font-weight: 700; margin-bottom: .45rem; }
+      .choice { display: flex; gap: .9rem; flex-wrap: wrap; }
+      .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+      label { display: grid; gap: .25rem; font-size: .9rem; }
+      input { width: 100%; min-height: 2.4rem; padding: .45rem; border: 1px solid #a9b8aa; border-radius: .35rem; font: inherit; }
+      input[type="radio"] { width: auto; min-height: auto; }
+      button { width: 100%; margin-top: 1rem; min-height: 2.7rem; border: 0; border-radius: .35rem; background: #167044; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+      input:focus-visible, button:focus-visible { outline: 3px solid #e99b22; outline-offset: 2px; }
+      #map { min-height: 29rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
+      #status { margin-top: .75rem; padding: .65rem; border-left: 4px solid #167044; background: #edf7ed; line-height: 1.45; }
+      #results { display: grid; gap: 1rem; }
+      .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+      .card { padding: .8rem; border-radius: .5rem; background: #eef6ed; }
+      .card strong { display: block; margin-top: .25rem; font-size: 1.25rem; }
+      .estimate { font-size: .9rem; color: #3d4e42; }
+      .warnings { margin: 0; padding-left: 1.25rem; color: #773b16; }
+      .months { display: grid; gap: .4rem; }
+      .month { display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: center; gap: .5rem; font-size: .9rem; }
+      .bar-track { height: .8rem; overflow: hidden; border-radius: 999px; background: #e2e9e1; }
+      .bar { height: 100%; border-radius: inherit; background: #e99b22; }
+      @media (max-width: 1100px) { main { grid-template-columns: 1fr; } #map { min-height: 22rem; } }
+      @media (max-width: 420px) { .fields, .cards { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>NOWON SOLAR LAB</h1>
+      <p>태양광 건축 사전분석</p>
+      <p class="notice">노원구 한정 · 결과는 사전 추정치이며 설계·인허가 확정치가 아닙니다.</p>
+    </header>
+    <main>
+      <section class="panel" aria-label="분석 입력">
+        <form id="analysis-form">
+          <fieldset id="building-mode">
+            <legend>건물 유형</legend>
+            <div class="choice">
+              <label><input type="radio" name="buildingMode" value="existing" checked> 기존 건물</label>
+              <label><input type="radio" name="buildingMode" value="virtual"> 가상 건물</label>
+            </div>
+          </fieldset>
+          <fieldset id="analysis-mode">
+            <legend>분석 방식</legend>
+            <div class="choice">
+              <label><input type="radio" name="analysisMode" value="rough" checked> 개략 분석</label>
+              <label><input type="radio" name="analysisMode" value="detailed"> 정밀 분석</label>
+            </div>
+          </fieldset>
+          <div class="fields">
+            <label for="roof-area">지붕면적 (㎡)<input id="roof-area" name="roofAreaM2" type="number" min="0" step="0.1" value="120" required></label>
+            <label for="exclusion-area">제외면적 (㎡)<input id="exclusion-area" name="exclusionAreaM2" type="number" min="0" step="0.1" value="20" required></label>
+            <label for="perimeter">둘레 (m)<input id="perimeter" name="perimeterM" type="number" min="0" step="0.1" value="42" required></label>
+            <label for="setback">이격거리 (m)<input id="setback" name="edgeSetbackM" type="number" min="0" step="0.1" value="0.5" required></label>
+            <label for="layout">배치율 (%)<input id="layout" name="layoutRatio" type="number" min="0" max="100" step="0.1" value="80" required></label>
+            <label for="panel-area">패널 면적 (㎡)<input id="panel-area" name="panelAreaM2" type="number" min="0" step="0.01" value="2" required></label>
+            <label for="panel-power">패널 정격 (kW)<input id="panel-power" name="panelPowerKw" type="number" min="0" step="0.01" value="0.45" required></label>
+            <label for="efficiency">모듈 효율 (%)<input id="efficiency" name="moduleEfficiency" type="number" min="0" max="100" step="0.1" value="22.5" required></label>
+            <label for="loss">손실률 (%)<input id="loss" name="systemLossRatio" type="number" min="0" max="100" step="0.1" value="14" required></label>
+            <label for="tilt">경사 (°)<input id="tilt" name="tiltDeg" type="number" min="0" max="90" step="0.1" value="20" required></label>
+            <label for="azimuth">방위 (°)<input id="azimuth" name="azimuthDeg" type="number" min="0" max="360" step="0.1" value="180" required></label>
+          </div>
+          <button type="submit">분석 실행</button>
+        </form>
+      </section>
+      <section class="panel" aria-label="노원구 지도">
+        <div id="map" aria-label="노원구 VWorld 지도"></div>
+        <p id="status" role="status">VWorld 지도를 준비합니다.</p>
+      </section>
+      <section class="panel" aria-label="분석 결과">
+        <h2>분석 결과</h2>
+        <div id="results" aria-live="polite"><div id="monthly-chart" aria-label="월별 예상 발전량"></div></div>
+      </section>
+    </main>
+    <script src="./config.example.js"></script>
+    <script src="./config.local.js" onerror="this.remove()"></script>
+    <script type="module" src="./app.mjs"></script>
+  </body>
+</html>

@@ -5,3 +5,4 @@
 .DS_Store
 .superpowers/
 .worktrees/
+solar/config.local.js
