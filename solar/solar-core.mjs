@@ -3,6 +3,7 @@ const radians = (degrees) => (degrees * Math.PI) / 180;
 const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
 
 export function validateInputs(input = {}) {
+  if (!input || typeof input !== 'object') return ['입력값이 올바르지 않습니다.'];
   const warnings = [];
   if (!(input.roofAreaM2 > 0)) warnings.push('지붕 면적은 0보다 커야 합니다.');
   if (!(input.exclusionAreaM2 >= 0)) warnings.push('제외 면적은 0 이상이어야 합니다.');
@@ -12,6 +13,11 @@ export function validateInputs(input = {}) {
   if (!(input.panelPowerKw > 0)) warnings.push('패널 정격용량은 0보다 커야 합니다.');
   if (!(input.moduleEfficiency > 0 && input.moduleEfficiency <= 1)) warnings.push('모듈 효율은 0보다 크고 1 이하여야 합니다.');
   if (!(input.systemLossRatio >= 0 && input.systemLossRatio < 1)) warnings.push('시스템 손실률은 0 이상 1 미만이어야 합니다.');
+  if (!Number.isFinite(input.tiltDeg) || input.tiltDeg < 0 || input.tiltDeg > 90) warnings.push('경사각은 0도 이상 90도 이하여야 합니다.');
+  if (!Number.isFinite(input.azimuthDeg) || input.azimuthDeg < 0 || input.azimuthDeg > 360) warnings.push('방위각은 0도 이상 360도 이하여야 합니다.');
+  if (input.exclusionAreaM2 > input.roofAreaM2) warnings.push('제외 면적이 지붕 면적보다 큽니다.');
+  const edgeArea = Math.max(0, input.perimeterM * input.edgeSetbackM - Math.PI * input.edgeSetbackM ** 2);
+  if (input.exclusionAreaM2 + edgeArea >= input.roofAreaM2) warnings.push('제외 면적과 가장자리 이격 면적이 지붕 면적 이상입니다.');
   return warnings;
 }
 

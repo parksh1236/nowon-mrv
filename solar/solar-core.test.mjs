@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateDetailed, calculateRough, polygonMetrics, sunPosition } from './solar-core.mjs';
+import { calculateDetailed, calculateRough, polygonMetrics, sunPosition, validateInputs } from './solar-core.mjs';
+
+const validInput = (overrides = {}) => ({
+  roofAreaM2: 120, exclusionAreaM2: 20, perimeterM: 0, edgeSetbackM: 0,
+  layoutRatio: 0.8, panelAreaM2: 2, panelPowerKw: 0.45,
+  moduleEfficiency: 0.2, systemLossRatio: 0.15, tiltDeg: 30, azimuthDeg: 180,
+  ...overrides,
+});
 
 test('노원구 인근 10m × 11m 사각형의 면적과 둘레를 계산한다', () => {
   const metrics = polygonMetrics([
@@ -90,4 +97,29 @@ test('기후 품질 경고는 발전량 계산을 막지 않는다', () => {
 
   assert.equal(result.panelCount, 40);
   assert.ok(result.warnings.some((warning) => warning.includes('기후 데이터 품질')));
+});
+
+test('null 입력은 개략·정밀 계산에서 0 결과와 경고를 반환한다', () => {
+  for (const result of [calculateRough(null, { months: [] }), calculateDetailed(null, { months: [] }, [])]) {
+    assert.equal(result.panelCount, 0);
+    assert.ok(result.warnings.length > 0);
+  }
+});
+
+test('유효하지 않은 경사·방위각은 NaN 발전량 대신 0 결과와 경고를 반환한다', () => {
+  for (const input of [
+    validInput({ tiltDeg: Number.NaN }),
+    validInput({ tiltDeg: 91 }),
+    validInput({ azimuthDeg: -1 }),
+    validInput({ azimuthDeg: 361 }),
+  ]) {
+    const result = calculateRough(input, { months: [{ month: 6, dailyGhiKwhM2: 4.6, days: 30 }] });
+    assert.equal(result.annualKwh, 0);
+    assert.ok(result.warnings.length > 0);
+  }
+});
+
+test('제외면적과 가장자리 이격이 지붕 면적을 넘으면 관계 경고를 반환한다', () => {
+  assert.ok(validateInputs(validInput({ exclusionAreaM2: 121 })).length > 0);
+  assert.ok(validateInputs(validInput({ perimeterM: 100, edgeSetbackM: 2 })).length > 0);
 });
