@@ -1,0 +1,23 @@
+{
+  "region": "서울특별시 노원구",
+  "latitude": 37.654,
+  "longitude": 127.056,
+  "source": "기상청 위성기반 태양광 기상자원지도 2020-2024 평균",
+  "sourceUrl": "https://data.kma.go.kr/data/weatherResourceMap/selectWeatherResourceMapSlaNew.do?pgmNo=756&srt=ANN",
+  "quality": "prototype-calibration-required",
+  "diffuseFraction": 0.2,
+  "months": [
+    { "month": 1, "dailyGhiKwhM2": 2.13, "days": 31 },
+    { "month": 2, "dailyGhiKwhM2": 2.99, "days": 28 },
+    { "month": 3, "dailyGhiKwhM2": 3.91, "days": 31 },
+    { "month": 4, "dailyGhiKwhM2": 4.77, "days": 30 },
+    { "month": 5, "dailyGhiKwhM2": 5.30, "days": 31 },
+    { "month": 6, "dailyGhiKwhM2": 4.60, "days": 30 },
+    { "month": 7, "dailyGhiKwhM2": 3.55, "days": 31 },
+    { "month": 8, "dailyGhiKwhM2": 4.06, "days": 31 },
+    { "month": 9, "dailyGhiKwhM2": 3.77, "days": 30 },
+    { "month": 10, "dailyGhiKwhM2": 3.46, "days": 31 },
+    { "month": 11, "dailyGhiKwhM2": 2.31, "days": 30 },
+    { "month": 12, "dailyGhiKwhM2": 1.89, "days": 31 }
+  ]
+}
