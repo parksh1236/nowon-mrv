@@ -198,6 +198,10 @@
             <div class="ic-value" id="infoBuildingType">-</div>
             <div class="ic-sub" id="infoBuildingSub">총괄표제부(건축물대장) 자료 — 지역별 수동 확보</div>
           </div>
+          <div class="infocard" id="infoDetailCard" style="display:none">
+            <div class="ic-label">건축 개요</div>
+            <table class="dt" id="infoDetailTable" style="margin-top:6px"></table>
+          </div>
           <div class="infocard">
             <div class="ic-label">전기 사용량</div>
             <div class="ic-value" id="infoElectric">-</div>
@@ -210,6 +214,11 @@
           </div>
         </div>
         <div class="dnote" id="mapInfoEmpty">지도에서 건물 점을 클릭하거나 주소를 검색하면 여기에 상세정보가 표시됩니다.</div>
+        <div id="usageChartBox" style="display:none;margin-top:14px">
+          <div class="sidebox-title">월별 사용량 추이</div>
+          <div id="usageChart"></div>
+          <table class="dt" id="usageTable" style="margin-top:6px;font-size:11px"></table>
+        </div>
       </div>
     </div>
   </section>
@@ -881,6 +890,55 @@ function recentYearMonths(n){
   return list;
 }
 
+// 2026년 1월부터 이번 달까지의 YYYYMM 목록 (오름차순) — 월별 추이 조회용
+function monthsFromJan2026(){
+  const now = new Date();
+  const curYm = now.getFullYear()*100 + (now.getMonth()+1);
+  const list = [];
+  for (let y=2026, m=1; y*100+m <= curYm; m++){
+    if (m>12){ m=1; y++; }
+    list.push(`${y}${String(m).padStart(2,'0')}`);
+  }
+  return list;
+}
+
+// 건물 하나의 2026.01~현재 월별 전기·가스 사용량 시계열 조회
+async function fetchMonthlySeries(sigunguCd, bjdongCd, bun, ji){
+  const months = monthsFromJan2026();
+  return Promise.all(months.map(async ym=>{
+    const [e, g] = await Promise.all([
+      fetchBeUsage('getBeElctyUsgInfo', sigunguCd, bjdongCd, bun, ji, ym),
+      fetchBeUsage('getBeGasUsgInfo', sigunguCd, bjdongCd, bun, ji, ym)
+    ]);
+    return { ym, elec: e.found ? Number(e.useQty) : null, gas: g.found ? Number(g.useQty) : null };
+  }));
+}
+
+// 월별 시계열을 우측 패널에 막대그래프(SVG) + 표로 렌더링
+function renderUsageChart(rows){
+  const box = document.getElementById('usageChartBox');
+  if (!rows || !rows.some(r=>r.elec!=null || r.gas!=null)){ box.style.display='none'; return; }
+  box.style.display = 'block';
+  const maxV = Math.max(1, ...rows.map(r=>Math.max(r.elec||0, r.gas||0)));
+  const barW=8, gap=6, H=90;
+  const chartW = rows.length*(barW*2+gap);
+  let svg = `<svg viewBox="0 0 ${chartW} ${H+16}" width="100%" preserveAspectRatio="xMinYMid meet">`;
+  rows.forEach((r,i)=>{
+    const x = i*(barW*2+gap);
+    const eh = r.elec!=null ? Math.max(1, r.elec/maxV*H) : 0;
+    const gh = r.gas!=null ? Math.max(1, r.gas/maxV*H) : 0;
+    if (r.elec!=null) svg += `<rect x="${x}" y="${H-eh}" width="${barW}" height="${eh}" fill="#1c1a15"><title>${r.ym} 전기 ${r.elec.toLocaleString()}kWh</title></rect>`;
+    if (r.gas!=null) svg += `<rect x="${x+barW}" y="${H-gh}" width="${barW}" height="${gh}" fill="#9c7a3e"><title>${r.ym} 가스 ${r.gas.toLocaleString()}kWh</title></rect>`;
+    svg += `<text x="${x+barW}" y="${H+12}" font-size="7" text-anchor="middle" fill="#7a7360">${r.ym.slice(4)}월</text>`;
+  });
+  svg += `</svg><div class="dnote"><span style="color:#1c1a15">■</span> 전기 &nbsp;<span style="color:#9c7a3e">■</span> 가스</div>`;
+  document.getElementById('usageChart').innerHTML = svg;
+  document.getElementById('usageTable').innerHTML =
+    `<thead><tr><th>월</th><th>전기(kWh)</th><th>가스(kWh)</th></tr></thead><tbody>` +
+    rows.map(r=>`<tr><td>${r.ym.slice(0,4)}.${r.ym.slice(4)}</td><td>${r.elec!=null?r.elec.toLocaleString():'-'}</td><td>${r.gas!=null?r.gas.toLocaleString():'-'}</td></tr>`).join('') +
+    `</tbody>`;
+}
+
 // 공공데이터포털 API 공통 호출 — 응답이 JSON이 아니면(Forbidden 등) 에러로 처리
 async function callDataGoKr(url){
   const res = await fetch(url);
@@ -904,10 +962,10 @@ async function fetchBeUsage(op, sigunguCd, bjdongCd, bun, ji, useYm){
   return { found:true, useQty:item.useQty };
 }
 
-// 시군구코드별 총괄표제부(건물유형) 로컬 자료 — 공공데이터포털 건축물대장 API(BldRgstHubService)가
-// 계속 Forbidden을 반환해, hub.go.kr에서 수동 다운로드한 총괄표제부 CSV를 구글드라이브에서
-// data/building/<시군구코드>.json (배열 압축 포맷: [법정동코드,번,지,주용도명,기타용도,세대수])으로
-// 변환해 배치하는 방식으로 완전히 대체함. 다운로드된 시군구만 지원됨.
+// 시군구코드별 총괄표제부(건물유형) 로컬 자료 — 예전에 BldRgstHubService가 계속 Forbidden을
+// 반환해 hub.go.kr 수동 다운로드로 대체했던 흔적. 지금은 라이브 API가 정상 동작해 fetchBuildingType이
+// 우선 라이브로 조회하고, 실패할 때만 이 로컬 파일로 보조한다.
+// data/building/<시군구코드>.json (배열 압축 포맷: [법정동코드,번,지,주용도명,기타용도,세대수])
 const buildingLocalCache = {};
 async function loadBuildingLocal(sigunguCd){
   if (buildingLocalCache[sigunguCd] !== undefined) return buildingLocalCache[sigunguCd];
@@ -920,12 +978,56 @@ async function loadBuildingLocal(sigunguCd){
   } catch(e){ buildingLocalCache[sigunguCd] = null; return null; }
 }
 
+const BLDRGST_BASE = 'https://apis.data.go.kr/1613000/BldRgstHubService';
+
+function yyyymmdd(s){
+  if (!s || s.trim().length !== 8) return null;
+  return `${s.slice(0,4)}.${s.slice(4,6)}.${s.slice(6,8)}`;
+}
+
+// 건물 상세정보(용도·건축연도·층수·면적·세대수) — 표제부(개별 건물) + 총괄표제부(대지 전체) 라이브 조회,
+// 실패 시 로컬 캐시로 보조
 async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji){
+  try {
+    const qs = `serviceKey=${DATA_GO_KR_KEY}&sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}&_type=json&numOfRows=5&pageNo=1`;
+    const [titleR, recapR] = await Promise.all([
+      callDataGoKr(`${BLDRGST_BASE}/getBrTitleInfo?${qs}`),
+      callDataGoKr(`${BLDRGST_BASE}/getBrRecapTitleInfo?${qs}`)
+    ]);
+    const titleBody = titleR.ok && titleR.data.response && titleR.data.response.body;
+    const recapBody = recapR.ok && recapR.data.response && recapR.data.response.body;
+    let titleItem = null;
+    if (titleBody && Number(titleBody.totalCount)){
+      let items = titleBody.items.item;
+      if (!Array.isArray(items)) items = [items];
+      titleItem = items.find(it=>it.mainAtchGbCd==='0') || items[0];
+    }
+    let recapItem = null;
+    if (recapBody && Number(recapBody.totalCount)){
+      let items = recapBody.items.item;
+      if (!Array.isArray(items)) items = [items];
+      recapItem = items[0];
+    }
+    if (titleItem || recapItem){
+      const src = titleItem || recapItem;
+      return {
+        found: true, source: 'live',
+        mainPurpsCdNm: src.mainPurpsCdNm, etcPurps: src.etcPurps,
+        useAprDay: yyyymmdd(titleItem ? titleItem.useAprDay : null),
+        grndFlrCnt: titleItem ? Number(titleItem.grndFlrCnt) : null,
+        ugrndFlrCnt: titleItem ? Number(titleItem.ugrndFlrCnt) : null,
+        totArea: Number(src.totArea) || null,
+        archArea: Number(src.archArea) || null,
+        hhldCnt: Number((recapItem && recapItem.hhldCnt) || (titleItem && titleItem.hhldCnt)) || null
+      };
+    }
+  } catch(e){ /* 라이브 실패 시 로컬로 폴백 */ }
+
   const local = await loadBuildingLocal(sigunguCd);
   if (!local) return { found:false };
   const match = local.find(row => row[0] === bjdongCd && row[1] === bun && row[2] === ji);
   if (!match) return { found:false };
-  return { found:true, mainPurpsCdNm:match[3], etcPurps:match[4], houseHold:match[5], source:'local' };
+  return { found:true, mainPurpsCdNm:match[3], etcPurps:match[4], hhldCnt:match[5], source:'local' };
 }
 
 // 건물별 사용량(전기·가스) 표본 데이터가 준비된 지역 (시군구코드 → 데이터파일)
@@ -1178,6 +1280,13 @@ function initKakaoMap(){
     document.getElementById('infoGas').textContent = b.gas != null ? `${Number(b.gas).toLocaleString()} kWh` : '자료 없음';
     document.getElementById('infoBuildingSub').textContent = '총괄표제부(건축물대장) 자료 — 지역별 수동 확보';
     status.textContent = `📍 ${b.addr}` + (b.ym ? ` — ${b.ym.slice(0,4)}년 ${b.ym.slice(4)}월 기준` : '');
+    if (b.sigunguCd && b.bjdongCd && b.bun && b.ji){
+      document.getElementById('usageChart').innerHTML = '조회 중…';
+      document.getElementById('usageChartBox').style.display = 'block';
+      fetchMonthlySeries(b.sigunguCd, b.bjdongCd, b.bun, b.ji).then(renderUsageChart);
+    } else {
+      document.getElementById('usageChartBox').style.display = 'none';
+    }
   }
 
   regionSelect.onchange = ()=> loadRegion(regionSelect.value);
@@ -1232,6 +1341,7 @@ function initKakaoMap(){
     elBType.textContent = '조회 중…';
     elElec.textContent = '조회 중…';
     elGas.textContent = '조회 중…';
+    document.getElementById('usageChartBox').style.display = 'none';
 
     const addr = r.address; // 지번 주소 상세 (b_code, main_address_no, sub_address_no)
     if (!addr || !addr.b_code){
@@ -1246,11 +1356,27 @@ function initKakaoMap(){
     const bun = String(addr.main_address_no || '0').padStart(4,'0');
     const ji = String(addr.sub_address_no || '0').padStart(4,'0');
 
-    // 건축물대장(건물 용도) 조회
+    // 건축물대장(건물 용도·건축연도·층수·면적·세대수) 조회
+    const detailCard = document.getElementById('infoDetailCard');
+    const detailTable = document.getElementById('infoDetailTable');
+    detailCard.style.display = 'none';
     try {
       const bt = await fetchBuildingType(sigunguCd, bjdongCd, bun, ji);
-      if (bt.found) elBType.textContent = bt.mainPurpsCdNm + (bt.etcPurps ? ` (${bt.etcPurps})` : '');
-      else elBType.textContent = '자료 없음 (다운로드된 지역이 아니거나 등록되지 않은 필지)';
+      if (bt.found){
+        elBType.textContent = bt.mainPurpsCdNm + (bt.etcPurps ? ` (${bt.etcPurps})` : '');
+        const rows = [];
+        if (bt.useAprDay) rows.push(['건축연도(사용승인)', bt.useAprDay]);
+        if (bt.grndFlrCnt != null) rows.push(['층수', `지상 ${bt.grndFlrCnt}층` + (bt.ugrndFlrCnt ? ` · 지하 ${bt.ugrndFlrCnt}층` : '')]);
+        if (bt.totArea != null) rows.push(['연면적', `${bt.totArea.toLocaleString()} ㎡`]);
+        if (bt.archArea != null) rows.push(['건축면적', `${bt.archArea.toLocaleString()} ㎡`]);
+        if (bt.hhldCnt) rows.push(['세대수', `${bt.hhldCnt.toLocaleString()}세대`]);
+        if (rows.length){
+          detailTable.innerHTML = '<tbody>' + rows.map(([k,v])=>`<tr><th style="width:44%">${k}</th><td>${v}</td></tr>`).join('') + '</tbody>';
+          detailCard.style.display = 'block';
+        }
+      } else {
+        elBType.textContent = '자료 없음 (등록되지 않은 필지)';
+      }
     } catch(e){ elBType.textContent = '조회 실패'; }
 
     // 전기·가스 사용량 조회 — 최근 12개월 중 데이터가 있는 최신 월 탐색
@@ -1269,6 +1395,11 @@ function initKakaoMap(){
     status.textContent = foundYm
       ? `📍 ${label} — 전기·가스 사용량은 ${foundYm.slice(0,4)}년 ${foundYm.slice(4)}월 기준 (단독주택·소규모 공동주택 등 일부 건물은 제외될 수 있음)`
       : `📍 ${label} — 최근 12개월 내 전기·가스 사용량 자료를 찾지 못했습니다.`;
+
+    // 2026.01~현재 월별 추이
+    document.getElementById('usageChart').innerHTML = '월별 추이 조회 중…';
+    document.getElementById('usageChartBox').style.display = 'block';
+    fetchMonthlySeries(sigunguCd, bjdongCd, bun, ji).then(renderUsageChart);
   }
 
   document.getElementById('mapSearchBtn').onclick = search;
