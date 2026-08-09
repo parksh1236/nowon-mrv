@@ -61,7 +61,8 @@
           </fieldset>
           <fieldset>
             <legend>지붕 좌표 (한 줄에 lat, lon)</legend>
-            <label for="roof-coordinates">좌표<textarea id="roof-coordinates" placeholder="37.654, 127.056"></textarea></label>
+            <label for="roof-coordinates">좌표<textarea id="roof-coordinates" aria-describedby="roof-coordinates-error" placeholder="37.654, 127.056"></textarea></label>
+            <p id="roof-coordinates-error" role="alert" hidden></p>
             <label for="building-height">건물 높이 (m)<input id="building-height" type="number" min="0" step="0.1" value="0"></label>
           </fieldset>
           <fieldset>

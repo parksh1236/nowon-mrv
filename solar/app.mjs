@@ -5,6 +5,7 @@ const form = document.querySelector('#analysis-form');
 const status = document.querySelector('#status');
 const results = document.querySelector('#results');
 const roofCoordinates = document.querySelector('#roof-coordinates');
+const roofCoordinatesError = document.querySelector('#roof-coordinates-error');
 const exclusionCoordinates = document.querySelector('#exclusion-coordinates');
 const heightInput = document.querySelector('#building-height');
 const exclusionList = document.querySelector('#exclusion-list');
@@ -75,6 +76,17 @@ function updateMetrics() {
   form.elements.exclusionAreaM2.value = exclusionAreaM2.toFixed(1);
 }
 
+function clearRoofMetrics() {
+  form.elements.roofAreaM2.value = '0';
+  form.elements.perimeterM.value = '0';
+}
+
+function setRoofCoordinatesError(message = '') {
+  roofCoordinates.toggleAttribute('aria-invalid', Boolean(message));
+  roofCoordinatesError.hidden = !message;
+  roofCoordinatesError.textContent = message;
+}
+
 function getViewer() {
   return mapInstance?.getCesiumViewer?.() ?? window.ws3d?.viewer;
 }
@@ -110,8 +122,9 @@ function renderExclusions() {
   state.exclusions.forEach((points, index) => {
     const metrics = polygonMetrics(points);
     const item = element('li');
-    const remove = element('button', '제거', 'secondary');
+    const remove = element('button', `제외 영역 ${index + 1} 제거`, 'secondary');
     remove.type = 'button';
+    remove.dataset.exclusionIndex = index;
     remove.addEventListener('click', () => {
       state.exclusions.splice(index, 1);
       updateMetrics();
@@ -119,6 +132,8 @@ function renderExclusions() {
       renderMapShapes();
       markDirty();
       runAnalysis('rough');
+      (exclusionList.querySelector(`[data-exclusion-index="${index}"]`) ?? exclusionCoordinates).focus();
+      setStatus(`제외 영역 ${index + 1}을 제거했습니다.`);
     });
     item.append(`${index + 1}: ${metrics.areaM2.toFixed(1)}㎡ `, remove);
     exclusionList.append(item);
@@ -136,6 +151,7 @@ export function setRoofPolygon(points) {
   }
   state.roof = points.map(({ lat, lon }) => ({ lat, lon }));
   roofCoordinates.value = pointsToText(state.roof);
+  setRoofCoordinatesError();
   updateMetrics();
   renderMapShapes();
   markDirty();
@@ -171,6 +187,8 @@ export function setBuildingMode(mode) {
   if (!['existing', 'virtual'].includes(mode) || mode === state.mode) return false;
   if (state.dirty && !window.confirm('저장하지 않은 변경사항을 지우시겠습니까?')) {
     updateModeTools();
+    form.querySelector(`input[name="buildingMode"][value="${state.mode}"]`).focus();
+    setStatus(`모드 전환을 취소했습니다. 현재 모드는 ${state.mode === 'existing' ? '기존 건물' : '가상 건물'}입니다.`);
     return false;
   }
   state.mode = mode;
@@ -462,9 +480,17 @@ form.addEventListener('input', (event) => {
 form.querySelectorAll('input[name="buildingMode"]').forEach((control) => control.addEventListener('change', () => setBuildingMode(control.value)));
 roofCoordinates.addEventListener('input', () => {
   const points = parsePoints(roofCoordinates.value);
-  if (points === null) return setStatus('좌표는 한 줄에 lat, lon 형식으로 입력하세요.');
-  state.roof = points;
-  if (validPolygon(points)) {
+  const error = points === null
+    ? '좌표는 한 줄에 lat, lon 형식으로 입력하세요.'
+    : !validPolygon(points) ? '지붕은 노원구 범위 안의 좌표 3개 이상으로 입력하세요.' : '';
+  if (error) {
+    state.roof = [];
+    clearRoofMetrics();
+    setRoofCoordinatesError(error);
+    setStatus(error);
+  } else {
+    state.roof = points;
+    setRoofCoordinatesError();
     updateMetrics();
     runAnalysis('rough');
   }
