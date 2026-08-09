@@ -111,8 +111,10 @@
   .calcdel:hover { opacity:.7; }
 
   /* ── 탭M: 탄소중립 지도 ────────────────── */
+  .card.mapcard { max-width:1600px; width:calc(100vw - 32px); margin-left:calc(50% - 50vw + 16px); margin-right:calc(50% - 50vw + 16px); }
   .maplayout { display:flex; gap:16px; align-items:flex-start; margin-top:14px; }
   .mapside { flex:0 0 268px; display:flex; flex-direction:column; gap:14px; }
+  .mapside.mapinfo-side { flex-basis:300px; }
   .mapmain { flex:1; min-width:0; }
   .sidebox { background:#f6f0e2; border:1px solid #ddd3ba; border-radius:10px; padding:14px; }
   .sidebox-title { font-size:12.5px; font-weight:800; color:#1c1a15; margin-bottom:8px; }
@@ -126,7 +128,7 @@
   .mapsearchrow button { padding:9px 16px; font-size:13px; font-weight:700; border:none; border-radius:8px; background:#1c1a15; color:#fff; cursor:pointer; }
   #kakaoMap { width:100%; height:calc(100vh - 210px); min-height:520px; border-radius:10px; background:#ddd3ba; }
   .infopanel { margin-top:12px; }
-  .infogrid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:10px; }
+  .infogrid { display:grid; grid-template-columns:1fr; gap:12px; margin-top:10px; }
   .infocard { background:#f6f0e2; border:1px solid #ddd3ba; border-top:4px solid #9c7a3e; border-radius:10px; padding:14px; }
   .infocard .ic-label { font-size:12px; color:#7a7360; font-weight:700; }
   .infocard .ic-value { font-size:20px; font-weight:800; color:#1c1a15; margin-top:4px; }
@@ -134,7 +136,7 @@
   .bldg-dot { width:14px; height:14px; border-radius:50%; border:1.5px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.35); cursor:pointer; }
   .bldg-pop { background:#fff; border:1px solid #ddd3ba; border-radius:10px; padding:10px 13px; font-size:12px; line-height:1.6; box-shadow:0 4px 16px rgba(0,0,0,.18); min-width:190px; }
   .bldg-pop b { color:#1c1a15; }
-  @media (max-width:820px){ .maplayout { flex-direction:column; } .mapside { flex:none; width:100%; } .mapmain { width:100%; } .infogrid { grid-template-columns:1fr; } }
+  @media (max-width:1100px){ .maplayout { flex-direction:column; } .mapside { flex:none; width:100%; } .mapmain { width:100%; } }
 </style>
 </head>
 <body>
@@ -156,7 +158,7 @@
 
 <!-- ══════════ 탭M: 탄소중립 지도 ══════════ -->
 <div id="tMap" class="tabpane">
-  <section class="card">
+  <section class="card mapcard">
     <h2>🌍 탄소중립 지도</h2>
     <div class="cpsub">지역을 선택하면 건물별 전기·가스 사용량을 지도에 표시하고, 주소를 검색하면 개별 건물 정보를 조회합니다</div>
     <div class="maplayout">
@@ -186,26 +188,28 @@
       </div>
       <div class="mapmain">
         <div id="kakaoMap"></div>
-        <div class="infopanel">
-          <div class="dnote" id="mapStatus">지역을 선택하거나 주소를 검색해 보세요.</div>
-          <div class="infogrid" id="mapInfoGrid" style="display:none">
-            <div class="infocard">
-              <div class="ic-label">건물 용도</div>
-              <div class="ic-value" id="infoBuildingType">-</div>
-              <div class="ic-sub" id="infoBuildingSub">총괄표제부(건축물대장) 자료 — 지역별 수동 확보</div>
-            </div>
-            <div class="infocard">
-              <div class="ic-label">전기 사용량</div>
-              <div class="ic-value" id="infoElectric">-</div>
-              <div class="ic-sub">공공데이터포털 건물에너지 API</div>
-            </div>
-            <div class="infocard">
-              <div class="ic-label">가스 사용량</div>
-              <div class="ic-value" id="infoGas">-</div>
-              <div class="ic-sub">공공데이터포털 건물에너지 API</div>
-            </div>
+        <div class="dnote" id="mapStatus" style="margin-top:10px">지역을 선택하거나 주소를 검색해 보세요.</div>
+      </div>
+      <div class="mapside mapinfo-side">
+        <div class="sidebox-title" style="margin:0 0 4px 2px">건물 상세정보</div>
+        <div class="infogrid" id="mapInfoGrid" style="display:none">
+          <div class="infocard">
+            <div class="ic-label">건물 용도</div>
+            <div class="ic-value" id="infoBuildingType">-</div>
+            <div class="ic-sub" id="infoBuildingSub">총괄표제부(건축물대장) 자료 — 지역별 수동 확보</div>
+          </div>
+          <div class="infocard">
+            <div class="ic-label">전기 사용량</div>
+            <div class="ic-value" id="infoElectric">-</div>
+            <div class="ic-sub">공공데이터포털 건물에너지 API</div>
+          </div>
+          <div class="infocard">
+            <div class="ic-label">가스 사용량</div>
+            <div class="ic-value" id="infoGas">-</div>
+            <div class="ic-sub">공공데이터포털 건물에너지 API</div>
           </div>
         </div>
+        <div class="dnote" id="mapInfoEmpty">지도에서 건물 점을 클릭하거나 주소를 검색하면 여기에 상세정보가 표시됩니다.</div>
       </div>
     </div>
   </section>
@@ -975,6 +979,11 @@ function initKakaoMap(){
   const input = document.getElementById('mapAddrInput');
   const status = document.getElementById('mapStatus');
   const grid = document.getElementById('mapInfoGrid');
+  const infoEmpty = document.getElementById('mapInfoEmpty');
+  function setInfoVisible(on){
+    grid.style.display = on ? 'grid' : 'none';
+    infoEmpty.style.display = on ? 'none' : 'block';
+  }
 
   // ── 지역 선택: 시·도 → 시군구 2단 선택 (data/region_centers.json 기준) ──
   const provinceSelect = document.getElementById('mapProvinceSelect');
@@ -1096,7 +1105,7 @@ function initKakaoMap(){
     clearOverlays();
     currentBuildings = [];
     currentRegion = null;
-    grid.style.display = 'none';
+    setInfoVisible(false);
     const center = REGION_CENTERS[name];
     if (!center){
       document.getElementById('mapStatBox').style.display = 'none';
@@ -1163,7 +1172,7 @@ function initKakaoMap(){
   }
 
   function showBuildingInfo(b){
-    grid.style.display = 'grid';
+    setInfoVisible(true);
     document.getElementById('infoBuildingType').textContent = b.type ? (b.type + (b.etc ? ` (${b.etc})` : '')) : '자료 없음';
     document.getElementById('infoElectric').textContent = b.elec != null ? `${Number(b.elec).toLocaleString()} kWh` : '자료 없음';
     document.getElementById('infoGas').textContent = b.gas != null ? `${Number(b.gas).toLocaleString()} kWh` : '자료 없음';
@@ -1196,7 +1205,7 @@ function initKakaoMap(){
             });
           } else {
             status.textContent = `"${q}"에 대한 검색 결과를 찾지 못했습니다.`;
-            grid.style.display = 'none';
+            setInfoVisible(false);
           }
         });
       }
@@ -1216,7 +1225,7 @@ function initKakaoMap(){
 
   // 건물 용도(건축물대장)·전기·가스 사용량 조회
   async function loadBuildingGasElectric(r, label){
-    grid.style.display = 'grid';
+    setInfoVisible(true);
     const elBType = document.getElementById('infoBuildingType');
     const elElec = document.getElementById('infoElectric');
     const elGas = document.getElementById('infoGas');
