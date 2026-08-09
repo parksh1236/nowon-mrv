@@ -928,7 +928,8 @@ async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji){
 // 선택 가능한 전체 지역 목록은 data/region_centers.json 기준이며, 여기 없는 지역은
 // 공식 목표/전망 배출량만 표시하고 건물별 점은 표시하지 않음
 const ENERGY_MAP_REGIONS = {
-  '11680': { file:'data/energy/11680.json' }
+  '11680': { file:'data/energy/11680.json' },
+  '11350': { file:'data/energy/11350.json' }
 };
 
 // 온실가스 배출계수 (mrv.json 감축량 계산기와 동일한 전력배출계수 사용, 도시가스는 통용 근사치)
