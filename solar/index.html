@@ -19,14 +19,16 @@
       fieldset { border: 0; margin: 0 0 1rem; padding: 0; }
       legend { font-weight: 700; margin-bottom: .45rem; }
       .choice { display: flex; gap: .9rem; flex-wrap: wrap; }
+      .choice label { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 4px; }
       .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
       label { display: grid; gap: .25rem; font-size: .9rem; }
       input { width: 100%; min-height: 2.4rem; padding: .45rem; border: 1px solid #a9b8aa; border-radius: .35rem; font: inherit; }
       input[type="radio"] { width: auto; min-height: auto; }
       button { width: 100%; margin-top: 1rem; min-height: 2.7rem; border: 0; border-radius: .35rem; background: #167044; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
-      input:focus-visible, button:focus-visible { outline: 3px solid #e99b22; outline-offset: 2px; }
+      input:focus-visible, button:focus-visible { outline: 3px solid #005a2e; outline-offset: 3px; }
       #map { min-height: 29rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
       #status { margin-top: .75rem; padding: .65rem; border-left: 4px solid #167044; background: #edf7ed; line-height: 1.45; }
+      .map-description { margin: .75rem 0 0; line-height: 1.45; }
       #results { display: grid; gap: 1rem; }
       .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
       .card { padding: .8rem; border-radius: .5rem; background: #eef6ed; }
@@ -80,8 +82,10 @@
           <button type="submit">분석 실행</button>
         </form>
       </section>
-      <section class="panel" aria-label="노원구 지도">
-        <div id="map" aria-label="노원구 VWorld 지도"></div>
+      <section class="panel" aria-labelledby="map-heading">
+        <h2 id="map-heading">노원구 지도</h2>
+        <div id="map" aria-describedby="map-description"></div>
+        <p id="map-description" class="map-description">지도에 접근하거나 키보드로 조작할 수 없는 경우에도 왼쪽 입력란에 값을 넣어 동일한 개략 분석을 실행할 수 있습니다.</p>
         <p id="status" role="status">VWorld 지도를 준비합니다.</p>
       </section>
       <section class="panel" aria-label="분석 결과">
