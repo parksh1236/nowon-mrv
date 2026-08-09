@@ -1030,6 +1030,28 @@ async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji){
   return { found:true, mainPurpsCdNm:match[3], etcPurps:match[4], hhldCnt:match[5], source:'local' };
 }
 
+// fetchBuildingType 결과를 우측 패널 '건축 개요' 카드에 반영 (검색 흐름·지도 점 클릭 공용)
+function renderBuildingDetail(bt, elTypeEl){
+  const detailCard = document.getElementById('infoDetailCard');
+  const detailTable = document.getElementById('infoDetailTable');
+  detailCard.style.display = 'none';
+  if (!bt.found){
+    elTypeEl.textContent = '자료 없음 (등록되지 않은 필지)';
+    return;
+  }
+  elTypeEl.textContent = bt.mainPurpsCdNm + (bt.etcPurps ? ` (${bt.etcPurps})` : '');
+  const rows = [];
+  if (bt.useAprDay) rows.push(['건축연도(사용승인)', bt.useAprDay]);
+  if (bt.grndFlrCnt != null) rows.push(['층수', `지상 ${bt.grndFlrCnt}층` + (bt.ugrndFlrCnt ? ` · 지하 ${bt.ugrndFlrCnt}층` : '')]);
+  if (bt.totArea != null) rows.push(['연면적', `${bt.totArea.toLocaleString()} ㎡`]);
+  if (bt.archArea != null) rows.push(['건축면적', `${bt.archArea.toLocaleString()} ㎡`]);
+  if (bt.hhldCnt) rows.push(['세대수', `${bt.hhldCnt.toLocaleString()}세대`]);
+  if (rows.length){
+    detailTable.innerHTML = '<tbody>' + rows.map(([k,v])=>`<tr><th style="width:44%">${k}</th><td>${v}</td></tr>`).join('') + '</tbody>';
+    detailCard.style.display = 'block';
+  }
+}
+
 // 건물별 사용량(전기·가스) 표본 데이터가 준비된 지역 (시군구코드 → 데이터파일)
 // 선택 가능한 전체 지역 목록은 data/region_centers.json 기준이며, 여기 없는 지역은
 // 공식 목표/전망 배출량만 표시하고 건물별 점은 표시하지 않음
@@ -1275,15 +1297,18 @@ function initKakaoMap(){
 
   function showBuildingInfo(b){
     setInfoVisible(true);
-    document.getElementById('infoBuildingType').textContent = b.type ? (b.type + (b.etc ? ` (${b.etc})` : '')) : '자료 없음';
+    const elBType = document.getElementById('infoBuildingType');
+    elBType.textContent = b.type ? (b.type + (b.etc ? ` (${b.etc})` : '')) : '자료 없음';
     document.getElementById('infoElectric').textContent = b.elec != null ? `${Number(b.elec).toLocaleString()} kWh` : '자료 없음';
     document.getElementById('infoGas').textContent = b.gas != null ? `${Number(b.gas).toLocaleString()} kWh` : '자료 없음';
     document.getElementById('infoBuildingSub').textContent = '총괄표제부(건축물대장) 자료 — 지역별 수동 확보';
     status.textContent = `📍 ${b.addr}` + (b.ym ? ` — ${b.ym.slice(0,4)}년 ${b.ym.slice(4)}월 기준` : '');
+    document.getElementById('infoDetailCard').style.display = 'none';
     if (b.sigunguCd && b.bjdongCd && b.bun && b.ji){
       document.getElementById('usageChart').innerHTML = '조회 중…';
       document.getElementById('usageChartBox').style.display = 'block';
       fetchMonthlySeries(b.sigunguCd, b.bjdongCd, b.bun, b.ji).then(renderUsageChart);
+      fetchBuildingType(b.sigunguCd, b.bjdongCd, b.bun, b.ji).then(bt=>renderBuildingDetail(bt, elBType));
     } else {
       document.getElementById('usageChartBox').style.display = 'none';
     }
@@ -1357,27 +1382,10 @@ function initKakaoMap(){
     const ji = String(addr.sub_address_no || '0').padStart(4,'0');
 
     // 건축물대장(건물 용도·건축연도·층수·면적·세대수) 조회
-    const detailCard = document.getElementById('infoDetailCard');
-    const detailTable = document.getElementById('infoDetailTable');
-    detailCard.style.display = 'none';
     try {
       const bt = await fetchBuildingType(sigunguCd, bjdongCd, bun, ji);
-      if (bt.found){
-        elBType.textContent = bt.mainPurpsCdNm + (bt.etcPurps ? ` (${bt.etcPurps})` : '');
-        const rows = [];
-        if (bt.useAprDay) rows.push(['건축연도(사용승인)', bt.useAprDay]);
-        if (bt.grndFlrCnt != null) rows.push(['층수', `지상 ${bt.grndFlrCnt}층` + (bt.ugrndFlrCnt ? ` · 지하 ${bt.ugrndFlrCnt}층` : '')]);
-        if (bt.totArea != null) rows.push(['연면적', `${bt.totArea.toLocaleString()} ㎡`]);
-        if (bt.archArea != null) rows.push(['건축면적', `${bt.archArea.toLocaleString()} ㎡`]);
-        if (bt.hhldCnt) rows.push(['세대수', `${bt.hhldCnt.toLocaleString()}세대`]);
-        if (rows.length){
-          detailTable.innerHTML = '<tbody>' + rows.map(([k,v])=>`<tr><th style="width:44%">${k}</th><td>${v}</td></tr>`).join('') + '</tbody>';
-          detailCard.style.display = 'block';
-        }
-      } else {
-        elBType.textContent = '자료 없음 (등록되지 않은 필지)';
-      }
-    } catch(e){ elBType.textContent = '조회 실패'; }
+      renderBuildingDetail(bt, elBType);
+    } catch(e){ elBType.textContent = '조회 실패'; document.getElementById('infoDetailCard').style.display='none'; }
 
     // 전기·가스 사용량 조회 — 최근 12개월 중 데이터가 있는 최신 월 탐색
     const months = recentYearMonths(12);
