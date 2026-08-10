@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, isInsideNowon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition, validateInputs,
+  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -43,6 +43,32 @@ test('project validation rejects invalid roof points and degenerate polygons', (
   assert.equal(isValidProject({ ...validProject, roof: [null] }), false);
   assert.equal(isValidProject({ ...validProject, roof: validProject.roof.slice(0, 2) }), false);
   assert.equal(isValidProject({ ...validProject, roof: [validProject.roof[0], validProject.roof[0], validProject.roof[0]] }), false);
+});
+
+test('polygon validation rejects a non-zero-area crossing ring', () => {
+  assert.equal(isValidPolygon([
+    { lat: 37.6500, lon: 127.0500 },
+    { lat: 37.6520, lon: 127.0530 },
+    { lat: 37.6520, lon: 127.0500 },
+    { lat: 37.6500, lon: 127.0520 },
+  ]), false);
+});
+
+test('installable samples exclude equipment zones and edge setbacks', () => {
+  const roof = [
+    { lat: 37.6500, lon: 127.0500 }, { lat: 37.6500, lon: 127.0510 },
+    { lat: 37.6510, lon: 127.0510 }, { lat: 37.6510, lon: 127.0500 },
+  ];
+  const exclusion = [
+    { lat: 37.65045, lon: 127.05045 }, { lat: 37.65045, lon: 127.05055 },
+    { lat: 37.65055, lon: 127.05055 }, { lat: 37.65055, lon: 127.05045 },
+  ];
+  const center = { lat: 37.6505, lon: 127.0505 };
+  const nearEdge = { lat: 37.65001, lon: 127.0502 };
+  const clear = { lat: 37.6503, lon: 127.0502 };
+
+  assert.deepEqual(filterInstallableSamples([center, clear], roof, [exclusion], 0), [clear]);
+  assert.deepEqual(filterInstallableSamples([nearEdge, clear], roof, [], 5), [clear]);
 });
 
 test('stored project reading survives a storage SecurityError', () => {
@@ -494,6 +520,29 @@ test('known-height building은 높이를 먼저 적용하고 roof 분석을 한 
   } finally {
     delete globalThis.window;
   }
+});
+
+test('building replacement clears stale geometry and blanks a missing height', async () => {
+  globalThis.window = {};
+  try {
+    const { applyBuildingGeometry, resetBuildingGeometry } = await import(`./app.mjs?replacement=${Date.now()}`);
+    const model = { roof: [{ lat: 1, lon: 2 }], exclusions: [[{ lat: 1, lon: 2 }]], heightM: 18 };
+    resetBuildingGeometry(model);
+    assert.deepEqual(model, { roof: [], exclusions: [], heightM: 0 });
+
+    const calls = [];
+    applyBuildingGeometry([{ lat: 37.65, lon: 127.05 }], null, (height) => calls.push(height), () => true);
+    assert.deepEqual(calls, [0]);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test('climate loading retries after a transient response failure', async () => {
+  const { loadClimate } = await import(`./app.mjs?climate=${Date.now()}`);
+  await assert.rejects(loadClimate(async () => ({ ok: false })), { message: '기후 데이터를 불러오지 못했습니다.' });
+  const climate = await loadClimate(async () => ({ ok: true, json: async () => ({ months: [1] }) }));
+  assert.deepEqual(climate, { months: [1] });
 });
 
 test('기후 품질 경고는 발전량 계산을 막지 않는다', () => {

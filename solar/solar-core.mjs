@@ -31,8 +31,34 @@ export function isInsideNowon(points) {
   ));
 }
 
+const cross = (a, b, c) => (b.lon - a.lon) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lon - a.lon);
+
+function segmentsIntersect(a, b, c, d) {
+  const abC = cross(a, b, c);
+  const abD = cross(a, b, d);
+  const cdA = cross(c, d, a);
+  const cdB = cross(c, d, b);
+  return (abC === 0 && Math.min(a.lon, b.lon) <= c.lon && c.lon <= Math.max(a.lon, b.lon) && Math.min(a.lat, b.lat) <= c.lat && c.lat <= Math.max(a.lat, b.lat))
+    || (abD === 0 && Math.min(a.lon, b.lon) <= d.lon && d.lon <= Math.max(a.lon, b.lon) && Math.min(a.lat, b.lat) <= d.lat && d.lat <= Math.max(a.lat, b.lat))
+    || (cdA === 0 && Math.min(c.lon, d.lon) <= a.lon && a.lon <= Math.max(c.lon, d.lon) && Math.min(c.lat, d.lat) <= a.lat && a.lat <= Math.max(c.lat, d.lat))
+    || (cdB === 0 && Math.min(c.lon, d.lon) <= b.lon && b.lon <= Math.max(c.lon, d.lon) && Math.min(c.lat, d.lat) <= b.lat && b.lat <= Math.max(c.lat, d.lat))
+    || ((abC > 0) !== (abD > 0) && (cdA > 0) !== (cdB > 0));
+}
+
+function isSimplePolygon(points) {
+  for (let first = 0; first < points.length; first += 1) {
+    const firstNext = (first + 1) % points.length;
+    for (let second = first + 1; second < points.length; second += 1) {
+      const secondNext = (second + 1) % points.length;
+      if (first === second || first === secondNext || firstNext === second) continue;
+      if (segmentsIntersect(points[first], points[firstNext], points[second], points[secondNext])) return false;
+    }
+  }
+  return true;
+}
+
 export function isValidPolygon(points) {
-  return Array.isArray(points) && points.length >= 3 && isInsideNowon(points) && polygonMetrics(points).areaM2 > 0;
+  return Array.isArray(points) && points.length >= 3 && isInsideNowon(points) && isSimplePolygon(points) && polygonMetrics(points).areaM2 > 0;
 }
 
 export function isValidProject(project) {
@@ -185,6 +211,42 @@ export function polygonMetrics(points) {
   }
 
   return { areaM2: Math.abs(doubleArea) / 2, perimeterM };
+}
+
+function pointInPolygon(point, polygon) {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const a = polygon[index];
+    const b = polygon[previous];
+    if ((a.lat > point.lat) !== (b.lat > point.lat)
+      && point.lon < ((b.lon - a.lon) * (point.lat - a.lat)) / (b.lat - a.lat) + a.lon) inside = !inside;
+  }
+  return inside;
+}
+
+function distanceToEdgeM(point, polygon) {
+  const cosineLatitude = Math.cos(radians(point.lat));
+  let minimum = Infinity;
+  for (let index = 0; index < polygon.length; index += 1) {
+    const a = polygon[index];
+    const b = polygon[(index + 1) % polygon.length];
+    const ax = EARTH_RADIUS_M * radians(a.lon - point.lon) * cosineLatitude;
+    const ay = EARTH_RADIUS_M * radians(a.lat - point.lat);
+    const bx = EARTH_RADIUS_M * radians(b.lon - point.lon) * cosineLatitude;
+    const by = EARTH_RADIUS_M * radians(b.lat - point.lat);
+    const lengthSquared = (bx - ax) ** 2 + (by - ay) ** 2;
+    const ratio = lengthSquared ? clamp(-(ax * (bx - ax) + ay * (by - ay)) / lengthSquared, 0, 1) : 0;
+    minimum = Math.min(minimum, Math.hypot(ax + ratio * (bx - ax), ay + ratio * (by - ay)));
+  }
+  return minimum;
+}
+
+export function filterInstallableSamples(samples, roof, exclusions = [], edgeSetbackM = 0) {
+  if (!Array.isArray(samples) || !Array.isArray(roof) || roof.length < 3) return [];
+  const setback = Math.max(0, Number(edgeSetbackM) || 0);
+  return samples.filter((sample) => pointInPolygon(sample, roof)
+    && !exclusions.some((polygon) => Array.isArray(polygon) && polygon.length >= 3 && pointInPolygon(sample, polygon))
+    && (!setback || distanceToEdgeM(sample, roof) >= setback));
 }
 
 export function samplePolygon(points, spacingM, maxPoints = 400) {

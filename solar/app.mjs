@@ -1,4 +1,4 @@
-import { buildCsv, calculateDetailed, calculateRough, isInsideNowon, isValidPolygon, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs';
+import { buildCsv, calculateDetailed, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs';
 
 const PROJECT_KEY = 'nowon-solar-project-v1';
 const PRECISION = {
@@ -321,11 +321,30 @@ function featureHeight(properties = {}) {
 }
 
 export function applyBuildingGeometry(polygon, height, setHeight, setRoof) {
-  if (height !== null) setHeight(height);
+  setHeight(height ?? 0);
   return setRoof(polygon);
 }
 
+export function resetBuildingGeometry(target) {
+  target.roof = [];
+  target.exclusions = [];
+  target.heightM = 0;
+}
+
+function clearBuildingSelection() {
+  drawing = undefined;
+  resetBuildingGeometry(state);
+  roofCoordinates.value = '';
+  exclusionCoordinates.value = '';
+  heightInput.value = '0';
+  updateMetrics();
+  renderExclusions();
+  renderMapShapes();
+  markDirty();
+}
+
 export async function selectExistingBuilding(position) {
+  clearBuildingSelection();
   if (!vworldKey() || !isInsideNowon([position])) {
     manualFallback('지도 API 키 또는 선택 좌표를 확인하세요.');
     return false;
@@ -369,6 +388,7 @@ function positionFromSearch(item) {
 }
 
 async function searchBuilding() {
+  clearBuildingSelection();
   const query = document.querySelector('#address-query').value.trim();
   if (!query || !vworldKey()) return manualFallback('주소와 지도 API 키를 확인하세요.');
   try {
@@ -479,10 +499,13 @@ export function readForm() {
   };
 }
 
-async function loadClimate() {
-  climatePromise ??= fetch('./data/nowon-solar.json').then((response) => {
+export async function loadClimate(fetcher = fetch) {
+  climatePromise ??= fetcher('./data/nowon-solar.json').then((response) => {
     if (!response.ok) throw new Error('기후 데이터를 불러오지 못했습니다.');
     return response.json();
+  }).catch((error) => {
+    climatePromise = undefined;
+    throw error;
   });
   return climatePromise;
 }
@@ -519,8 +542,13 @@ export async function buildShadeSamples(project, quality = 'balanced', isCurrent
     throw new Error('현재 VWorld 장면에서는 3D 음영 계산을 지원하지 않습니다.');
   }
 
-  const roofSamples = samplePolygon(project.roof, preset.gridM);
-  if (!roofSamples.length) throw new Error('정밀 추정에는 유효한 지붕 좌표가 필요합니다.');
+  const roofSamples = filterInstallableSamples(
+    samplePolygon(project.roof, preset.gridM),
+    project.roof,
+    project.exclusions,
+    project.input?.edgeSetbackM,
+  );
+  if (!roofSamples.length) throw new Error('정밀 추정에는 유효한 설치 영역이 필요합니다.');
   const raySamples = roofSamples.map((sample) => {
     const cartographic = window.Cesium?.Cartographic?.fromDegrees?.(sample.lon, sample.lat);
     const roofHeightM = (cartographic ? scene.globe?.getHeight?.(cartographic) ?? 0 : 0) + (project.heightM ?? 0);

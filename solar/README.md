@@ -16,7 +16,9 @@ window.SOLAR_CONFIG = {
 };
 ```
 
-VWorld 콘솔에서 허용 도메인에 로컬 개발용 `localhost`와 배포용 `parksh1236.github.io`를 등록합니다. 키는 브라우저에서 보이므로 비밀값으로 간주하지 말고 도메인 제한을 사용하세요.
+로컬용 키와 배포용 키를 분리하세요. 로컬용 키에는 `localhost`만, 배포용 키에는 `parksh1236.github.io`만 허용합니다. 키는 브라우저에서 보이므로 비밀값으로 간주하지 말고 정확한 도메인 제한을 사용하세요.
+
+GitHub Pages 배포에는 저장소 Actions secret `VWORLD_API_KEY`에 배포용 키를 등록합니다. 배포 워크플로가 Git에 포함되지 않는 `config.local.js`를 배포 산출물에 생성합니다.
 
 ```powershell
 python -m http.server 8737
