@@ -597,6 +597,37 @@ test('building lookup request targets the supported VWorld building layer', asyn
   }
 });
 
+test('VWorld JSONP loader resolves data and removes its temporary callback', async () => {
+  globalThis.window = {};
+  try {
+    const { loadJsonp } = await import(`./app.mjs?jsonp=${Date.now()}`);
+    const targetWindow = {};
+    let insertedUrl;
+    let removed = false;
+    const targetDocument = {
+      createElement: () => ({ remove() { removed = true; } }),
+      head: {
+        append(script) {
+          insertedUrl = script.src;
+          const callback = new URL(script.src).searchParams.get('callback');
+          queueMicrotask(() => targetWindow[callback]({ response: { status: 'OK' } }));
+        },
+      },
+    };
+
+    assert.deepEqual(
+      await loadJsonp('https://api.vworld.kr/req/data?service=data', 1000, targetWindow, targetDocument),
+      { response: { status: 'OK' } },
+    );
+    const callback = new URL(insertedUrl).searchParams.get('callback');
+    assert.match(callback, /^__nowonSolarJsonp\d+$/);
+    assert.equal(targetWindow[callback], undefined);
+    assert.equal(removed, true);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('climate loading retries after a transient response failure', async () => {
   const { loadClimate } = await import(`./app.mjs?climate=${Date.now()}`);
   await assert.rejects(loadClimate(async () => ({ ok: false })), { message: '기후 데이터를 불러오지 못했습니다.' });

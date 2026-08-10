@@ -22,6 +22,7 @@ const detailedMode = form?.querySelector('input[name="analysisMode"][value="deta
 const analysisSubmit = doc?.querySelector('#run-analysis');
 const csvButton = doc?.querySelector('#download-csv');
 let climatePromise;
+let jsonpSequence = 0;
 let analysisGeneration = 0;
 let busyGeneration = 0;
 let mapInstance;
@@ -300,6 +301,35 @@ function vworldUrl(path, params) {
   return `https://api.vworld.kr${path}?${new URLSearchParams(params)}`;
 }
 
+export function loadJsonp(url, timeoutMs = 10000, targetWindow = window, targetDocument = document) {
+  return new Promise((resolve, reject) => {
+    const callback = `__nowonSolarJsonp${jsonpSequence += 1}`;
+    const script = targetDocument.createElement('script');
+    const cleanup = () => {
+      clearTimeout(timeout);
+      delete targetWindow[callback];
+      script.remove();
+    };
+    targetWindow[callback] = (data) => {
+      cleanup();
+      resolve(data);
+    };
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('VWorld 데이터를 불러오지 못했습니다.'));
+    };
+    const requestUrl = new URL(url);
+    requestUrl.searchParams.set('callback', callback);
+    script.src = requestUrl.toString();
+    script.async = true;
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('VWorld 데이터 요청 시간이 초과되었습니다.'));
+    }, timeoutMs);
+    targetDocument.head.append(script);
+  });
+}
+
 function vworldKey() {
   return window.SOLAR_CONFIG?.vworldApiKey;
 }
@@ -357,9 +387,7 @@ export async function selectExistingBuilding(position) {
     return false;
   }
   try {
-    const response = await fetch(buildingLookupUrl(position, vworldKey()));
-    if (!response.ok) throw new Error('building lookup failed');
-    const feature = firstFeature(await response.json());
+    const feature = firstFeature(await loadJsonp(buildingLookupUrl(position, vworldKey())));
     const polygon = polygonFromGeometry(feature?.geometry);
     const height = featureHeight(feature?.properties);
     const applied = polygon && applyBuildingGeometry(
@@ -396,11 +424,9 @@ async function searchBuilding() {
   const query = document.querySelector('#address-query').value.trim();
   if (!query || !vworldKey()) return manualFallback('주소와 지도 API 키를 확인하세요.');
   try {
-    const response = await fetch(vworldUrl('/req/search', {
+    const result = await loadJsonp(vworldUrl('/req/search', {
       service: 'search', request: 'search', version: '2.0', crs: 'EPSG:4326', size: '10', page: '1', type: 'address', category: 'road', format: 'json', key: vworldKey(), query,
     }));
-    if (!response.ok) throw new Error('address search failed');
-    const result = await response.json();
     const items = result?.response?.result?.items ?? [];
     const position = positionFromSearch(items[0]);
     if (!position) throw new Error('address not found');
