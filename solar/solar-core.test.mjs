@@ -522,6 +522,24 @@ test('known-height building은 높이를 먼저 적용하고 roof 분석을 한 
   }
 });
 
+test('preloaded VWorld runtime is reused without injecting a late loader', async () => {
+  let appended = 0;
+  globalThis.window = { vw: {} };
+  globalThis.document = {
+    querySelector: () => null,
+    createElement: () => ({}),
+    head: { append(script) { appended += 1; queueMicrotask(() => script.onload()); } },
+  };
+  try {
+    const { loadVWorld } = await import(`./app.mjs?preloaded=${Date.now()}`);
+    await loadVWorld('configured-key');
+    assert.equal(appended, 0);
+  } finally {
+    delete globalThis.document;
+    delete globalThis.window;
+  }
+});
+
 test('building replacement clears stale geometry and blanks a missing height', async () => {
   globalThis.window = {};
   try {

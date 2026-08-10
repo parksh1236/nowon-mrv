@@ -458,6 +458,7 @@ export function restoreProject() {
 
 export function loadVWorld(key) {
   if (!key) return Promise.reject(new Error('VWorld API 키가 필요합니다.'));
+  if (window.vw) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = `https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(key)}`;
