@@ -82,7 +82,8 @@ function clearRoofMetrics() {
 }
 
 function setRoofCoordinatesError(message = '') {
-  roofCoordinates.toggleAttribute('aria-invalid', Boolean(message));
+  if (message) roofCoordinates.setAttribute('aria-invalid', 'true');
+  else roofCoordinates.removeAttribute('aria-invalid');
   roofCoordinatesError.hidden = !message;
   roofCoordinatesError.textContent = message;
 }
