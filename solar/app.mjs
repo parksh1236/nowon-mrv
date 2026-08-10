@@ -26,7 +26,6 @@ let analysisGeneration = 0;
 let busyGeneration = 0;
 let mapInstance;
 let drawing;
-let latestClimate;
 let latestResult;
 const mapEntities = [];
 const state = { mode: 'existing', roof: [], exclusions: [], heightM: 0, formValues: {}, dirty: false };
@@ -52,6 +51,7 @@ function parsePoints(value) {
 function markDirty() {
   state.dirty = true;
   state.formValues = formValues();
+  invalidateAnalysis();
 }
 
 function formValues() {
@@ -70,6 +70,10 @@ function applyFormValues(values = {}) {
 
 function setStatus(message) {
   if (status) status.textContent = message;
+}
+
+export function reportCurrentError(error, isCurrent = () => true) {
+  if (isCurrent()) setStatus(error.message);
 }
 
 function manualFallback(detail = '') {
@@ -100,15 +104,21 @@ function clearRoofMetrics() {
 }
 
 function invalidateRoof() {
-  analysisGeneration += 1;
-  busyGeneration = 0;
-  if (form) setAnalysisBusy(false);
+  invalidateAnalysis();
   clearRoofMetrics();
-  clearResults();
 }
 
 function clearResults() {
-  results.replaceChildren(element('p', '지붕 좌표를 3개 이상 입력하면 분석 결과를 표시합니다.', 'estimate'));
+  results?.replaceChildren(element('p', '지붕 좌표를 3개 이상 입력하면 분석 결과를 표시합니다.', 'estimate'));
+}
+
+export function invalidateAnalysis() {
+  analysisGeneration += 1;
+  busyGeneration = 0;
+  latestResult = undefined;
+  if (form) setAnalysisBusy(false);
+  if (csvButton) csvButton.disabled = true;
+  clearResults();
 }
 
 function setRoofCoordinatesError(message = '') {
@@ -469,12 +479,28 @@ function setAnalysisBusy(busy) {
   analysisSubmit.setAttribute('aria-busy', String(busy));
 }
 
-export async function buildShadeSamples(project, quality = 'balanced') {
+export function enuDirection(origin, sun, Cesium = window.Cesium) {
+  const altitude = sun.altitudeDeg * Math.PI / 180;
+  const azimuth = sun.azimuthDeg * Math.PI / 180;
+  const local = new Cesium.Cartesian3(
+    Math.cos(altitude) * Math.sin(azimuth),
+    Math.cos(altitude) * Math.cos(azimuth),
+    Math.sin(altitude),
+  );
+  const frame = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
+  const direction = Cesium.Matrix4.multiplyByPointAsVector(frame, local, new Cesium.Cartesian3());
+  return Cesium.Cartesian3.normalize(direction, direction);
+}
+
+export async function buildShadeSamples(project, quality = 'balanced', isCurrent = () => true) {
   const preset = PRECISION[quality] ?? PRECISION.balanced;
   const scene = mapInstance?.getCesiumViewer?.()?.scene ?? window.ws3d?.viewer?.scene;
-  const Cartesian3 = window.Cesium?.Cartesian3;
-  const Ray = window.Cesium?.Ray;
-  if (!scene?.pickFromRayMostDetailed || !Cartesian3 || !Ray) {
+  const Cesium = window.Cesium;
+  const Cartesian3 = Cesium?.Cartesian3;
+  const Ray = Cesium?.Ray;
+  if (!scene?.pickFromRayMostDetailed || !Cartesian3 || !Cartesian3.fromDegrees
+    || !Cartesian3.normalize || !Cartesian3.distance || !Ray
+    || !Cesium?.Transforms?.eastNorthUpToFixedFrame || !Cesium?.Matrix4?.multiplyByPointAsVector) {
     throw new Error('현재 VWorld 장면에서는 3D 음영 계산을 지원하지 않습니다.');
   }
 
@@ -486,23 +512,21 @@ export async function buildShadeSamples(project, quality = 'balanced') {
     return { ...sample, roofHeightM, origin: Cartesian3.fromDegrees(sample.lon, sample.lat, roofHeightM) };
   });
   const shadeSamples = [];
+  if (!isCurrent()) return null;
+  setStatus('정밀 추정 분석 중…');
   for (let month = 1; month <= 12; month += 1) {
+    if (!isCurrent()) return null;
     for (const hour of preset.hours) {
+      if (!isCurrent()) return null;
       const date = new Date(Date.UTC(2026, month - 1, 15, hour - 9));
       for (const sample of raySamples) {
         const sun = sunPosition(date, sample.lat, sample.lon);
         if (sun.altitudeDeg <= 0) continue;
         const altitude = sun.altitudeDeg * Math.PI / 180;
-        const azimuth = sun.azimuthDeg * Math.PI / 180;
-        const horizontalM = 100_000 * Math.cos(altitude);
-        const northM = horizontalM * Math.cos(azimuth);
-        const eastM = horizontalM * Math.sin(azimuth);
-        const targetLat = sample.lat + (northM / 6_371_000) * 180 / Math.PI;
-        const targetLon = sample.lon + (eastM / (6_371_000 * Math.cos(sample.lat * Math.PI / 180))) * 180 / Math.PI;
         const origin = sample.origin;
-        const target = Cartesian3.fromDegrees(targetLon, targetLat, sample.roofHeightM + 100_000 * Math.sin(altitude));
-        const direction = Cartesian3.normalize(Cartesian3.subtract(target, origin, new Cartesian3()), new Cartesian3());
+        const direction = enuDirection(origin, sun, Cesium);
         const hit = await scene.pickFromRayMostDetailed(new Ray(origin, direction), []);
+        if (!isCurrent()) return null;
         shadeSamples.push({
           month,
           weight: Math.sin(altitude),
@@ -510,10 +534,23 @@ export async function buildShadeSamples(project, quality = 'balanced') {
         });
       }
     }
+    if (!isCurrent()) return null;
     setStatus(`정밀 추정 분석 중: ${month}/12개월`);
     await new Promise(requestAnimationFrame);
+    if (!isCurrent()) return null;
   }
   return shadeSamples;
+}
+
+export function snapshotAnalysis(rough, project, climate, precision, spacingM) {
+  return {
+    rough,
+    detailed: null,
+    precision,
+    spacingM,
+    project: structuredClone(project),
+    climate: structuredClone(climate),
+  };
 }
 
 export async function runAnalysis(mode) {
@@ -525,37 +562,43 @@ export async function runAnalysis(mode) {
     const input = readForm();
     const climate = await loadClimate();
     if (generation !== analysisGeneration) return null;
-    latestClimate = climate;
     const rough = calculateRough(input, climate);
-    latestResult = { rough, detailed: null, precision: precisionLabels[precisionSelect.value], spacingM: PRECISION[precisionSelect.value].gridM };
+    const quality = precisionSelect.value;
+    const project = { ...state, input, formValues: formValues() };
+    latestResult = snapshotAnalysis(rough, project, climate, precisionLabels[quality], PRECISION[quality].gridM);
     renderResult(latestResult);
     csvButton.disabled = false;
     if (!detailed) return rough;
 
     try {
-      const shadeSamples = await buildShadeSamples({ ...state, input }, precisionSelect.value);
-      if (generation !== analysisGeneration) return null;
-      latestResult.detailed = calculateDetailed(input, climate, shadeSamples);
+      const shadeSamples = await buildShadeSamples({ ...state, input }, precisionSelect.value, () => generation === analysisGeneration);
+      if (shadeSamples === null || generation !== analysisGeneration) return null;
+      latestResult = { ...latestResult, detailed: calculateDetailed(input, climate, shadeSamples) };
       renderResult(latestResult);
       setStatus('정밀 추정 분석을 완료했습니다.');
       return latestResult.detailed;
     } catch (error) {
       if (generation === analysisGeneration) {
-        latestResult.error = error.message;
-        renderResult(latestResult);
-        setStatus(error.message);
+        latestResult = renderDetailedFailure(latestResult, error.message);
       }
       return null;
     }
   } catch (error) {
-    setStatus(error.message);
+    reportCurrentError(error, () => generation === analysisGeneration);
     return null;
   } finally {
-    if (busyGeneration === generation) {
+    if (generation === analysisGeneration && busyGeneration === generation) {
       busyGeneration = 0;
       setAnalysisBusy(false);
     }
   }
+}
+
+export function renderDetailedFailure(result, message) {
+  const failed = { ...result, error: message };
+  setStatus('');
+  renderResult(failed);
+  return failed;
 }
 
 const format = (value, fractionDigits = 1) => Number(value).toLocaleString('ko-KR', { maximumFractionDigits: fractionDigits, minimumFractionDigits: fractionDigits });
@@ -619,7 +662,7 @@ function generationCell(kwh, maxKwh) {
 }
 
 export function downloadCsv(result, project) {
-  const blob = new Blob(['\ufeff', buildCsv(result, project, latestClimate ?? {})], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob(['\ufeff', buildCsv(result, project, result?.climate ?? {})], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -650,16 +693,17 @@ roofCoordinates.addEventListener('input', () => {
   if (error) {
     state.roof = [];
     invalidateRoof();
+    markDirty();
     setRoofCoordinatesError(error);
     setStatus(error);
   } else {
     state.roof = points;
     setRoofCoordinatesError();
     updateMetrics();
+    markDirty();
     runAnalysis('rough');
   }
   renderMapShapes();
-  markDirty();
 });
 heightInput.addEventListener('input', () => {
   state.heightM = Number(heightInput.value);
@@ -684,13 +728,7 @@ document.querySelector('#add-exclusion').addEventListener('click', () => { const
 document.querySelector('#search-building').addEventListener('click', searchBuilding);
 document.querySelector('#select-building').addEventListener('click', () => setStatus('지도에서 기존 건물을 선택하세요.'));
 document.querySelector('#save-project').addEventListener('click', saveProject);
-csvButton.addEventListener('click', () => downloadCsv(latestResult, {
-  ...state,
-  input: readForm(),
-  formValues: formValues(),
-  precision: latestResult?.precision,
-  spacingM: latestResult?.spacingM,
-}));
+csvButton.addEventListener('click', () => downloadCsv(latestResult, latestResult.project));
 
 restoreProject();
 precisionOptions.hidden = new FormData(form).get('analysisMode') !== 'detailed';

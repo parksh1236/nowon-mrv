@@ -185,6 +185,35 @@ test('지붕 표본은 내부에 있고 격자가 촘촘할수록 같거나 많�
   const fallbackX = (fallback.lon - base.lon) / 0.000011;
   const fallbackY = (fallback.lat - base.lat) / 0.000009;
   assert.ok(fallbackY < 1 || fallbackX < 1 || fallbackX > 3);
+
+  const largeRoof = [
+    { lat: base.lat, lon: base.lon },
+    { lat: base.lat, lon: base.lon + 0.00113 },
+    { lat: base.lat + 0.0009, lon: base.lon + 0.00113 },
+    { lat: base.lat + 0.0009, lon: base.lon },
+  ];
+  const samplingStarted = performance.now();
+  const bounded = samplePolygon(largeRoof, 0.1, 100);
+  assert.ok(performance.now() - samplingStarted < 100);
+  assert.ok(new Set(bounded.map(({ lat }) => lat.toFixed(7))).size >= 8);
+  assert.ok(new Set(bounded.map(({ lon }) => lon.toFixed(7))).size >= 8);
+
+  const toGeo = (x, y) => ({
+    lat: base.lat + (y / 6_371_000) * 180 / Math.PI,
+    lon: base.lon + (x / (6_371_000 * Math.cos(base.lat * Math.PI / 180))) * 180 / Math.PI,
+  });
+  const thin = [[-50, -0.5], [50, -0.5], [50, 0.5], [-50, 0.5]];
+  const rotate = ([x, y]) => [x * Math.cos(Math.PI / 6) - y * Math.sin(Math.PI / 6), x * Math.sin(Math.PI / 6) + y * Math.cos(Math.PI / 6)];
+  const axisAlignedCount = samplePolygon(thin.map(([x, y]) => toGeo(x, y)), 0.1, 100).length;
+  const rotatedCount = samplePolygon(thin.map((point) => toGeo(...rotate(point))), 0.1, 100).length;
+  assert.ok(axisAlignedCount >= 80);
+  assert.ok(Math.abs(rotatedCount - axisAlignedCount) <= 10);
+
+  const square = [[-50, -50], [50, -50], [50, 50], [-50, 50]];
+  const axisSquareCount = samplePolygon(square.map(([x, y]) => toGeo(x, y)), 0.1, 400).length;
+  const rotatedSquareCount = samplePolygon(square.map((point) => toGeo(...rotate(point))), 0.1, 400).length;
+  assert.ok(axisSquareCount >= 350);
+  assert.ok(Math.abs(rotatedSquareCount - axisSquareCount) <= 20);
 });
 
 test('CSV는 월별 비교와 분석 metadata를 RFC 4180 형식으로 만든다', () => {
@@ -261,7 +290,16 @@ test('3D scene boundary는 hit와 no-hit을 음영 표본으로 만들고 미지
       return calls % 2 ? { position: new Cartesian3(ray.origin.x + 1, ray.origin.y, ray.origin.z) } : undefined;
     },
   };
-  globalThis.window = { Cesium: { Cartesian3, Ray, Cartographic: { fromDegrees: (lon, lat) => ({ lon, lat }) } }, ws3d: { viewer: { scene } } };
+  globalThis.window = {
+    Cesium: {
+      Cartesian3,
+      Ray,
+      Cartographic: { fromDegrees: (lon, lat) => ({ lon, lat }) },
+      Transforms: { eastNorthUpToFixedFrame: () => 'enu-frame' },
+      Matrix4: { multiplyByPointAsVector: (_frame, vector, out) => Object.assign(out, vector) },
+    },
+    ws3d: { viewer: { scene } },
+  };
   globalThis.requestAnimationFrame = (callback) => callback();
   try {
     const { buildShadeSamples } = await import(`./app.mjs?boundary=${Date.now()}`);
@@ -278,6 +316,14 @@ test('3D scene boundary는 hit와 no-hit을 음영 표본으로 만들고 미지
     assert.ok(originHeights.every((height) => height === 120));
     assert.deepEqual([...new Set(samples.map(({ month }) => month))], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 
+    const normalize = Cartesian3.normalize;
+    Cartesian3.normalize = undefined;
+    await assert.rejects(
+      buildShadeSamples({ roof, heightM: 20 }, 'fast'),
+      { message: '현재 VWorld 장면에서는 3D 음영 계산을 지원하지 않습니다.' },
+    );
+    Cartesian3.normalize = normalize;
+
     window.ws3d.viewer.scene = {};
     await assert.rejects(
       buildShadeSamples({ roof, heightM: 20 }, 'fast'),
@@ -286,6 +332,125 @@ test('3D scene boundary는 hit와 no-hit을 음영 표본으로 만들고 미지
   } finally {
     delete globalThis.window;
     delete globalThis.requestAnimationFrame;
+  }
+});
+
+test('ENU 태양 방향은 동·북·상 local vector를 ECEF 방향으로 변환한다', async () => {
+  class Cartesian3 {
+    constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); }
+    static normalize(value, out) {
+      const length = Math.hypot(value.x, value.y, value.z);
+      Object.assign(out, { x: value.x / length, y: value.y / length, z: value.z / length });
+      return out;
+    }
+  }
+  globalThis.window = {
+    Cesium: {
+      Cartesian3,
+      Transforms: { eastNorthUpToFixedFrame: () => 'enu-frame' },
+      Matrix4: { multiplyByPointAsVector: (_frame, vector, out) => Object.assign(out, vector) },
+    },
+  };
+  try {
+    const { enuDirection } = await import(`./app.mjs?enu=${Date.now()}`);
+    assert.equal(typeof enuDirection, 'function');
+    const literal = (sun) => Object.values(enuDirection(new Cartesian3(), sun)).map((value) => Math.round(value * 1e6) / 1e6);
+    assert.deepEqual(literal({ altitudeDeg: 0, azimuthDeg: 90 }), [1, 0, 0]);
+    assert.deepEqual(literal({ altitudeDeg: 0, azimuthDeg: 0 }), [0, 1, 0]);
+    assert.deepEqual(literal({ altitudeDeg: 90, azimuthDeg: 0 }), [0, 0, 1]);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test('stale 정밀 분석은 첫 ray 직후 중단하고 추가 progress를 공지하지 않는다', async () => {
+  const announcements = [];
+  const statusNode = {};
+  Object.defineProperty(statusNode, 'textContent', { set: (value) => announcements.push(value) });
+  globalThis.document = { querySelector: (selector) => selector === '#status' ? statusNode : null };
+  let current = true;
+  let calls = 0;
+  class Cartesian3 {
+    constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); }
+    static fromDegrees(lon, lat, height) { return new Cartesian3(lon, lat, height); }
+    static subtract(a, b, out) { return Object.assign(out, { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }); }
+    static normalize(value, out) { return Object.assign(out, value); }
+    static distance() { return 100_000; }
+  }
+  class Ray { constructor(origin, direction) { Object.assign(this, { origin, direction }); } }
+  const scene = {
+    async pickFromRayMostDetailed() { calls += 1; current = false; return undefined; },
+  };
+  globalThis.window = {
+    Cesium: {
+      Cartesian3,
+      Ray,
+      Transforms: { eastNorthUpToFixedFrame: () => 'enu-frame' },
+      Matrix4: { multiplyByPointAsVector: (_frame, vector, out) => Object.assign(out, vector) },
+    },
+    ws3d: { viewer: { scene } },
+  };
+  globalThis.requestAnimationFrame = (callback) => callback();
+  try {
+    const { buildShadeSamples, reportCurrentError } = await import(`./app.mjs?stale=${Date.now()}`);
+    const roof = [
+      { lat: 37.654, lon: 127.056 }, { lat: 37.654, lon: 127.056112 },
+      { lat: 37.654099, lon: 127.056112 }, { lat: 37.654099, lon: 127.056 },
+    ];
+    assert.equal(await buildShadeSamples({ roof, heightM: 20 }, 'fast', () => current), null);
+    assert.equal(calls, 1);
+    assert.deepEqual(announcements, ['정밀 추정 분석 중…']);
+    assert.equal(typeof reportCurrentError, 'function');
+    reportCurrentError(new Error('늦은 실패'), () => current);
+    assert.deepEqual(announcements, ['정밀 추정 분석 중…']);
+  } finally {
+    delete globalThis.document;
+    delete globalThis.window;
+    delete globalThis.requestAnimationFrame;
+  }
+});
+
+test('shared invalidation은 결과와 CSV를 지우고 분석 snapshot은 입력 변경과 분리된다', async () => {
+  class FakeNode {
+    constructor(tag = '') { this.tag = tag; this.children = []; this.attributes = {}; this.style = {}; this.disabled = false; }
+    append(...children) { this.children.push(...children); }
+    replaceChildren(...children) { this.children = children; }
+    setAttribute(name, value) { this.attributes[name] = value; }
+  }
+  const resultsNode = new FakeNode('results');
+  const csvButton = new FakeNode('button');
+  const statusNode = new FakeNode('status');
+  statusNode.textContent = '기존 공지';
+  globalThis.document = {
+    createElement: (tag) => new FakeNode(tag),
+    querySelector: (selector) => ({ '#results': resultsNode, '#download-csv': csvButton, '#status': statusNode }[selector] ?? null),
+  };
+  try {
+    const { invalidateAnalysis, renderDetailedFailure, snapshotAnalysis } = await import(`./app.mjs?state=${Date.now()}`);
+    assert.equal(typeof invalidateAnalysis, 'function');
+    assert.equal(typeof renderDetailedFailure, 'function');
+    assert.equal(typeof snapshotAnalysis, 'function');
+
+    csvButton.disabled = false;
+    invalidateAnalysis();
+    assert.equal(csvButton.disabled, true);
+    assert.equal(resultsNode.children.length, 1);
+
+    const project = { input: { systemLossRatio: 0.14 }, roof: [{ lat: 1, lon: 2 }] };
+    const climate = { source: '원본' };
+    const snapshot = snapshotAnalysis({ monthlyKwh: [] }, project, climate, '균형', 3);
+    project.input.systemLossRatio = 0.9;
+    climate.source = '변경';
+    assert.equal(snapshot.project.input.systemLossRatio, 0.14);
+    assert.equal(snapshot.climate.source, '원본');
+
+    statusNode.textContent = '정밀 추정 분석 중…';
+    renderDetailedFailure({ rough: { installableAreaM2: 1, capacityKwp: 1, annualKwh: 1, monthlyKwh: [], warnings: [] } }, '정밀 실패');
+    assert.equal(statusNode.textContent, '');
+    const alerts = resultsNode.children.filter((child) => child?.attributes?.role === 'alert');
+    assert.equal(alerts.length, 1);
+  } finally {
+    delete globalThis.document;
   }
 });
 
