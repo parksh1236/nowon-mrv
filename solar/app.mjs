@@ -1,4 +1,4 @@
-import { calculateRough, isInsideNowon, isValidPolygon, polygonMetrics, readStoredProject, serializeProject } from './solar-core.mjs';
+import { calculateRough, currentAnalysisResult, isInsideNowon, isValidPolygon, polygonMetrics, readStoredProject, removeStoredProject, serializeProject } from './solar-core.mjs';
 
 const PROJECT_KEY = 'nowon-solar-project-v1';
 const form = document.querySelector('#analysis-form');
@@ -10,6 +10,7 @@ const exclusionCoordinates = document.querySelector('#exclusion-coordinates');
 const heightInput = document.querySelector('#building-height');
 const exclusionList = document.querySelector('#exclusion-list');
 let climatePromise;
+let analysisGeneration = 0;
 let mapInstance;
 let drawing;
 const mapEntities = [];
@@ -73,8 +74,7 @@ function updateMetrics() {
     form.elements.roofAreaM2.value = roofMetrics.areaM2.toFixed(1);
     form.elements.perimeterM.value = roofMetrics.perimeterM.toFixed(1);
   } else {
-    clearRoofMetrics();
-    clearResults();
+    invalidateRoof();
   }
   form.elements.exclusionAreaM2.value = exclusionAreaM2.toFixed(1);
 }
@@ -82,6 +82,12 @@ function updateMetrics() {
 function clearRoofMetrics() {
   form.elements.roofAreaM2.value = '0';
   form.elements.perimeterM.value = '0';
+}
+
+function invalidateRoof() {
+  analysisGeneration += 1;
+  clearRoofMetrics();
+  clearResults();
 }
 
 function clearResults() {
@@ -364,12 +370,9 @@ export function restoreProject() {
     return false;
   }
   if (stored.invalid) {
-    try {
-      localStorage.removeItem(PROJECT_KEY);
-    } catch {
-      // Storage may be unavailable even though the previous read succeeded.
-    }
-    setStatus('저장된 프로젝트가 유효하지 않아 제거했습니다.');
+    setStatus(removeStoredProject(localStorage, PROJECT_KEY)
+      ? '저장된 프로젝트가 유효하지 않아 제거했습니다.'
+      : '손상된 저장값을 제거하지 못했습니다. 브라우저 저장소를 직접 지워주세요.');
     return false;
   }
   const { project } = stored;
@@ -448,7 +451,10 @@ export async function runAnalysis(mode) {
     return null;
   }
   try {
-    const result = calculateRough(readForm(), await loadClimate());
+    const generation = ++analysisGeneration;
+    const input = readForm();
+    const result = await currentAnalysisResult(loadClimate().then((climate) => calculateRough(input, climate)), generation, () => analysisGeneration);
+    if (result === null) return null;
     renderResult(result);
     return result;
   } catch (error) {
@@ -501,7 +507,7 @@ roofCoordinates.addEventListener('input', () => {
     : !validPolygon(points) ? '지붕은 노원구 범위 안의 좌표 3개 이상으로 입력하세요.' : '';
   if (error) {
     state.roof = [];
-    clearRoofMetrics();
+    invalidateRoof();
     setRoofCoordinatesError(error);
     setStatus(error);
   } else {

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  calculateDetailed, calculateRough, deserializeProject, isInsideNowon, isValidProject, polygonMetrics, readStoredProject, serializeProject, sunPosition, validateInputs,
+  calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, isInsideNowon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, serializeProject, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -48,6 +48,38 @@ test('project validation rejects invalid roof points and degenerate polygons', (
 test('stored project reading survives a storage SecurityError', () => {
   const storage = { getItem() { throw new Error('SecurityError'); } };
   assert.deepEqual(readStoredProject(storage, 'nowon-solar-project-v1'), { project: null, unavailable: true });
+});
+
+test('stored project removal reports its actual storage outcome', () => {
+  const values = new Map([['project', 'broken']]);
+  const storage = {
+    getItem(key) { return values.get(key) ?? null; },
+    removeItem(key) { values.delete(key); },
+  };
+
+  assert.equal(removeStoredProject(storage, 'project'), true);
+  assert.equal(storage.getItem('project'), null);
+
+  const blockedStorage = {
+    getItem(key) { return values.get(key) ?? null; },
+    removeItem() { throw new Error('SecurityError'); },
+  };
+  values.set('project', 'broken');
+
+  assert.equal(removeStoredProject(blockedStorage, 'project'), false);
+  assert.equal(blockedStorage.getItem('project'), 'broken');
+});
+
+test('an analysis result is discarded after its generation is invalidated', async () => {
+  let generation = 1;
+  let resolveAnalysis;
+  const pending = new Promise((resolve) => { resolveAnalysis = resolve; });
+  const result = currentAnalysisResult(pending, generation, () => generation);
+
+  generation += 1;
+  resolveAnalysis({ annualKwh: 1234 });
+
+  assert.equal(await result, null);
 });
 
 test('노원구 인근 10m × 11m 사각형의 면적과 둘레를 계산한다', () => {

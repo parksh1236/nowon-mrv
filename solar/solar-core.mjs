@@ -54,6 +54,20 @@ export function readStoredProject(storage, key) {
   }
 }
 
+export function removeStoredProject(storage, key) {
+  try {
+    storage.removeItem(key);
+    return storage.getItem(key) === null;
+  } catch {
+    return false;
+  }
+}
+
+export async function currentAnalysisResult(result, generation, currentGeneration) {
+  const resolved = await result;
+  return generation === currentGeneration() ? resolved : null;
+}
+
 export function validateInputs(input = {}) {
   if (!input || typeof input !== 'object') return ['입력값이 올바르지 않습니다.'];
   const warnings = [];
