@@ -76,6 +76,10 @@ export function reportCurrentError(error, isCurrent = () => true) {
   if (isCurrent()) setStatus(error.message);
 }
 
+export function announceDetailedStart() {
+  setStatus('정밀 추정 분석 중…');
+}
+
 function manualFallback(detail = '') {
   setStatus(`건물 정상 자료가 없어 직접 입력이 필요합니다.${detail ? ` ${detail}` : ''}`);
 }
@@ -119,6 +123,7 @@ export function invalidateAnalysis() {
   if (form) setAnalysisBusy(false);
   if (csvButton) csvButton.disabled = true;
   clearResults();
+  setStatus('입력값이 변경되어 분석 결과를 지웠습니다.');
 }
 
 function setRoofCoordinatesError(message = '') {
@@ -315,6 +320,11 @@ function featureHeight(properties = {}) {
   return entry ? Number(entry[1]) : null;
 }
 
+export function applyBuildingGeometry(polygon, height, setHeight, setRoof) {
+  if (height !== null) setHeight(height);
+  return setRoof(polygon);
+}
+
 export async function selectExistingBuilding(position) {
   if (!vworldKey() || !isInsideNowon([position])) {
     manualFallback('지도 API 키 또는 선택 좌표를 확인하세요.');
@@ -328,15 +338,20 @@ export async function selectExistingBuilding(position) {
     if (!response.ok) throw new Error('building lookup failed');
     const feature = firstFeature(await response.json());
     const polygon = polygonFromGeometry(feature?.geometry);
-    if (!polygon || !setRoofPolygon(polygon)) throw new Error('building geometry missing');
-    const height = featureHeight(feature.properties);
+    const height = featureHeight(feature?.properties);
+    const applied = polygon && applyBuildingGeometry(
+      polygon,
+      height,
+      (value) => {
+        state.heightM = value;
+        heightInput.value = value;
+      },
+      setRoofPolygon,
+    );
+    if (!applied) throw new Error('building geometry missing');
     if (height === null) {
       manualFallback('건물 높이를 직접 입력하세요.');
     } else {
-      state.heightM = height;
-      heightInput.value = height;
-      renderMapShapes();
-      markDirty();
       setStatus('건물 외곽과 높이를 반영했습니다.');
     }
     return true;
@@ -513,7 +528,6 @@ export async function buildShadeSamples(project, quality = 'balanced', isCurrent
   });
   const shadeSamples = [];
   if (!isCurrent()) return null;
-  setStatus('정밀 추정 분석 중…');
   for (let month = 1; month <= 12; month += 1) {
     if (!isCurrent()) return null;
     for (const hour of preset.hours) {
@@ -558,6 +572,7 @@ export async function runAnalysis(mode) {
   const detailed = mode === 'detailed';
   busyGeneration = detailed ? generation : 0;
   setAnalysisBusy(detailed);
+  if (detailed) announceDetailedStart();
   try {
     const input = readForm();
     const climate = await loadClimate();

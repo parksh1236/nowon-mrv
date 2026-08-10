@@ -214,6 +214,22 @@ test('지붕 표본은 내부에 있고 격자가 촘촘할수록 같거나 많�
   const rotatedSquareCount = samplePolygon(square.map((point) => toGeo(...rotate(point))), 0.1, 400).length;
   assert.ok(axisSquareCount >= 350);
   assert.ok(Math.abs(rotatedSquareCount - axisSquareCount) <= 20);
+
+  const sparseU = [[0, 0], [100, 0], [100, 100], [99, 100], [99, 1], [1, 1], [1, 100], [0, 100]];
+  const sparseStarted = performance.now();
+  const sparseSamples = samplePolygon(sparseU.map(([x, y]) => toGeo(x, y)), 0.1, 400);
+  assert.equal(sparseSamples.length, 400);
+  assert.ok(performance.now() - sparseStarted < 100);
+  for (const sample of sparseSamples) {
+    const x = (sample.lon - base.lon) * Math.PI / 180 * 6_371_000 * Math.cos(base.lat * Math.PI / 180);
+    const y = (sample.lat - base.lat) * Math.PI / 180 * 6_371_000;
+    assert.ok(y < 1 || x < 1 || x > 99);
+  }
+
+  const monotonicRoof = [[0, 0], [36, 0], [36, 92], [0, 92]].map(([x, y]) => toGeo(x, y));
+  const coarseCount = samplePolygon(monotonicRoof, 3, 400).length;
+  const finerCount = samplePolygon(monotonicRoof, 2, 400).length;
+  assert.ok(finerCount >= coarseCount);
 });
 
 test('CSV는 월별 비교와 분석 metadata를 RFC 4180 형식으로 만든다', () => {
@@ -392,11 +408,12 @@ test('stale 정밀 분석은 첫 ray 직후 중단하고 추가 progress를 공�
   };
   globalThis.requestAnimationFrame = (callback) => callback();
   try {
-    const { buildShadeSamples, reportCurrentError } = await import(`./app.mjs?stale=${Date.now()}`);
+    const { announceDetailedStart, buildShadeSamples, reportCurrentError } = await import(`./app.mjs?stale=${Date.now()}`);
     const roof = [
       { lat: 37.654, lon: 127.056 }, { lat: 37.654, lon: 127.056112 },
       { lat: 37.654099, lon: 127.056112 }, { lat: 37.654099, lon: 127.056 },
     ];
+    announceDetailedStart();
     assert.equal(await buildShadeSamples({ roof, heightM: 20 }, 'fast', () => current), null);
     assert.equal(calls, 1);
     assert.deepEqual(announcements, ['정밀 추정 분석 중…']);
@@ -426,15 +443,19 @@ test('shared invalidation은 결과와 CSV를 지우고 분석 snapshot은 입�
     querySelector: (selector) => ({ '#results': resultsNode, '#download-csv': csvButton, '#status': statusNode }[selector] ?? null),
   };
   try {
-    const { invalidateAnalysis, renderDetailedFailure, snapshotAnalysis } = await import(`./app.mjs?state=${Date.now()}`);
+    const { announceDetailedStart, invalidateAnalysis, renderDetailedFailure, snapshotAnalysis } = await import(`./app.mjs?state=${Date.now()}`);
+    assert.equal(typeof announceDetailedStart, 'function');
     assert.equal(typeof invalidateAnalysis, 'function');
     assert.equal(typeof renderDetailedFailure, 'function');
     assert.equal(typeof snapshotAnalysis, 'function');
 
+    announceDetailedStart();
+    assert.equal(statusNode.textContent, '정밀 추정 분석 중…');
     csvButton.disabled = false;
     invalidateAnalysis();
     assert.equal(csvButton.disabled, true);
     assert.equal(resultsNode.children.length, 1);
+    assert.equal(statusNode.textContent, '입력값이 변경되어 분석 결과를 지웠습니다.');
 
     const project = { input: { systemLossRatio: 0.14 }, roof: [{ lat: 1, lon: 2 }] };
     const climate = { source: '원본' };
@@ -451,6 +472,27 @@ test('shared invalidation은 결과와 CSV를 지우고 분석 snapshot은 입�
     assert.equal(alerts.length, 1);
   } finally {
     delete globalThis.document;
+  }
+});
+
+test('known-height building은 높이를 먼저 적용하고 roof 분석을 한 번만 시작한다', async () => {
+  globalThis.window = {};
+  try {
+    const { applyBuildingGeometry } = await import(`./app.mjs?building=${Date.now()}`);
+    assert.equal(typeof applyBuildingGeometry, 'function');
+    const calls = [];
+    const polygon = [{ lat: 37.65, lon: 127.05 }];
+    const applied = applyBuildingGeometry(
+      polygon,
+      24,
+      (height) => calls.push(`height:${height}`),
+      (roof) => { calls.push(`roof:${roof.length}`); return true; },
+    );
+
+    assert.equal(applied, true);
+    assert.deepEqual(calls, ['height:24', 'roof:1']);
+  } finally {
+    delete globalThis.window;
   }
 });
 

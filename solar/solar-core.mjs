@@ -188,7 +188,8 @@ export function polygonMetrics(points) {
 }
 
 export function samplePolygon(points, spacingM, maxPoints = 400) {
-  if (!Array.isArray(points) || points.length < 3 || !(spacingM > 0) || !(maxPoints > 0) || polygonMetrics(points).areaM2 === 0) return [];
+  const areaM2 = polygonMetrics(points).areaM2;
+  if (!Array.isArray(points) || points.length < 3 || !(spacingM > 0) || !(maxPoints > 0) || areaM2 === 0) return [];
 
   const latitude = points.reduce((sum, point) => sum + point.lat, 0) / points.length;
   const longitude = points.reduce((sum, point) => sum + point.lon, 0) / points.length;
@@ -197,59 +198,53 @@ export function samplePolygon(points, spacingM, maxPoints = 400) {
     x: EARTH_RADIUS_M * radians(lon - longitude) * cosineLatitude,
     y: EARTH_RADIUS_M * radians(lat - latitude),
   }));
-  const longestEdge = projected.reduce((longest, point, index) => {
-    const next = projected[(index + 1) % projected.length];
-    const edge = { x: next.x - point.x, y: next.y - point.y };
-    const lengthSquared = edge.x ** 2 + edge.y ** 2;
-    return lengthSquared > longest.lengthSquared ? { ...edge, lengthSquared } : longest;
-  }, { x: 1, y: 0, lengthSquared: 0 });
-  const angle = Math.atan2(longestEdge.y, longestEdge.x);
-  const cosine = Math.cos(angle);
-  const sine = Math.sin(angle);
-  const gridPolygon = projected.map(({ x, y }) => ({ x: x * cosine + y * sine, y: -x * sine + y * cosine }));
-  const xs = gridPolygon.map(({ x }) => x);
-  const ys = gridPolygon.map(({ y }) => y);
-  const width = Math.max(...xs) - Math.min(...xs);
-  const height = Math.max(...ys) - Math.min(...ys);
   const cap = Math.max(1, Math.floor(maxPoints));
-  let sampleSpacingM = spacingM;
-  let candidateCount = Math.ceil(width / sampleSpacingM) * Math.ceil(height / sampleSpacingM);
-  if (candidateCount > cap) {
-    sampleSpacingM *= Math.sqrt(candidateCount / cap);
-    candidateCount = Math.ceil(width / sampleSpacingM) * Math.ceil(height / sampleSpacingM);
-    while (candidateCount > cap) {
-      sampleSpacingM *= 1.01;
-      candidateCount = Math.ceil(width / sampleSpacingM) * Math.ceil(height / sampleSpacingM);
-    }
-  }
+  const desiredCount = Math.min(cap, Math.ceil(areaM2 / spacingM ** 2));
+  const xs = projected.map(({ x }) => x);
+  const ys = projected.map(({ y }) => y);
+  const minimumX = Math.min(...xs);
+  const minimumY = Math.min(...ys);
+  const width = Math.max(...xs) - minimumX;
+  const height = Math.max(...ys) - minimumY;
   const unproject = ({ x, y }) => ({
-    lat: latitude + ((x * sine + y * cosine) / EARTH_RADIUS_M) * 180 / Math.PI,
-    lon: longitude + ((x * cosine - y * sine) / (EARTH_RADIUS_M * cosineLatitude)) * 180 / Math.PI,
+    lat: latitude + (y / EARTH_RADIUS_M) * 180 / Math.PI,
+    lon: longitude + (x / (EARTH_RADIUS_M * cosineLatitude)) * 180 / Math.PI,
   });
   const inside = ({ x, y }) => {
     let result = false;
-    for (let index = 0, previous = gridPolygon.length - 1; index < gridPolygon.length; previous = index, index += 1) {
-      const a = gridPolygon[index];
-      const b = gridPolygon[previous];
+    for (let index = 0, previous = projected.length - 1; index < projected.length; previous = index, index += 1) {
+      const a = projected[index];
+      const b = projected[previous];
       if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) result = !result;
     }
     return result;
   };
-  const samples = [];
-  for (let y = Math.min(...ys) + sampleSpacingM / 2; y < Math.max(...ys); y += sampleSpacingM) {
-    for (let x = Math.min(...xs) + sampleSpacingM / 2; x < Math.max(...xs); x += sampleSpacingM) {
-      if (inside({ x, y })) samples.push(unproject({ x, y }));
+  const halton = (index, base) => {
+    let fraction = 1;
+    let value = 0;
+    while (index > 0) {
+      fraction /= base;
+      value += fraction * (index % base);
+      index = Math.floor(index / base);
     }
+    return value;
+  };
+  const samples = [];
+  // ponytail: cap browser ray casts at 400 roof samples; raise only after profiling a real large roof.
+  const maxAttempts = cap * 64;
+  for (let attempt = 1; attempt <= maxAttempts && samples.length < desiredCount; attempt += 1) {
+    const candidate = { x: minimumX + halton(attempt, 2) * width, y: minimumY + halton(attempt, 3) * height };
+    if (inside(candidate)) samples.push(unproject(candidate));
   }
   if (!samples.length) {
     if (inside({ x: 0, y: 0 })) return [{ lat: latitude, lon: longitude }];
-    const orientation = gridPolygon.reduce((sum, point, index) => {
-      const next = gridPolygon[(index + 1) % gridPolygon.length];
+    const orientation = projected.reduce((sum, point, index) => {
+      const next = projected[(index + 1) % projected.length];
       return sum + point.x * next.y - next.x * point.y;
     }, 0) >= 0 ? 1 : -1;
-    for (let index = 0; index < gridPolygon.length; index += 1) {
-      const point = gridPolygon[index];
-      const next = gridPolygon[(index + 1) % gridPolygon.length];
+    for (let index = 0; index < projected.length; index += 1) {
+      const point = projected[index];
+      const next = projected[(index + 1) % projected.length];
       const length = Math.hypot(next.x - point.x, next.y - point.y);
       if (!length) continue;
       const epsilon = Math.max(1e-6, length * 1e-6);
@@ -261,10 +256,7 @@ export function samplePolygon(points, spacingM, maxPoints = 400) {
     }
     return [];
   }
-  if (samples.length <= maxPoints) return samples;
-
-  // ponytail: cap browser ray casts at 400 roof samples; raise only after profiling a real large roof.
-  return Array.from({ length: cap }, (_, index) => samples[Math.floor(index * samples.length / cap)]);
+  return samples;
 }
 
 const csvCell = (value) => {
