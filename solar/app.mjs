@@ -304,6 +304,13 @@ function vworldKey() {
   return window.SOLAR_CONFIG?.vworldApiKey;
 }
 
+export function buildingLookupUrl(position, key) {
+  return vworldUrl('/req/data', {
+    service: 'data', request: 'GetFeature', data: 'LT_C_BLDGINFO', geomFilter: `POINT(${position.lon} ${position.lat})`,
+    geometry: 'true', attribute: 'true', crs: 'EPSG:4326', format: 'json', key,
+  });
+}
+
 function firstFeature(response) {
   return response?.response?.result?.featureCollection?.features?.[0] ?? response?.features?.[0] ?? null;
 }
@@ -350,10 +357,7 @@ export async function selectExistingBuilding(position) {
     return false;
   }
   try {
-    const response = await fetch(vworldUrl('/req/data', {
-      service: 'data', request: 'GetFeature', data: 'LT_C_BLDGBASE', geomFilter: `POINT(${position.lon} ${position.lat})`,
-      geometry: 'true', attribute: 'true', crs: 'EPSG:4326', format: 'json', key: vworldKey(),
-    }));
+    const response = await fetch(buildingLookupUrl(position, vworldKey()));
     if (!response.ok) throw new Error('building lookup failed');
     const feature = firstFeature(await response.json());
     const polygon = polygonFromGeometry(feature?.geometry);

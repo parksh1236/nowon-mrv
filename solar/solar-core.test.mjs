@@ -585,6 +585,18 @@ test('building replacement clears stale geometry and blanks a missing height', a
   }
 });
 
+test('building lookup request targets the supported VWorld building layer', async () => {
+  globalThis.window = {};
+  try {
+    const { buildingLookupUrl } = await import(`./app.mjs?building-layer=${Date.now()}`);
+    const url = new URL(buildingLookupUrl({ lat: 37.6543, lon: 127.0564 }, 'key'));
+    assert.equal(url.searchParams.get('data'), 'LT_C_BLDGINFO');
+    assert.equal(url.searchParams.get('geomFilter'), 'POINT(127.0564 37.6543)');
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('climate loading retries after a transient response failure', async () => {
   const { loadClimate } = await import(`./app.mjs?climate=${Date.now()}`);
   await assert.rejects(loadClimate(async () => ({ ok: false })), { message: '기후 데이터를 불러오지 못했습니다.' });
