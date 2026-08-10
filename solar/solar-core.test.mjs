@@ -377,6 +377,35 @@ test('3D scene boundary는 hit와 no-hit을 음영 표본으로 만들고 미지
   }
 });
 
+test('synchronous scene ray is preferred over a non-returning detailed picker', async () => {
+  globalThis.window = {};
+  try {
+    const { pickSceneFromRay } = await import(`./app.mjs?sync-ray=${Date.now()}`);
+    let detailedCalls = 0;
+    const hit = { position: { x: 1 } };
+    const scene = {
+      pickFromRay: () => hit,
+      pickFromRayMostDetailed: () => { detailedCalls += 1; return new Promise(() => {}); },
+    };
+
+    assert.equal(await pickSceneFromRay(scene, {}), hit);
+    assert.equal(detailedCalls, 0);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test('detailed-only scene ray fails instead of waiting forever', async () => {
+  globalThis.window = {};
+  try {
+    const { pickSceneFromRay } = await import(`./app.mjs?ray-timeout=${Date.now()}`);
+    const scene = { pickFromRayMostDetailed: () => new Promise(() => {}) };
+    await assert.rejects(pickSceneFromRay(scene, {}, 5), { message: '3D 음영 계산 시간이 초과되었습니다.' });
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('ENU 태양 방향은 동·북·상 local vector를 ECEF 방향으로 변환한다', async () => {
   class Cartesian3 {
     constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); }

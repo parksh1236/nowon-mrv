@@ -531,13 +531,28 @@ export function enuDirection(origin, sun, Cesium = window.Cesium) {
   return Cesium.Cartesian3.normalize(direction, direction);
 }
 
+export async function pickSceneFromRay(scene, ray, timeoutMs = 5000) {
+  if (scene.pickFromRay) return scene.pickFromRay(ray, []);
+  let timeout;
+  try {
+    return await Promise.race([
+      scene.pickFromRayMostDetailed(ray, []),
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('3D 음영 계산 시간이 초과되었습니다.')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function buildShadeSamples(project, quality = 'balanced', isCurrent = () => true) {
   const preset = PRECISION[quality] ?? PRECISION.balanced;
   const scene = mapInstance?.getCesiumViewer?.()?.scene ?? window.ws3d?.viewer?.scene;
   const Cesium = window.Cesium;
   const Cartesian3 = Cesium?.Cartesian3;
   const Ray = Cesium?.Ray;
-  if (!scene?.pickFromRayMostDetailed || !Cartesian3 || !Cartesian3.fromDegrees
+  if ((!scene?.pickFromRay && !scene?.pickFromRayMostDetailed) || !Cartesian3 || !Cartesian3.fromDegrees
     || !Cartesian3.normalize || !Cartesian3.distance || !Ray
     || !Cesium?.Transforms?.eastNorthUpToFixedFrame || !Cesium?.Matrix4?.multiplyByPointAsVector) {
     throw new Error('현재 VWorld 장면에서는 3D 음영 계산을 지원하지 않습니다.');
@@ -568,7 +583,7 @@ export async function buildShadeSamples(project, quality = 'balanced', isCurrent
         const altitude = sun.altitudeDeg * Math.PI / 180;
         const origin = sample.origin;
         const direction = enuDirection(origin, sun, Cesium);
-        const hit = await scene.pickFromRayMostDetailed(new Ray(origin, direction), []);
+        const hit = await pickSceneFromRay(scene, new Ray(origin, direction));
         if (!isCurrent()) return null;
         shadeSamples.push({
           month,
