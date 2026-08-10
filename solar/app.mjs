@@ -1,4 +1,4 @@
-import { calculateRough, deserializeProject, isInsideNowon, polygonMetrics, serializeProject } from './solar-core.mjs';
+import { calculateRough, isInsideNowon, isValidPolygon, polygonMetrics, readStoredProject, serializeProject } from './solar-core.mjs';
 
 const PROJECT_KEY = 'nowon-solar-project-v1';
 const form = document.querySelector('#analysis-form');
@@ -69,9 +69,12 @@ function updateModeTools() {
 function updateMetrics() {
   const roofMetrics = polygonMetrics(state.roof);
   const exclusionAreaM2 = state.exclusions.reduce((sum, points) => sum + polygonMetrics(points).areaM2, 0);
-  if (state.roof.length >= 3) {
+  if (state.roof.length >= 3 && roofMetrics.areaM2 > 0) {
     form.elements.roofAreaM2.value = roofMetrics.areaM2.toFixed(1);
     form.elements.perimeterM.value = roofMetrics.perimeterM.toFixed(1);
+  } else {
+    clearRoofMetrics();
+    clearResults();
   }
   form.elements.exclusionAreaM2.value = exclusionAreaM2.toFixed(1);
 }
@@ -79,6 +82,10 @@ function updateMetrics() {
 function clearRoofMetrics() {
   form.elements.roofAreaM2.value = '0';
   form.elements.perimeterM.value = '0';
+}
+
+function clearResults() {
+  results.replaceChildren(element('p', '지붕 좌표를 3개 이상 입력하면 분석 결과를 표시합니다.', 'estimate'));
 }
 
 function setRoofCoordinatesError(message = '') {
@@ -142,7 +149,7 @@ function renderExclusions() {
 }
 
 function validPolygon(points) {
-  return points.length >= 3 && isInsideNowon(points);
+  return isValidPolygon(points);
 }
 
 export function setRoofPolygon(points) {
@@ -166,6 +173,7 @@ export function addExclusionPolygon(points) {
     return false;
   }
   state.exclusions.push(points.map(({ lat, lon }) => ({ lat, lon })));
+  drawing = undefined;
   exclusionCoordinates.value = '';
   updateMetrics();
   renderExclusions();
@@ -343,22 +351,29 @@ export function saveProject() {
   }
 }
 
-function validProject(project) {
-  return ['existing', 'virtual'].includes(project?.mode)
-    && Array.isArray(project.roof) && (!project.roof.length || isInsideNowon(project.roof))
-    && Array.isArray(project.exclusions) && project.exclusions.every(validPolygon)
-    && Number.isFinite(project.heightM) && project.heightM >= 0
-    && project.formValues && typeof project.formValues === 'object';
-}
-
 export function restoreProject() {
-  const project = deserializeProject(localStorage.getItem(PROJECT_KEY));
-  if (!project) return false;
-  if (!validProject(project)) {
-    localStorage.removeItem(PROJECT_KEY);
+  let stored;
+  try {
+    stored = readStoredProject(localStorage, PROJECT_KEY);
+  } catch {
+    setStatus('저장소에 접근하지 못해 프로젝트를 복원하지 않았습니다.');
+    return false;
+  }
+  if (stored.unavailable) {
+    setStatus('저장소에 접근하지 못해 프로젝트를 복원하지 않았습니다.');
+    return false;
+  }
+  if (stored.invalid) {
+    try {
+      localStorage.removeItem(PROJECT_KEY);
+    } catch {
+      // Storage may be unavailable even though the previous read succeeded.
+    }
     setStatus('저장된 프로젝트가 유효하지 않아 제거했습니다.');
     return false;
   }
+  const { project } = stored;
+  if (!project) return false;
   state.mode = project.mode;
   state.roof = project.roof;
   state.exclusions = project.exclusions;
@@ -504,7 +519,16 @@ heightInput.addEventListener('input', () => {
   markDirty();
 });
 document.querySelector('#start-roof-drawing').addEventListener('click', () => { drawing = { kind: 'roof', points: [] }; clearRoof(); drawing = { kind: 'roof', points: [] }; setStatus('지도에서 지붕 꼭짓점을 차례로 선택하세요.'); });
-document.querySelector('#undo-roof-point').addEventListener('click', () => { if (drawing?.kind === 'roof') { drawing.points.pop(); state.roof = [...drawing.points]; roofCoordinates.value = pointsToText(state.roof); renderMapShapes(); } });
+document.querySelector('#undo-roof-point').addEventListener('click', () => {
+  if (drawing?.kind !== 'roof') return;
+  drawing.points.pop();
+  state.roof = [...drawing.points];
+  roofCoordinates.value = pointsToText(state.roof);
+  updateMetrics();
+  renderMapShapes();
+  markDirty();
+  if (validPolygon(state.roof)) runAnalysis('rough');
+});
 document.querySelector('#finish-roof-drawing').addEventListener('click', finishRoofDrawing);
 document.querySelector('#reset-roof').addEventListener('click', clearRoof);
 document.querySelector('#start-exclusion-drawing').addEventListener('click', () => { drawing = { kind: 'exclusion', points: [] }; setStatus('지도에서 제외 영역 꼭짓점을 차례로 선택하세요.'); });

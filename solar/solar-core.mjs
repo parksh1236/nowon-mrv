@@ -26,9 +26,32 @@ export function deserializeProject(value) {
 }
 
 export function isInsideNowon(points) {
-  return Array.isArray(points) && points.length > 0 && points.every(({ lat, lon } = {}) => (
-    Number.isFinite(lat) && Number.isFinite(lon) && lat >= 37.58 && lat <= 37.70 && lon >= 127.00 && lon <= 127.12
+  return Array.isArray(points) && points.length > 0 && points.every((point) => (
+    Number.isFinite(point?.lat) && Number.isFinite(point?.lon) && point.lat >= 37.58 && point.lat <= 37.70 && point.lon >= 127.00 && point.lon <= 127.12
   ));
+}
+
+export function isValidPolygon(points) {
+  return Array.isArray(points) && points.length >= 3 && isInsideNowon(points) && polygonMetrics(points).areaM2 > 0;
+}
+
+export function isValidProject(project) {
+  return ['existing', 'virtual'].includes(project?.mode)
+    && Array.isArray(project.roof) && (!project.roof.length || isValidPolygon(project.roof))
+    && Array.isArray(project.exclusions) && project.exclusions.every(isValidPolygon)
+    && Number.isFinite(project.heightM) && project.heightM >= 0
+    && project.formValues && typeof project.formValues === 'object';
+}
+
+export function readStoredProject(storage, key) {
+  try {
+    const value = storage.getItem(key);
+    if (value === null) return { project: null };
+    const project = deserializeProject(value);
+    return project && isValidProject(project) ? { project } : { project: null, invalid: true };
+  } catch {
+    return { project: null, unavailable: true };
+  }
 }
 
 export function validateInputs(input = {}) {

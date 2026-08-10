@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  calculateDetailed, calculateRough, deserializeProject, isInsideNowon, polygonMetrics, serializeProject, sunPosition, validateInputs,
+  calculateDetailed, calculateRough, deserializeProject, isInsideNowon, isValidProject, polygonMetrics, readStoredProject, serializeProject, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -24,6 +24,30 @@ test('project deserialization rejects malformed JSON without throwing', () => {
 test('Nowon boundary accepts inside points and rejects outside points', () => {
   assert.equal(isInsideNowon([{ lat: 37.65, lon: 127.05 }]), true);
   assert.equal(isInsideNowon([{ lat: 37.57, lon: 127.05 }]), false);
+  assert.equal(isInsideNowon([null]), false);
+});
+
+const validProject = {
+  mode: 'virtual',
+  roof: [
+    { lat: 37.65, lon: 127.05 },
+    { lat: 37.65, lon: 127.051 },
+    { lat: 37.651, lon: 127.051 },
+  ],
+  exclusions: [],
+  heightM: 24,
+  formValues: {},
+};
+
+test('project validation rejects invalid roof points and degenerate polygons', () => {
+  assert.equal(isValidProject({ ...validProject, roof: [null] }), false);
+  assert.equal(isValidProject({ ...validProject, roof: validProject.roof.slice(0, 2) }), false);
+  assert.equal(isValidProject({ ...validProject, roof: [validProject.roof[0], validProject.roof[0], validProject.roof[0]] }), false);
+});
+
+test('stored project reading survives a storage SecurityError', () => {
+  const storage = { getItem() { throw new Error('SecurityError'); } };
+  assert.deepEqual(readStoredProject(storage, 'nowon-solar-project-v1'), { project: null, unavailable: true });
 });
 
 test('노원구 인근 10m × 11m 사각형의 면적과 둘레를 계산한다', () => {
