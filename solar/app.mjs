@@ -1,23 +1,38 @@
-import { calculateRough, currentAnalysisResult, isInsideNowon, isValidPolygon, polygonMetrics, readStoredProject, removeStoredProject, serializeProject } from './solar-core.mjs';
+import { buildCsv, calculateDetailed, calculateRough, isInsideNowon, isValidPolygon, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs';
 
 const PROJECT_KEY = 'nowon-solar-project-v1';
-const form = document.querySelector('#analysis-form');
-const status = document.querySelector('#status');
-const results = document.querySelector('#results');
-const roofCoordinates = document.querySelector('#roof-coordinates');
-const roofCoordinatesError = document.querySelector('#roof-coordinates-error');
-const exclusionCoordinates = document.querySelector('#exclusion-coordinates');
-const heightInput = document.querySelector('#building-height');
-const exclusionList = document.querySelector('#exclusion-list');
+const PRECISION = {
+  fast: { gridM: 5, hours: [9, 12, 15] },
+  balanced: { gridM: 3, hours: [8, 10, 12, 14, 16] },
+  fine: { gridM: 2, hours: [8, 9, 10, 11, 12, 13, 14, 15, 16] },
+};
+const precisionLabels = { fast: '빠름', balanced: '균형', fine: '정밀' };
+const doc = globalThis.document;
+const form = doc?.querySelector('#analysis-form');
+const status = doc?.querySelector('#status');
+const results = doc?.querySelector('#results');
+const roofCoordinates = doc?.querySelector('#roof-coordinates');
+const roofCoordinatesError = doc?.querySelector('#roof-coordinates-error');
+const exclusionCoordinates = doc?.querySelector('#exclusion-coordinates');
+const heightInput = doc?.querySelector('#building-height');
+const exclusionList = doc?.querySelector('#exclusion-list');
+const precisionSelect = doc?.querySelector('#precision');
+const precisionOptions = doc?.querySelector('#precision-options');
+const detailedMode = form?.querySelector('input[name="analysisMode"][value="detailed"]');
+const analysisSubmit = doc?.querySelector('#run-analysis');
+const csvButton = doc?.querySelector('#download-csv');
 let climatePromise;
 let analysisGeneration = 0;
+let busyGeneration = 0;
 let mapInstance;
 let drawing;
+let latestClimate;
+let latestResult;
 const mapEntities = [];
 const state = { mode: 'existing', roof: [], exclusions: [], heightM: 0, formValues: {}, dirty: false };
 
 const element = (tag, text, className) => {
-  const node = document.createElement(tag);
+  const node = doc.createElement(tag);
   if (text !== undefined) node.textContent = text;
   if (className) node.className = className;
   return node;
@@ -54,7 +69,7 @@ function applyFormValues(values = {}) {
 }
 
 function setStatus(message) {
-  status.textContent = message;
+  if (status) status.textContent = message;
 }
 
 function manualFallback(detail = '') {
@@ -86,6 +101,8 @@ function clearRoofMetrics() {
 
 function invalidateRoof() {
   analysisGeneration += 1;
+  busyGeneration = 0;
+  if (form) setAnalysisBusy(false);
   clearRoofMetrics();
   clearResults();
 }
@@ -445,57 +462,182 @@ async function loadClimate() {
   return climatePromise;
 }
 
-export async function runAnalysis(mode) {
-  if (mode === 'detailed') {
-    setStatus('정밀 추정은 다음 단계에서 연결합니다.');
-    return null;
+function setAnalysisBusy(busy) {
+  detailedMode.disabled = busy;
+  precisionSelect.disabled = busy;
+  analysisSubmit.disabled = busy;
+  analysisSubmit.setAttribute('aria-busy', String(busy));
+}
+
+export async function buildShadeSamples(project, quality = 'balanced') {
+  const preset = PRECISION[quality] ?? PRECISION.balanced;
+  const scene = mapInstance?.getCesiumViewer?.()?.scene ?? window.ws3d?.viewer?.scene;
+  const Cartesian3 = window.Cesium?.Cartesian3;
+  const Ray = window.Cesium?.Ray;
+  if (!scene?.pickFromRayMostDetailed || !Cartesian3 || !Ray) {
+    throw new Error('현재 VWorld 장면에서는 3D 음영 계산을 지원하지 않습니다.');
   }
+
+  const roofSamples = samplePolygon(project.roof, preset.gridM);
+  if (!roofSamples.length) throw new Error('정밀 추정에는 유효한 지붕 좌표가 필요합니다.');
+  const raySamples = roofSamples.map((sample) => {
+    const cartographic = window.Cesium?.Cartographic?.fromDegrees?.(sample.lon, sample.lat);
+    const roofHeightM = (cartographic ? scene.globe?.getHeight?.(cartographic) ?? 0 : 0) + (project.heightM ?? 0);
+    return { ...sample, roofHeightM, origin: Cartesian3.fromDegrees(sample.lon, sample.lat, roofHeightM) };
+  });
+  const shadeSamples = [];
+  for (let month = 1; month <= 12; month += 1) {
+    for (const hour of preset.hours) {
+      const date = new Date(Date.UTC(2026, month - 1, 15, hour - 9));
+      for (const sample of raySamples) {
+        const sun = sunPosition(date, sample.lat, sample.lon);
+        if (sun.altitudeDeg <= 0) continue;
+        const altitude = sun.altitudeDeg * Math.PI / 180;
+        const azimuth = sun.azimuthDeg * Math.PI / 180;
+        const horizontalM = 100_000 * Math.cos(altitude);
+        const northM = horizontalM * Math.cos(azimuth);
+        const eastM = horizontalM * Math.sin(azimuth);
+        const targetLat = sample.lat + (northM / 6_371_000) * 180 / Math.PI;
+        const targetLon = sample.lon + (eastM / (6_371_000 * Math.cos(sample.lat * Math.PI / 180))) * 180 / Math.PI;
+        const origin = sample.origin;
+        const target = Cartesian3.fromDegrees(targetLon, targetLat, sample.roofHeightM + 100_000 * Math.sin(altitude));
+        const direction = Cartesian3.normalize(Cartesian3.subtract(target, origin, new Cartesian3()), new Cartesian3());
+        const hit = await scene.pickFromRayMostDetailed(new Ray(origin, direction), []);
+        shadeSamples.push({
+          month,
+          weight: Math.sin(altitude),
+          shaded: Boolean(hit?.position && Cartesian3.distance(origin, hit.position) < 100_000),
+        });
+      }
+    }
+    setStatus(`정밀 추정 분석 중: ${month}/12개월`);
+    await new Promise(requestAnimationFrame);
+  }
+  return shadeSamples;
+}
+
+export async function runAnalysis(mode) {
+  const generation = ++analysisGeneration;
+  const detailed = mode === 'detailed';
+  busyGeneration = detailed ? generation : 0;
+  setAnalysisBusy(detailed);
   try {
-    const generation = ++analysisGeneration;
     const input = readForm();
-    const result = await currentAnalysisResult(loadClimate().then((climate) => calculateRough(input, climate)), generation, () => analysisGeneration);
-    if (result === null) return null;
-    renderResult(result);
-    return result;
+    const climate = await loadClimate();
+    if (generation !== analysisGeneration) return null;
+    latestClimate = climate;
+    const rough = calculateRough(input, climate);
+    latestResult = { rough, detailed: null, precision: precisionLabels[precisionSelect.value], spacingM: PRECISION[precisionSelect.value].gridM };
+    renderResult(latestResult);
+    csvButton.disabled = false;
+    if (!detailed) return rough;
+
+    try {
+      const shadeSamples = await buildShadeSamples({ ...state, input }, precisionSelect.value);
+      if (generation !== analysisGeneration) return null;
+      latestResult.detailed = calculateDetailed(input, climate, shadeSamples);
+      renderResult(latestResult);
+      setStatus('정밀 추정 분석을 완료했습니다.');
+      return latestResult.detailed;
+    } catch (error) {
+      if (generation === analysisGeneration) {
+        latestResult.error = error.message;
+        renderResult(latestResult);
+        setStatus(error.message);
+      }
+      return null;
+    }
   } catch (error) {
     setStatus(error.message);
     return null;
+  } finally {
+    if (busyGeneration === generation) {
+      busyGeneration = 0;
+      setAnalysisBusy(false);
+    }
   }
 }
 
 const format = (value, fractionDigits = 1) => Number(value).toLocaleString('ko-KR', { maximumFractionDigits: fractionDigits, minimumFractionDigits: fractionDigits });
 
 export function renderResult(result) {
+  const rough = result.rough ?? result;
+  const detailed = result.detailed;
   const cards = element('div', undefined, 'cards');
-  const values = [['설치 가능면적', `${format(result.installableAreaM2)} ㎡`], ['패널 수', `${format(result.panelCount, 0)} 장`], ['설비용량', `${format(result.capacityKwp)} kWp`], ['연간 발전량', `${format(result.annualKwh)} kWh/년`]];
+  const values = [
+    ['설치 가능면적', `${format(rough.installableAreaM2)} ㎡`],
+    ['설비용량', `${format(rough.capacityKwp)} kWp`],
+    ['개략 연간 발전량', `${format(rough.annualKwh)} kWh/년`],
+    ...(detailed ? [
+      ['정밀 추정 연간 발전량', `${format(detailed.annualKwh)} kWh/년`],
+      ['음영 손실률', `${format(detailed.shadingLossRatio * 100)} %`],
+      ['정밀도 / 표본 간격', `${result.precision} / ${result.spacingM} m`],
+    ] : []),
+  ];
   for (const [label, value] of values) {
     const card = element('div', undefined, 'card');
     card.append(element('span', label), element('strong', value));
     cards.append(card);
   }
-  const warnings = result.warnings?.length ? element('ul', undefined, 'warnings') : null;
-  result.warnings?.forEach((warning) => warnings.append(element('li', warning)));
-  const chart = element('div', undefined, 'months');
-  chart.id = 'monthly-chart';
-  const maxKwh = Math.max(1, ...(result.monthlyKwh ?? []).map(({ kwh }) => kwh));
-  for (const { month, kwh } of result.monthlyKwh ?? []) {
-    const row = element('div', undefined, 'month');
-    const track = element('div', undefined, 'bar-track');
-    const bar = element('div', undefined, 'bar');
-    bar.style.width = `${(kwh / maxKwh) * 100}%`;
-    bar.setAttribute('role', 'img');
-    bar.setAttribute('aria-label', `${month}월 ${format(kwh)} kWh`);
-    track.append(bar);
-    row.append(element('span', `${month}월`), track, element('span', `${format(kwh)} kWh`));
-    chart.append(row);
+  const warnings = rough.warnings?.length ? element('ul', undefined, 'warnings') : null;
+  rough.warnings?.forEach((warning) => warnings.append(element('li', warning)));
+  const error = result.error ? element('p', result.error, 'detailed-error') : null;
+  if (error) error.setAttribute('role', 'alert');
+  const table = element('table', undefined, 'comparison');
+  table.append(element('caption', '월별 발전량 비교'));
+  const head = element('thead');
+  const headRow = element('tr');
+  for (const label of ['월', '개략 발전량 (kWh)', '정밀 추정 발전량 (kWh)']) {
+    const cell = element('th', label);
+    cell.scope = 'col';
+    headRow.append(cell);
   }
-  results.replaceChildren(element('p', '개략 분석 결과', 'estimate'), cards, ...(warnings ? [warnings] : []), chart);
+  head.append(headRow);
+  const body = element('tbody');
+  const detailedByMonth = new Map((detailed?.monthlyKwh ?? []).map((entry) => [entry.month, entry.kwh]));
+  const maxKwh = Math.max(1, ...(rough.monthlyKwh ?? []).map(({ kwh }) => kwh), ...(detailed?.monthlyKwh ?? []).map(({ kwh }) => kwh));
+  for (const { month, kwh } of rough.monthlyKwh ?? []) {
+    const row = element('tr');
+    const monthCell = element('th', `${month}월`);
+    monthCell.scope = 'row';
+    row.append(monthCell, generationCell(kwh, maxKwh), generationCell(detailedByMonth.get(month), maxKwh));
+    body.append(row);
+  }
+  table.append(head, body);
+  results.replaceChildren(element('p', detailed ? '개략 분석 / 정밀 추정 결과' : '개략 분석 결과', 'estimate'), cards, ...(warnings ? [warnings] : []), ...(error ? [error] : []), table);
 }
 
+function generationCell(kwh, maxKwh) {
+  const cell = element('td', kwh == null ? '' : `${format(kwh)} kWh`);
+  if (kwh != null) {
+    const bar = element('span', undefined, 'compare-bar');
+    bar.style.width = `${(kwh / maxKwh) * 100}%`;
+    bar.setAttribute('aria-hidden', 'true');
+    cell.append(bar);
+  }
+  return cell;
+}
+
+export function downloadCsv(result, project) {
+  const blob = new Blob(['\ufeff', buildCsv(result, project, latestClimate ?? {})], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'nowon-solar-analysis.csv';
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+if (form) {
 form.addEventListener('submit', (event) => {
   event.preventDefault();
   runAnalysis(new FormData(form).get('analysisMode'));
 });
+form.querySelectorAll('input[name="analysisMode"]').forEach((control) => control.addEventListener('change', () => {
+  precisionOptions.hidden = control.value !== 'detailed' || !control.checked;
+}));
 form.addEventListener('input', (event) => {
   if (event.target.name !== 'buildingMode' && ![roofCoordinates, exclusionCoordinates, heightInput].includes(event.target)) markDirty();
 });
@@ -542,7 +684,16 @@ document.querySelector('#add-exclusion').addEventListener('click', () => { const
 document.querySelector('#search-building').addEventListener('click', searchBuilding);
 document.querySelector('#select-building').addEventListener('click', () => setStatus('지도에서 기존 건물을 선택하세요.'));
 document.querySelector('#save-project').addEventListener('click', saveProject);
+csvButton.addEventListener('click', () => downloadCsv(latestResult, {
+  ...state,
+  input: readForm(),
+  formValues: formValues(),
+  precision: latestResult?.precision,
+  spacingM: latestResult?.spacingM,
+}));
 
 restoreProject();
+precisionOptions.hidden = new FormData(form).get('analysisMode') !== 'detailed';
 initMap();
 runAnalysis('rough');
+}

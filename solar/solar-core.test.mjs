@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, isInsideNowon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, serializeProject, sunPosition, validateInputs,
+  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, isInsideNowon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -155,6 +155,138 @@ test('절반 음영은 직달 성분에만 0보다 크고 0.5보다 작은 손�
   ]);
 
   assert.ok(result.shadingLossRatio > 0 && result.shadingLossRatio < 0.5);
+});
+
+test('지붕 표본은 내부에 있고 격자가 촘촘할수록 같거나 많으며 cap을 넘지 않는다', () => {
+  const roof = [
+    { lat: 37.654, lon: 127.056 },
+    { lat: 37.654, lon: 127.056112 },
+    { lat: 37.654099, lon: 127.056112 },
+    { lat: 37.654099, lon: 127.056 },
+  ];
+  const coarse = samplePolygon(roof, 5, 400);
+  const fine = samplePolygon(roof, 2, 10);
+
+  assert.ok(coarse.length > 0);
+  assert.ok(fine.length >= coarse.length);
+  assert.ok(fine.length <= 10);
+  for (const point of [...coarse, ...fine]) {
+    assert.ok(point.lat > 37.654 && point.lat < 37.654099);
+    assert.ok(point.lon > 127.056 && point.lon < 127.056112);
+  }
+  assert.deepEqual(samplePolygon([], 2), []);
+  assert.deepEqual(samplePolygon(roof.slice(0, 2), 2), []);
+  assert.deepEqual(samplePolygon([roof[0], roof[0], roof[0]], 2), []);
+
+  const base = { lat: 37.65, lon: 127.05 };
+  const uShape = [[0, 0], [4, 0], [4, 4], [3, 4], [3, 1], [1, 1], [1, 4], [0, 4]]
+    .map(([x, y]) => ({ lat: base.lat + y * 0.000009, lon: base.lon + x * 0.000011 }));
+  const [fallback] = samplePolygon(uShape, 100);
+  const fallbackX = (fallback.lon - base.lon) / 0.000011;
+  const fallbackY = (fallback.lat - base.lat) / 0.000009;
+  assert.ok(fallbackY < 1 || fallbackX < 1 || fallbackX > 3);
+});
+
+test('CSV는 월별 비교와 분석 metadata를 RFC 4180 형식으로 만든다', () => {
+  const result = {
+    rough: {
+      installableAreaM2: 80,
+      capacityKwp: 18,
+      monthlyKwh: [
+        { month: 1, kwh: 10 }, { month: 2, kwh: 20 }, { month: 3, kwh: 30 }, { month: 4, kwh: 40 },
+        { month: 5, kwh: 50 }, { month: 6, kwh: 60 }, { month: 7, kwh: 70 }, { month: 8, kwh: 80 },
+        { month: 9, kwh: 90 }, { month: 10, kwh: 100 }, { month: 11, kwh: 110 }, { month: 12, kwh: 120 },
+      ],
+    },
+    detailed: {
+      monthlyKwh: [
+        { month: 1, kwh: 9 }, { month: 2, kwh: 18 }, { month: 3, kwh: 27 }, { month: 4, kwh: 36 },
+        { month: 5, kwh: 45 }, { month: 6, kwh: 54 }, { month: 7, kwh: 63 }, { month: 8, kwh: 72 },
+        { month: 9, kwh: 81 }, { month: 10, kwh: 90 }, { month: 11, kwh: 99 }, { month: 12, kwh: 108 },
+      ],
+    },
+    precision: '균형',
+    spacingM: 3,
+  };
+  const project = { formValues: { systemLossRatio: 14 } };
+  const climate = { source: '기상청, "관측"\n2025' };
+  const expected = `월,개략발전량_kWh,정밀추정발전량_kWh\r
+1,10,9\r
+2,20,18\r
+3,30,27\r
+4,40,36\r
+5,50,45\r
+6,60,54\r
+7,70,63\r
+8,80,72\r
+9,90,81\r
+10,100,90\r
+11,110,99\r
+12,120,108\r
+\r
+항목,값\r
+설치 가능면적㎡,80\r
+설비용량kWp,18\r
+시스템손실률,0.14\r
+정밀도,균형\r
+표본간격m,3\r
+기후자료출처,"기상청, ""관측""\n2025"\r
+분석구분,사전 추정치`;
+
+  assert.equal(buildCsv(result, project, climate), expected);
+  assert.equal(buildCsv(result, project, climate).charCodeAt(0) === 0xfeff, false);
+  assert.match(buildCsv({ ...result, detailed: null }, project, climate), /\r\n1,10,\r\n/);
+});
+
+test('3D scene boundary는 hit와 no-hit을 음영 표본으로 만들고 미지원 API를 거부한다', async () => {
+  class Cartesian3 {
+    constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); }
+    static fromDegrees(lon, lat, height) { return new Cartesian3(lon * 1000, lat * 1000, height); }
+    static subtract(a, b, out) { Object.assign(out, { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }); return out; }
+    static normalize(value, out) {
+      const length = Math.hypot(value.x, value.y, value.z);
+      Object.assign(out, { x: value.x / length, y: value.y / length, z: value.z / length });
+      return out;
+    }
+    static distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z); }
+  }
+  class Ray { constructor(origin, direction) { Object.assign(this, { origin, direction }); } }
+  let calls = 0;
+  const originHeights = [];
+  const scene = {
+    globe: { getHeight() { return 100; } },
+    async pickFromRayMostDetailed(ray) {
+      calls += 1;
+      originHeights.push(ray.origin.z);
+      return calls % 2 ? { position: new Cartesian3(ray.origin.x + 1, ray.origin.y, ray.origin.z) } : undefined;
+    },
+  };
+  globalThis.window = { Cesium: { Cartesian3, Ray, Cartographic: { fromDegrees: (lon, lat) => ({ lon, lat }) } }, ws3d: { viewer: { scene } } };
+  globalThis.requestAnimationFrame = (callback) => callback();
+  try {
+    const { buildShadeSamples } = await import(`./app.mjs?boundary=${Date.now()}`);
+    const roof = [
+      { lat: 37.654, lon: 127.056 },
+      { lat: 37.654, lon: 127.056112 },
+      { lat: 37.654099, lon: 127.056112 },
+      { lat: 37.654099, lon: 127.056 },
+    ];
+    const samples = await buildShadeSamples({ roof, heightM: 20 }, 'fast');
+
+    assert.ok(samples.some(({ shaded }) => shaded));
+    assert.ok(samples.some(({ shaded }) => !shaded));
+    assert.ok(originHeights.every((height) => height === 120));
+    assert.deepEqual([...new Set(samples.map(({ month }) => month))], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+
+    window.ws3d.viewer.scene = {};
+    await assert.rejects(
+      buildShadeSamples({ roof, heightM: 20 }, 'fast'),
+      { message: '현재 VWorld 장면에서는 3D 음영 계산을 지원하지 않습니다.' },
+    );
+  } finally {
+    delete globalThis.window;
+    delete globalThis.requestAnimationFrame;
+  }
 });
 
 test('기후 품질 경고는 발전량 계산을 막지 않는다', () => {

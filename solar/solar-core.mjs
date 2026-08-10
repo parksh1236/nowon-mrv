@@ -187,6 +187,91 @@ export function polygonMetrics(points) {
   return { areaM2: Math.abs(doubleArea) / 2, perimeterM };
 }
 
+export function samplePolygon(points, spacingM, maxPoints = 400) {
+  if (!Array.isArray(points) || points.length < 3 || !(spacingM > 0) || !(maxPoints > 0) || polygonMetrics(points).areaM2 === 0) return [];
+
+  const latitude = points.reduce((sum, point) => sum + point.lat, 0) / points.length;
+  const longitude = points.reduce((sum, point) => sum + point.lon, 0) / points.length;
+  const cosineLatitude = Math.cos(radians(latitude));
+  const projected = points.map(({ lat, lon }) => ({
+    x: EARTH_RADIUS_M * radians(lon - longitude) * cosineLatitude,
+    y: EARTH_RADIUS_M * radians(lat - latitude),
+  }));
+  const xs = projected.map(({ x }) => x);
+  const ys = projected.map(({ y }) => y);
+  const unproject = ({ x, y }) => ({
+    lat: latitude + (y / EARTH_RADIUS_M) * 180 / Math.PI,
+    lon: longitude + (x / (EARTH_RADIUS_M * cosineLatitude)) * 180 / Math.PI,
+  });
+  const inside = ({ x, y }) => {
+    let result = false;
+    for (let index = 0, previous = projected.length - 1; index < projected.length; previous = index, index += 1) {
+      const a = projected[index];
+      const b = projected[previous];
+      if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) result = !result;
+    }
+    return result;
+  };
+  const samples = [];
+  for (let y = Math.min(...ys) + spacingM / 2; y < Math.max(...ys); y += spacingM) {
+    for (let x = Math.min(...xs) + spacingM / 2; x < Math.max(...xs); x += spacingM) {
+      if (inside({ x, y })) samples.push(unproject({ x, y }));
+    }
+  }
+  if (!samples.length) {
+    if (inside({ x: 0, y: 0 })) return [{ lat: latitude, lon: longitude }];
+    const orientation = projected.reduce((sum, point, index) => {
+      const next = projected[(index + 1) % projected.length];
+      return sum + point.x * next.y - next.x * point.y;
+    }, 0) >= 0 ? 1 : -1;
+    for (let index = 0; index < projected.length; index += 1) {
+      const point = projected[index];
+      const next = projected[(index + 1) % projected.length];
+      const length = Math.hypot(next.x - point.x, next.y - point.y);
+      if (!length) continue;
+      const epsilon = Math.max(1e-6, length * 1e-6);
+      const candidate = {
+        x: (point.x + next.x) / 2 - orientation * (next.y - point.y) / length * epsilon,
+        y: (point.y + next.y) / 2 + orientation * (next.x - point.x) / length * epsilon,
+      };
+      if (inside(candidate)) return [unproject(candidate)];
+    }
+    return [];
+  }
+  if (samples.length <= maxPoints) return samples;
+
+  // ponytail: cap browser ray casts at 400 roof samples; raise only after profiling a real large roof.
+  return Array.from({ length: Math.floor(maxPoints) }, (_, index) => samples[Math.floor(index * samples.length / maxPoints)]);
+}
+
+const csvCell = (value) => {
+  const text = value == null ? '' : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+};
+
+export function buildCsv(result = {}, project = {}, climate = {}) {
+  const rough = result.rough ?? result;
+  const detailed = result.detailed;
+  const roughByMonth = new Map((rough.monthlyKwh ?? []).map(({ month, kwh }) => [month, kwh]));
+  const detailedByMonth = new Map((detailed?.monthlyKwh ?? []).map(({ month, kwh }) => [month, kwh]));
+  const formLoss = Number(project.formValues?.systemLossRatio);
+  const systemLossRatio = project.systemLossRatio ?? project.input?.systemLossRatio ?? (Number.isFinite(formLoss) ? formLoss / 100 : '');
+  const rows = [['월', '개략발전량_kWh', '정밀추정발전량_kWh']];
+  for (let month = 1; month <= 12; month += 1) rows.push([month, roughByMonth.get(month), detailedByMonth.get(month)]);
+  rows.push(
+    [],
+    ['항목', '값'],
+    ['설치 가능면적㎡', rough.installableAreaM2],
+    ['설비용량kWp', rough.capacityKwp],
+    ['시스템손실률', systemLossRatio],
+    ['정밀도', result.precision ?? project.precision ?? ''],
+    ['표본간격m', result.spacingM ?? project.spacingM ?? ''],
+    ['기후자료출처', climate.source ?? ''],
+    ['분석구분', '사전 추정치'],
+  );
+  return rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+}
+
 export function sunPosition(date, latitude, longitude) {
   const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 1);
   const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86_400_000) + 1;
