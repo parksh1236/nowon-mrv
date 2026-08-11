@@ -21,6 +21,8 @@ const precisionOptions = doc?.querySelector('#precision-options');
 const detailedMode = form?.querySelector('input[name="analysisMode"][value="detailed"]');
 const analysisSubmit = doc?.querySelector('#run-analysis');
 const csvButton = doc?.querySelector('#download-csv');
+const buildingInfo = doc?.querySelector('#building-info');
+const buildingDetails = doc?.querySelector('#building-details');
 let climatePromise;
 let jsonpSequence = 0;
 let analysisGeneration = 0;
@@ -28,6 +30,8 @@ let busyGeneration = 0;
 let mapInstance;
 let drawing;
 let latestResult;
+let selectingExistingBuilding = false;
+let selectedBuildingMarker;
 const mapEntities = [];
 const state = { mode: 'existing', roof: [], exclusions: [], heightM: 0, formValues: {}, dirty: false };
 
@@ -275,10 +279,16 @@ function finishRoofDrawing() {
   }
 }
 
-function coordinateFromClick(event) {
-  const cartographic = event?.cartographic ?? event;
+export function coordinateFromClick(event, viewer = getViewer(), Cesium = window.Cesium) {
+  let cartographic = event?.cartographic ?? event?.coordinate ?? event;
+  if ((!Number.isFinite(cartographic?.latitude) || !Number.isFinite(cartographic?.longitude)) && event?.position) {
+    const scene = viewer?.scene;
+    const cartesian = (scene?.pickPositionSupported && scene?.pickPosition?.(event.position))
+      || viewer?.camera?.pickEllipsoid?.(event.position, scene?.globe?.ellipsoid);
+    cartographic = cartesian && Cesium?.Cartographic?.fromCartesian?.(cartesian);
+  }
   if (!Number.isFinite(cartographic?.latitude) || !Number.isFinite(cartographic?.longitude)) return null;
-  const toDegrees = window.Cesium?.Math?.toDegrees ?? ((value) => value * 180 / Math.PI);
+  const toDegrees = Cesium?.Math?.toDegrees ?? ((value) => value * 180 / Math.PI);
   const longitude = Math.abs(cartographic.longitude) <= Math.PI * 2 ? toDegrees(cartographic.longitude) : cartographic.longitude;
   const latitude = Math.abs(cartographic.latitude) <= Math.PI ? toDegrees(cartographic.latitude) : cartographic.latitude;
   return { lat: latitude, lon: longitude };
@@ -293,7 +303,10 @@ function wireMapClicks(map) {
     const position = coordinateFromClick(event);
     if (!position) return;
     if (drawing) setDraftPoint(position);
-    else if (state.mode === 'existing') await selectExistingBuilding(position);
+    else if (state.mode === 'existing' && selectingExistingBuilding) {
+      selectingExistingBuilding = false;
+      await selectExistingBuilding(position, { label: '지도에서 선택한 건물' });
+    }
   });
 }
 
@@ -357,6 +370,67 @@ function featureHeight(properties = {}) {
   return entry ? Number(entry[1]) : null;
 }
 
+const propertyValue = (properties, patterns) => {
+  const entry = Object.entries(properties ?? {}).find(([name, value]) => value != null && value !== '' && patterns.some((pattern) => pattern.test(name)));
+  return entry?.[1];
+};
+
+export function buildingSummary(feature, position, label = '') {
+  const properties = feature?.properties ?? {};
+  const polygon = polygonFromGeometry(feature?.geometry);
+  const metrics = polygon ? polygonMetrics(polygon) : null;
+  return [
+    ['검색 위치', label || `${position.lat.toFixed(6)}, ${position.lon.toFixed(6)}`],
+    ['건물명', propertyValue(properties, [/bld.*nm/i, /bul.*nm/i, /^name$/i]) ?? '자료 없음'],
+    ['주용도', propertyValue(properties, [/main.*purps/i, /use.*nm/i, /用途/i]) ?? '자료 없음'],
+    ['지상층수', propertyValue(properties, [/grnd.*flr/i, /ground.*floor/i]) ?? '자료 없음'],
+    ['지하층수', propertyValue(properties, [/ugrnd.*flr/i, /under.*floor/i]) ?? '자료 없음'],
+    ['건물 높이', featureHeight(properties) == null ? '자료 없음' : `${featureHeight(properties)} m`],
+    ['지붕 추정면적', metrics ? `${metrics.areaM2.toFixed(1)} ㎡` : '자료 없음'],
+    ['좌표', `${position.lat.toFixed(6)}, ${position.lon.toFixed(6)}`],
+  ];
+}
+
+function renderBuildingInfo(feature, position, label) {
+  if (!buildingInfo || !buildingDetails) return;
+  buildingDetails.replaceChildren();
+  for (const [name, value] of buildingSummary(feature, position, label)) {
+    buildingDetails.append(element('dt', name), element('dd', String(value)));
+  }
+  buildingInfo.hidden = false;
+}
+
+export function focusBuildingOnMap(position, label = '선택 건물', viewer = getViewer(), Cesium = window.Cesium) {
+  if (!viewer || !Cesium?.Cartesian3?.fromDegrees) return false;
+  const destination = Cesium.Cartesian3.fromDegrees(position.lon, position.lat, 700);
+  viewer.camera?.flyTo?.({
+    destination,
+    orientation: { heading: 0, pitch: Cesium.Math?.toRadians?.(-65) ?? -1.134, roll: 0 },
+    duration: 1.1,
+  });
+  if (selectedBuildingMarker) viewer.entities?.remove?.(selectedBuildingMarker);
+  selectedBuildingMarker = viewer.entities?.add?.({
+    position: Cesium.Cartesian3.fromDegrees(position.lon, position.lat, 10),
+    point: {
+      pixelSize: 14,
+      color: Cesium.Color?.fromCssColorString?.('#e4482f') ?? '#e4482f',
+      outlineColor: Cesium.Color?.WHITE,
+      outlineWidth: 3,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+    label: {
+      text: label,
+      font: '14px sans-serif',
+      pixelOffset: Cesium.Cartesian2 ? new Cesium.Cartesian2(0, -28) : undefined,
+      fillColor: Cesium.Color?.WHITE,
+      showBackground: true,
+      backgroundColor: Cesium.Color?.fromCssColorString?.('#153d2ecc'),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+  return true;
+}
+
 export function applyBuildingGeometry(polygon, height, setHeight, setRoof) {
   setHeight(height ?? 0);
   return setRoof(polygon);
@@ -378,14 +452,16 @@ function clearBuildingSelection() {
   renderExclusions();
   renderMapShapes();
   markDirty();
+  if (buildingInfo) buildingInfo.hidden = true;
 }
 
-export async function selectExistingBuilding(position) {
+export async function selectExistingBuilding(position, { label = '' } = {}) {
   clearBuildingSelection();
   if (!vworldKey() || !isInsideNowon([position])) {
     manualFallback('지도 API 키 또는 선택 좌표를 확인하세요.');
     return false;
   }
+  focusBuildingOnMap(position, label || '선택 건물');
   try {
     const feature = firstFeature(await loadJsonp(buildingLookupUrl(position, vworldKey())));
     const polygon = polygonFromGeometry(feature?.geometry);
@@ -400,6 +476,7 @@ export async function selectExistingBuilding(position) {
       setRoofPolygon,
     );
     if (!applied) throw new Error('building geometry missing');
+    renderBuildingInfo(feature, position, label);
     if (height === null) {
       manualFallback('건물 높이를 직접 입력하세요.');
     } else {
@@ -430,7 +507,9 @@ async function searchBuilding() {
     const items = result?.response?.result?.items ?? [];
     const position = positionFromSearch(items[0]);
     if (!position) throw new Error('address not found');
-    await selectExistingBuilding(position);
+    const label = items[0]?.title || items[0]?.address?.road || query;
+    focusBuildingOnMap(position, label);
+    await selectExistingBuilding(position, { label });
   } catch {
     manualFallback();
   }
@@ -815,7 +894,11 @@ document.querySelector('#reset-roof').addEventListener('click', clearRoof);
 document.querySelector('#start-exclusion-drawing').addEventListener('click', () => { drawing = { kind: 'exclusion', points: [] }; setStatus('지도에서 제외 영역 꼭짓점을 차례로 선택하세요.'); });
 document.querySelector('#add-exclusion').addEventListener('click', () => { const points = parsePoints(exclusionCoordinates.value); if (points === null) setStatus('좌표는 한 줄에 lat, lon 형식으로 입력하세요.'); else addExclusionPolygon(points); });
 document.querySelector('#search-building').addEventListener('click', searchBuilding);
-document.querySelector('#select-building').addEventListener('click', () => setStatus('지도에서 기존 건물을 선택하세요.'));
+document.querySelector('#select-building').addEventListener('click', () => {
+  selectingExistingBuilding = true;
+  drawing = undefined;
+  setStatus('지도에서 건물을 한 번 클릭하세요. 선택 위치와 건물 데이터를 조회합니다.');
+});
 document.querySelector('#save-project').addEventListener('click', saveProject);
 csvButton.addEventListener('click', () => downloadCsv(latestResult, latestResult.project));
 

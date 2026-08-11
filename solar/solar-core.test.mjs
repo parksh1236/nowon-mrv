@@ -597,6 +597,49 @@ test('building lookup request targets the supported VWorld building layer', asyn
   }
 });
 
+test('건물 요약은 위치·용도·높이·지붕면적을 표시한다', async () => {
+  globalThis.window = {};
+  try {
+    const { buildingSummary } = await import(`./app.mjs?building-summary=${Date.now()}`);
+    const rows = Object.fromEntries(buildingSummary({
+      properties: { bld_nm: '노원구청', main_purps_cd_nm: '공공업무시설', height: 24 },
+      geometry: { type: 'Polygon', coordinates: [[
+        [127.056, 37.654], [127.0561, 37.654], [127.0561, 37.6541], [127.056, 37.6541], [127.056, 37.654],
+      ]] },
+    }, { lat: 37.654, lon: 127.056 }, '서울특별시 노원구 노해로 437'));
+    assert.equal(rows['검색 위치'], '서울특별시 노원구 노해로 437');
+    assert.equal(rows['건물명'], '노원구청');
+    assert.equal(rows['주용도'], '공공업무시설');
+    assert.equal(rows['건물 높이'], '24 m');
+    assert.match(rows['지붕 추정면적'], /㎡$/);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test('주소 검색 위치는 지도 카메라와 마커에 반영된다', async () => {
+  globalThis.window = {};
+  try {
+    const { focusBuildingOnMap } = await import(`./app.mjs?building-focus=${Date.now()}`);
+    const calls = [];
+    const viewer = {
+      camera: { flyTo(options) { calls.push(['flyTo', options]); } },
+      entities: { add(entity) { calls.push(['add', entity]); return entity; }, remove() {} },
+    };
+    const Cesium = {
+      Cartesian3: { fromDegrees(lon, lat, height) { return { lon, lat, height }; } },
+      Cartesian2: class { constructor(x, y) { this.x = x; this.y = y; } },
+      Math: { toRadians(value) { return value * Math.PI / 180; } },
+      Color: { WHITE: 'white', fromCssColorString(value) { return value; } },
+    };
+    assert.equal(focusBuildingOnMap({ lat: 37.654, lon: 127.056 }, '노원구청', viewer, Cesium), true);
+    assert.deepEqual(calls[0][1].destination, { lon: 127.056, lat: 37.654, height: 700 });
+    assert.equal(calls[1][1].label.text, '노원구청');
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('VWorld JSONP loader resolves data and removes its temporary callback', async () => {
   globalThis.window = {};
   try {
