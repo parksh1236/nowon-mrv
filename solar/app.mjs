@@ -1,6 +1,7 @@
 import { buildCsv, calculateDetailed, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs';
 
 const PROJECT_KEY = 'nowon-solar-project-v1';
+const NOWON_OFFICE = { lat: 37.654351, lon: 127.056428 };
 const PRECISION = {
   fast: { gridM: 5, hours: [9, 12, 15] },
   balanced: { gridM: 3, hours: [8, 10, 12, 14, 16] },
@@ -605,7 +606,13 @@ export async function initMap() {
     await loadVWorld(vworldKey());
     if (!window.vw) throw new Error('VWorld 지도를 초기화하지 못했습니다.');
     const options = {
-      mapId: 'map', initPosition: new vw.CameraPosition(new vw.CoordZ(127.056, 37.654, 8000), new vw.Direction(0, -70, 0)), logo: true, navigation: true,
+      mapId: 'map',
+      initPosition: new vw.CameraPosition(
+        new vw.CoordZ(NOWON_OFFICE.lon, NOWON_OFFICE.lat, 1800),
+        new vw.Direction(0, -70, 0),
+      ),
+      logo: true,
+      navigation: true,
     };
     mapInstance = new vw.Map();
     mapInstance.setOption(options);
