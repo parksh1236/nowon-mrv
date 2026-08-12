@@ -118,6 +118,36 @@ test('지도 분석 KML은 지붕·설치가능점·제외영역과 면적 라�
   }
 });
 
+test('지도 이동 중 렌더러를 계속 갱신하고 종료 시 최종 프레임을 그린다', async () => {
+  globalThis.window = {};
+  try {
+    const { wireMapViewSync } = await import(`./app.mjs?map-view-sync=${Date.now()}`);
+    const listeners = {};
+    let wakeCount = 0;
+    const event = (name) => ({
+      addEventListener(callback) { listeners[name] = callback; },
+      removeEventListener() {},
+    });
+    const frames = [];
+    const map = {
+      onMoveStart: event('start'),
+      onMoveEnd: event('end'),
+      _wsViewer: { map: { wakeupRenderer() { wakeCount += 1; } } },
+    };
+    assert.equal(wireMapViewSync(map, (callback) => frames.push(callback)), true);
+    listeners.start();
+    assert.equal(wakeCount, 1);
+    frames.shift()();
+    assert.equal(wakeCount, 2);
+    listeners.end();
+    assert.equal(wakeCount, 3);
+    frames.splice(0).forEach((callback) => callback());
+    assert.ok(wakeCount >= 4);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('stored project reading survives a storage SecurityError', () => {
   const storage = { getItem() { throw new Error('SecurityError'); } };
   assert.deepEqual(readStoredProject(storage, 'nowon-solar-project-v1'), { project: null, unavailable: true });

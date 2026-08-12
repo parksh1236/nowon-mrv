@@ -36,6 +36,7 @@ let selectedBuildingMarker;
 let mapClickHandler;
 let analysisKmlUrl;
 const ANALYSIS_KML_LAYER = 'nowon-solar-analysis-overlay';
+let mapViewSyncStop;
 const mapEntities = [];
 const state = { mode: 'existing', roof: [], exclusions: [], heightM: 0, formValues: {}, dirty: false };
 
@@ -440,6 +441,36 @@ function wireMapClicks(map, attempt = 0) {
   else setStatus('지도 클릭을 지원하지 않습니다. 좌표 입력으로 분석을 계속할 수 있습니다.');
 }
 
+export function wireMapViewSync(map, scheduleFrame = requestAnimationFrame) {
+  if (!map?.onMoveStart?.addEventListener || !map?.onMoveEnd?.addEventListener) return false;
+  let moving = false;
+  const wake = () => map?._wsViewer?.map?.wakeupRenderer?.();
+  const frame = () => {
+    if (!moving) return;
+    wake();
+    scheduleFrame(frame);
+  };
+  const start = () => {
+    if (moving) return;
+    moving = true;
+    wake();
+    scheduleFrame(frame);
+  };
+  const end = () => {
+    moving = false;
+    wake();
+    scheduleFrame(wake);
+  };
+  map.onMoveStart.addEventListener(start);
+  map.onMoveEnd.addEventListener(end);
+  mapViewSyncStop = () => {
+    moving = false;
+    map.onMoveStart.removeEventListener?.(start);
+    map.onMoveEnd.removeEventListener?.(end);
+  };
+  return true;
+}
+
 function vworldUrl(path, params) {
   return `https://api.vworld.kr${path}?${new URLSearchParams(params)}`;
 }
@@ -741,6 +772,8 @@ export async function initMap() {
     mapInstance.setInitPosition(options.initPosition);
     mapInstance.start();
     wireMapClicks(mapInstance);
+    mapViewSyncStop?.();
+    wireMapViewSync(mapInstance);
     renderMapShapes();
     setStatus(`${window.SOLAR_CONFIG?.allowedRegion ?? '노원구'} VWorld 지도를 불러왔습니다.`);
     return mapInstance;
