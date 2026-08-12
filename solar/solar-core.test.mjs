@@ -640,6 +640,28 @@ test('주소 검색 위치는 지도 카메라와 마커에 반영된다', async
   }
 });
 
+test('Cesium 화면 클릭 좌표를 위경도로 변환한다', async () => {
+  globalThis.window = {};
+  try {
+    const { coordinateFromClick } = await import(`./app.mjs?map-click=${Date.now()}`);
+    const cartographic = { latitude: 0.65, longitude: 2.2 };
+    const viewer = {
+      scene: { pickPositionSupported: true, pickPosition: () => ({ cartesian: true }) },
+      camera: {},
+    };
+    const Cesium = {
+      Cartographic: { fromCartesian: () => cartographic },
+      Math: { toDegrees: (value) => value * 180 / Math.PI },
+    };
+    assert.deepEqual(coordinateFromClick({ position: { x: 10, y: 20 } }, viewer, Cesium), {
+      lat: 0.65 * 180 / Math.PI,
+      lon: 2.2 * 180 / Math.PI,
+    });
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('VWorld JSONP loader resolves data and removes its temporary callback', async () => {
   globalThis.window = {};
   try {

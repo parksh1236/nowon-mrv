@@ -32,6 +32,7 @@ let drawing;
 let latestResult;
 let selectingExistingBuilding = false;
 let selectedBuildingMarker;
+let mapClickHandler;
 const mapEntities = [];
 const state = { mode: 'existing', roof: [], exclusions: [], heightM: 0, formValues: {}, dirty: false };
 
@@ -294,12 +295,7 @@ export function coordinateFromClick(event, viewer = getViewer(), Cesium = window
   return { lat: latitude, lon: longitude };
 }
 
-function wireMapClicks(map) {
-  if (!map?.onClick?.addEventListener) {
-    setStatus('지도 클릭을 지원하지 않습니다. 좌표 입력으로 분석을 계속할 수 있습니다.');
-    return;
-  }
-  map.onClick.addEventListener(window, async (event) => {
+async function handleMapClick(event) {
     const position = coordinateFromClick(event);
     if (!position) return;
     if (drawing) setDraftPoint(position);
@@ -307,7 +303,23 @@ function wireMapClicks(map) {
       selectingExistingBuilding = false;
       await selectExistingBuilding(position, { label: '지도에서 선택한 건물' });
     }
-  });
+}
+
+function wireMapClicks(map, attempt = 0) {
+  const viewer = map?.getCesiumViewer?.() ?? window.ws3d?.viewer;
+  const Cesium = window.Cesium;
+  if (viewer?.scene?.canvas && Cesium?.ScreenSpaceEventHandler && Cesium?.ScreenSpaceEventType?.LEFT_CLICK != null) {
+    mapClickHandler?.destroy?.();
+    mapClickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    mapClickHandler.setInputAction(handleMapClick, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    return;
+  }
+  if (attempt < 30) {
+    setTimeout(() => wireMapClicks(map, attempt + 1), 200);
+    return;
+  }
+  if (map?.onClick?.addEventListener) map.onClick.addEventListener(window, handleMapClick);
+  else setStatus('지도 클릭을 지원하지 않습니다. 좌표 입력으로 분석을 계속할 수 있습니다.');
 }
 
 function vworldUrl(path, params) {
