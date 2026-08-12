@@ -950,6 +950,7 @@ export async function buildShadeSamples(project, quality = 'balanced', isCurrent
         if (!isCurrent()) return null;
         shadeSamples.push({
           month,
+          hour,
           weight: Math.sin(altitude),
           shaded: Boolean(hit?.position && Cartesian3.distance(origin, hit.position) < 100_000),
         });
@@ -1036,6 +1037,7 @@ export function renderResult(result) {
     ...(detailed ? [
       ['정밀 추정 연간 발전량', `${format(detailed.annualKwh)} kWh/년`],
       ['음영 손실률', `${format(detailed.shadingLossRatio * 100)} %`],
+      ...(detailed.dailySolarHours != null ? [['하루 평균 발전 가능시간', `${format(detailed.dailySolarHours)} 시간/일`]] : []),
       ['정밀도 / 표본 간격', `${result.precision} / ${result.spacingM} m`],
     ] : []),
   ];
@@ -1052,7 +1054,7 @@ export function renderResult(result) {
   table.append(element('caption', '월별 발전량 비교'));
   const head = element('thead');
   const headRow = element('tr');
-  for (const label of ['월', '개략 발전량 (kWh)', '정밀 추정 발전량 (kWh)']) {
+  for (const label of ['월', '개략 발전량 (kWh)', '정밀 추정 발전량 (kWh)', '음영 반영 발전 가능시간 (시간/일)']) {
     const cell = element('th', label);
     cell.scope = 'col';
     headRow.append(cell);
@@ -1060,12 +1062,14 @@ export function renderResult(result) {
   head.append(headRow);
   const body = element('tbody');
   const detailedByMonth = new Map((detailed?.monthlyKwh ?? []).map((entry) => [entry.month, entry.kwh]));
+  const solarHoursByMonth = new Map((detailed?.monthlySolarHours ?? []).map((entry) => [entry.month, entry.hours]));
   const maxKwh = Math.max(1, ...(rough.monthlyKwh ?? []).map(({ kwh }) => kwh), ...(detailed?.monthlyKwh ?? []).map(({ kwh }) => kwh));
   for (const { month, kwh } of rough.monthlyKwh ?? []) {
     const row = element('tr');
     const monthCell = element('th', `${month}월`);
     monthCell.scope = 'row';
-    row.append(monthCell, generationCell(kwh, maxKwh), generationCell(detailedByMonth.get(month), maxKwh));
+    const solarHours = solarHoursByMonth.get(month);
+    row.append(monthCell, generationCell(kwh, maxKwh), generationCell(detailedByMonth.get(month), maxKwh), element('td', solarHours == null ? '' : `${format(solarHours)} 시간`));
     body.append(row);
   }
   table.append(head, body);

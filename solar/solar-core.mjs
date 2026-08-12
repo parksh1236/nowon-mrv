@@ -188,8 +188,45 @@ export function calculateDetailed(input, climate, shadeSamples) {
   };
   const monthlyKwh = monthlyGeneration(input, climate, rough.panelCount, directFactor);
   const annualKwh = monthlyKwh.reduce((sum, { kwh }) => sum + kwh, 0);
+  const solarHours = summarizeDailySolarHours(shadeSamples);
 
-  return { ...rough, monthlyKwh, annualKwh, shadingLossRatio: rough.annualKwh ? 1 - annualKwh / rough.annualKwh : 0 };
+  return {
+    ...rough,
+    monthlyKwh,
+    annualKwh,
+    shadingLossRatio: rough.annualKwh ? 1 - annualKwh / rough.annualKwh : 0,
+    dailySolarHours: solarHours.averageHours,
+    monthlySolarHours: solarHours.months,
+  };
+}
+
+export function summarizeDailySolarHours(shadeSamples = []) {
+  const valid = shadeSamples.filter(({ month, hour, weight }) => Number.isInteger(month) && month >= 1 && month <= 12
+    && Number.isFinite(hour) && weight > 0);
+  const hours = [...new Set(valid.map(({ hour }) => hour))].sort((a, b) => a - b);
+  const intervals = hours.slice(1).map((hour, index) => hour - hours[index]).filter((value) => value > 0);
+  const intervalHours = intervals.length ? intervals.sort((a, b) => a - b)[Math.floor(intervals.length / 2)] : 1;
+  const byMonthHour = new Map();
+  for (const sample of valid) {
+    const key = `${sample.month}:${sample.hour}`;
+    const totals = byMonthHour.get(key) ?? { total: 0, unshaded: 0 };
+    totals.total += sample.weight;
+    if (!sample.shaded) totals.unshaded += sample.weight;
+    byMonthHour.set(key, totals);
+  }
+  const months = [];
+  for (let month = 1; month <= 12; month += 1) {
+    let hoursPerDay = 0;
+    for (const hour of hours) {
+      const totals = byMonthHour.get(`${month}:${hour}`);
+      if (totals?.total) hoursPerDay += (totals.unshaded / totals.total) * intervalHours;
+    }
+    if (hours.some((hour) => byMonthHour.has(`${month}:${hour}`))) months.push({ month, hours: hoursPerDay });
+  }
+  return {
+    averageHours: months.length ? months.reduce((sum, entry) => sum + entry.hours, 0) / months.length : null,
+    months,
+  };
 }
 
 export function polygonMetrics(points) {
@@ -331,10 +368,11 @@ export function buildCsv(result = {}, project = {}, climate = {}) {
   const detailed = result.detailed;
   const roughByMonth = new Map((rough.monthlyKwh ?? []).map(({ month, kwh }) => [month, kwh]));
   const detailedByMonth = new Map((detailed?.monthlyKwh ?? []).map(({ month, kwh }) => [month, kwh]));
+  const solarHoursByMonth = new Map((detailed?.monthlySolarHours ?? []).map(({ month, hours }) => [month, hours]));
   const formLoss = Number(project.formValues?.systemLossRatio);
   const systemLossRatio = project.systemLossRatio ?? project.input?.systemLossRatio ?? (Number.isFinite(formLoss) ? formLoss / 100 : '');
-  const rows = [['월', '개략발전량_kWh', '정밀추정발전량_kWh']];
-  for (let month = 1; month <= 12; month += 1) rows.push([month, roughByMonth.get(month), detailedByMonth.get(month)]);
+  const rows = [['월', '개략발전량_kWh', '정밀추정발전량_kWh', '음영반영_일평균발전가능시간_h']];
+  for (let month = 1; month <= 12; month += 1) rows.push([month, roughByMonth.get(month), detailedByMonth.get(month), solarHoursByMonth.get(month)]);
   rows.push(
     [],
     ['항목', '값'],
@@ -343,6 +381,7 @@ export function buildCsv(result = {}, project = {}, climate = {}) {
     ['시스템손실률', systemLossRatio],
     ['정밀도', result.precision ?? project.precision ?? ''],
     ['표본간격m', result.spacingM ?? project.spacingM ?? ''],
+    ['연평균_일발전가능시간h', detailed?.dailySolarHours ?? ''],
     ['기후자료출처', climate.source ?? ''],
     ['분석구분', '사전 추정치'],
   );

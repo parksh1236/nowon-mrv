@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition, validateInputs,
+  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -262,6 +262,19 @@ test('절반 음영은 직달 성분에만 0보다 크고 0.5보다 작은 손�
   assert.ok(result.shadingLossRatio > 0 && result.shadingLossRatio < 0.5);
 });
 
+test('시간대별 지붕 음영 비율로 하루 발전 가능시간을 계산한다', () => {
+  const samples = [];
+  for (const month of [1, 2]) {
+    for (const hour of [8, 10, 12, 14, 16]) {
+      samples.push({ month, hour, weight: 1, shaded: hour === 8 });
+      samples.push({ month, hour, weight: 1, shaded: hour === 8 || hour === 10 });
+    }
+  }
+  const result = summarizeDailySolarHours(samples);
+  assert.equal(result.averageHours, 7);
+  assert.deepEqual(result.months, [{ month: 1, hours: 7 }, { month: 2, hours: 7 }]);
+});
+
 test('지붕 표본은 내부에 있고 격자가 촘촘할수록 같거나 많으며 cap을 넘지 않는다', () => {
   const roof = [
     { lat: 37.654, lon: 127.056 },
@@ -349,6 +362,8 @@ test('CSV는 월별 비교와 분석 metadata를 RFC 4180 형식으로 만든다
       ],
     },
     detailed: {
+      dailySolarHours: 8,
+      monthlySolarHours: Array.from({ length: 12 }, (_, index) => ({ month: index + 1, hours: 8 })),
       monthlyKwh: [
         { month: 1, kwh: 9 }, { month: 2, kwh: 18 }, { month: 3, kwh: 27 }, { month: 4, kwh: 36 },
         { month: 5, kwh: 45 }, { month: 6, kwh: 54 }, { month: 7, kwh: 63 }, { month: 8, kwh: 72 },
@@ -383,9 +398,13 @@ test('CSV는 월별 비교와 분석 metadata를 RFC 4180 형식으로 만든다
 기후자료출처,"기상청, ""관측""\n2025"\r
 분석구분,사전 추정치`;
 
-  assert.equal(buildCsv(result, project, climate), expected);
+  const csv = buildCsv(result, project, climate);
+  assert.match(csv, /^월,개략발전량_kWh,정밀추정발전량_kWh,음영반영_일평균발전가능시간_h\r\n/);
+  assert.match(csv, /\r\n1,10,9,8\r\n/);
+  assert.match(csv, /\r\n연평균_일발전가능시간h,8\r\n/);
+  assert.match(csv, /기후자료출처,"기상청, ""관측""\n2025"/);
   assert.equal(buildCsv(result, project, climate).charCodeAt(0) === 0xfeff, false);
-  assert.match(buildCsv({ ...result, detailed: null }, project, climate), /\r\n1,10,\r\n/);
+  assert.match(buildCsv({ ...result, detailed: null }, project, climate), /\r\n1,10,,\r\n/);
 });
 
 test('3D scene boundary는 hit와 no-hit을 음영 표본으로 만들고 미지원 API를 거부한다', async () => {
