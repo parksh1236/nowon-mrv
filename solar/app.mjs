@@ -697,6 +697,48 @@ function clearBuildingSelection() {
   if (buildingInfo) buildingInfo.hidden = true;
 }
 
+export function resetAnalysis() {
+  analysisGeneration += 1;
+  busyGeneration = 0;
+  drawing = undefined;
+  selectingExistingBuilding = false;
+  latestResult = undefined;
+  const viewer = getViewer();
+  if (selectedBuildingMarker) viewer?.entities?.remove?.(selectedBuildingMarker);
+  selectedBuildingMarker = undefined;
+  removeMapEntities();
+  form.reset();
+  resetBuildingGeometry(state);
+  state.mode = 'existing';
+  state.formValues = formValues();
+  state.dirty = false;
+  roofCoordinates.value = '';
+  exclusionCoordinates.value = '';
+  heightInput.value = '0';
+  document.querySelector('#address-query').value = '';
+  setRoofCoordinatesError();
+  clearRoofMetrics();
+  renderExclusions();
+  updateModeTools();
+  setAnalysisBusy(false);
+  precisionOptions.hidden = true;
+  if (buildingInfo) buildingInfo.hidden = true;
+  if (shadowToggle?.checked) {
+    shadowToggle.checked = false;
+    toggleShadowSimulation(false);
+  }
+  clearResults();
+  if (calculationBasis) {
+    const heading = element('h3', '산출근거');
+    heading.id = 'calculation-basis-heading';
+    calculationBasis.replaceChildren(heading, element('p', '분석을 실행하면 적용한 면적·설비·발전량 공식을 표시합니다.', 'estimate'));
+  }
+  if (csvButton) csvButton.disabled = true;
+  removeStoredProject(localStorage, PROJECT_KEY);
+  setStatus('분석 입력과 지도 선택을 모두 초기화했습니다.');
+  return true;
+}
+
 export async function selectExistingBuilding(position, { label = '' } = {}) {
   clearBuildingSelection();
   if (!vworldKey() || !isInsideNowon([position])) {
@@ -1191,6 +1233,7 @@ document.querySelector('#select-building').addEventListener('click', () => {
   drawing = undefined;
   setStatus('지도에서 건물을 한 번 클릭하세요. 선택 위치와 건물 데이터를 조회합니다.');
 });
+document.querySelector('#reset-analysis').addEventListener('click', resetAnalysis);
 document.querySelector('#save-project').addEventListener('click', saveProject);
 csvButton.addEventListener('click', () => downloadCsv(latestResult, latestResult.project));
 

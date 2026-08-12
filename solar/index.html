@@ -23,6 +23,7 @@
       button { width: 100%; margin-top: 1rem; min-height: 2.7rem; border: 0; border-radius: .35rem; background: #167044; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
       input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #005a2e; outline-offset: 3px; }
       .button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; } .button-row button { margin-top: .5rem; }
+      .button-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .secondary { background: #35614b; } .geometry-list { margin: .5rem 0 0; padding-left: 1.25rem; }
       #map { height: 43.5rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
       #status { margin-top: .75rem; padding: .65rem; border-left: 4px solid #167044; background: #edf7ed; line-height: 1.45; }
@@ -81,7 +82,7 @@
           <fieldset id="existing-tools">
             <legend>기존 건물 찾기</legend>
             <label for="address-query">도로명 주소<input id="address-query" type="search" autocomplete="street-address"></label>
-            <div class="button-row"><button id="search-building" type="button">건물 찾기</button><button id="select-building" class="secondary" type="button">지도에서 선택</button></div>
+            <div class="button-row three"><button id="search-building" type="button">건물 찾기</button><button id="select-building" class="secondary" type="button">지도에서 선택</button><button id="reset-analysis" class="secondary" type="button">초기화</button></div>
           </fieldset>
           <fieldset id="virtual-tools" hidden>
             <legend>가상 건물 지붕</legend>
@@ -173,6 +174,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=20260812-calculation-basis-1"></script>
+    <script type="module" src="./app.mjs?v=20260812-reset-analysis-1"></script>
   </body>
 </html>
