@@ -71,6 +71,53 @@ test('installable samples exclude equipment zones and edge setbacks', () => {
   assert.deepEqual(filterInstallableSamples([nearEdge, clear], roof, [], 5), [clear]);
 });
 
+test('지도 설치 가능 시각화는 제외영역과 이격거리를 반영한다', async () => {
+  globalThis.window = {};
+  try {
+    const { installableVisualization } = await import(`./app.mjs?installable-map=${Date.now()}`);
+    const roof = [
+      { lat: 37.6500, lon: 127.0500 }, { lat: 37.6500, lon: 127.0510 },
+      { lat: 37.6510, lon: 127.0510 }, { lat: 37.6510, lon: 127.0500 },
+    ];
+    const exclusion = [[
+      { lat: 37.6504, lon: 127.0504 }, { lat: 37.6504, lon: 127.0506 },
+      { lat: 37.6506, lon: 127.0506 }, { lat: 37.6506, lon: 127.0504 },
+    ]];
+    const input = validInput({ roofAreaM2: 9800, exclusionAreaM2: 390, perimeterM: 400, edgeSetbackM: 2 });
+    const withoutRestrictions = installableVisualization(roof, [], { ...input, exclusionAreaM2: 0, edgeSetbackM: 0 }, 5);
+    const restricted = installableVisualization(roof, exclusion, input, 5);
+    assert.ok(restricted.samples.length < withoutRestrictions.samples.length);
+    assert.ok(restricted.areaM2 < withoutRestrictions.areaM2);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test('지도 분석 KML은 지붕·설치가능점·제외영역과 면적 라벨을 포함한다', async () => {
+  globalThis.window = {};
+  try {
+    const { buildAnalysisKml } = await import(`./app.mjs?analysis-kml=${Date.now()}`);
+    const roof = [
+      { lat: 37.65, lon: 127.05 }, { lat: 37.65, lon: 127.051 }, { lat: 37.651, lon: 127.051 },
+    ];
+    const kml = buildAnalysisKml({
+      roof,
+      exclusions: [[{ lat: 37.6502, lon: 127.0502 }, { lat: 37.6502, lon: 127.0503 }, { lat: 37.6503, lon: 127.0503 }]],
+      installableSamples: [{ lat: 37.6504, lon: 127.0504 }],
+      roofAreaM2: 100,
+      installableAreaM2: 72.5,
+      heightM: 10,
+    });
+    assert.match(kml, /지붕 100\.0㎡/);
+    assert.match(kml, /설치 가능 72\.5㎡/);
+    assert.match(kml, /제외 1/);
+    assert.match(kml, /#installable/);
+    assert.match(kml, /127\.0504,37\.6504,16/);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('stored project reading survives a storage SecurityError', () => {
   const storage = { getItem() { throw new Error('SecurityError'); } };
   assert.deepEqual(readStoredProject(storage, 'nowon-solar-project-v1'), { project: null, unavailable: true });

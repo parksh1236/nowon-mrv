@@ -34,6 +34,8 @@ let latestResult;
 let selectingExistingBuilding = false;
 let selectedBuildingMarker;
 let mapClickHandler;
+let analysisKmlUrl;
+const ANALYSIS_KML_LAYER = 'nowon-solar-analysis-overlay';
 const mapEntities = [];
 const state = { mode: 'existing', roof: [], exclusions: [], heightM: 0, formValues: {}, dirty: false };
 
@@ -146,28 +148,142 @@ function getViewer() {
 
 function removeMapEntities() {
   for (const { viewer, entity } of mapEntities.splice(0)) viewer.entities?.remove?.(entity);
+  mapInstance?.removeLayerElement?.(ANALYSIS_KML_LAYER);
+  if (analysisKmlUrl) URL.revokeObjectURL(analysisKmlUrl);
+  analysisKmlUrl = undefined;
 }
 
-function addMapPolygon(points, color, heightM = 0) {
+const xmlEscape = (value) => String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[character]));
+const kmlCoordinates = (points, heightM = 0, close = false) => [...points, ...(close && points.length ? [points[0]] : [])]
+  .map(({ lon, lat }) => `${lon},${lat},${Math.max(2, heightM)}`).join(' ');
+
+export function buildAnalysisKml({ roof = [], exclusions = [], installableSamples = [], roofAreaM2 = 0, installableAreaM2 = 0, heightM = 0 } = {}) {
+  const placemarks = [];
+  if (roof.length >= 3) {
+    const center = polygonCenter(roof);
+    placemarks.push(`<Placemark><name>지붕 ${roofAreaM2.toFixed(1)}㎡</name><styleUrl>#roof</styleUrl><Polygon><altitudeMode>relativeToGround</altitudeMode><outerBoundaryIs><LinearRing><coordinates>${kmlCoordinates(roof, heightM + 2, true)}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`);
+    placemarks.push(`<Placemark><name>${xmlEscape(`설치 가능 ${installableAreaM2.toFixed(1)}㎡`)}</name><styleUrl>#label</styleUrl><Point><altitudeMode>relativeToGround</altitudeMode><coordinates>${center.lon},${center.lat},${heightM + 12}</coordinates></Point></Placemark>`);
+  }
+  roof.forEach((point, index) => placemarks.push(`<Placemark><name>지붕 점 ${index + 1}</name><styleUrl>#roofPoint</styleUrl><Point><altitudeMode>relativeToGround</altitudeMode><coordinates>${point.lon},${point.lat},${heightM + 4}</coordinates></Point></Placemark>`));
+  exclusions.forEach((points, index) => {
+    if (points.length < 3) return;
+    const area = polygonMetrics(points).areaM2;
+    placemarks.push(`<Placemark><name>제외 ${index + 1} · ${area.toFixed(1)}㎡</name><styleUrl>#exclusion</styleUrl><Polygon><altitudeMode>relativeToGround</altitudeMode><outerBoundaryIs><LinearRing><coordinates>${kmlCoordinates(points, heightM + 5, true)}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`);
+    points.forEach((point, pointIndex) => placemarks.push(`<Placemark><name>제외 ${index + 1}-${pointIndex + 1}</name><styleUrl>#exclusionPoint</styleUrl><Point><altitudeMode>relativeToGround</altitudeMode><coordinates>${point.lon},${point.lat},${heightM + 7}</coordinates></Point></Placemark>`));
+  });
+  installableSamples.forEach((point) => placemarks.push(`<Placemark><styleUrl>#installable</styleUrl><Point><altitudeMode>relativeToGround</altitudeMode><coordinates>${point.lon},${point.lat},${heightM + 6}</coordinates></Point></Placemark>`));
+  return `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${ANALYSIS_KML_LAYER}</name>
+    <Style id="roof"><LineStyle><color>ff44aa33</color><width>5</width></LineStyle><PolyStyle><color>5533aa44</color></PolyStyle></Style>
+    <Style id="roofPoint"><IconStyle><color>ff44aa33</color><scale>0.75</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle></Style>
+    <Style id="exclusion"><LineStyle><color>ff2b39c0</color><width>5</width></LineStyle><PolyStyle><color>663039c0</color></PolyStyle></Style>
+    <Style id="exclusionPoint"><IconStyle><color>ff2b39c0</color><scale>0.75</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle></Style>
+    <Style id="installable"><IconStyle><color>ff8dd658</color><scale>0.45</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
+    <Style id="label"><IconStyle><scale>0</scale></IconStyle><LabelStyle><color>ffffffff</color><scale>1.2</scale></LabelStyle></Style>${placemarks.join('')}</Document></kml>`;
+}
+
+function renderVWorldAnalysisLayer(data) {
+  if (!mapInstance?.createKml || typeof vw === 'undefined' || !vw.KMLType?.URL || typeof Blob === 'undefined') return false;
+  analysisKmlUrl = URL.createObjectURL(new Blob([buildAnalysisKml(data)], { type: 'application/vnd.google-earth.kml+xml' }));
+  mapInstance.createKml(vw.KMLType.URL, ANALYSIS_KML_LAYER, analysisKmlUrl);
+  return true;
+}
+
+function addMapEntity(viewer, definition) {
+  const entity = viewer?.entities?.add?.(definition);
+  if (entity) mapEntities.push({ viewer, entity });
+  return entity;
+}
+
+function polygonCenter(points) {
+  if (!points.length) return null;
+  return points.reduce((center, point) => ({ lat: center.lat + point.lat / points.length, lon: center.lon + point.lon / points.length }), { lat: 0, lon: 0 });
+}
+
+function addMapLabel(points, text, color, heightM = 0) {
   const viewer = getViewer();
-  const fromDegrees = window.Cesium?.Cartesian3?.fromDegreesArray;
+  const Cesium = window.Cesium;
+  const center = polygonCenter(points);
+  if (!viewer?.entities?.add || !Cesium?.Cartesian3?.fromDegrees || !center) return;
+  addMapEntity(viewer, {
+    position: Cesium.Cartesian3.fromDegrees(center.lon, center.lat, Math.max(5, heightM + 4)),
+    label: {
+      text,
+      font: 'bold 15px sans-serif',
+      fillColor: Cesium.Color?.WHITE,
+      showBackground: true,
+      backgroundColor: Cesium.Color?.fromCssColorString?.(color),
+      pixelOffset: Cesium.Cartesian2 ? new Cesium.Cartesian2(0, -12) : undefined,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+}
+
+function addMapPoints(points, color, heightM = 0, pixelSize = 9) {
+  const viewer = getViewer();
+  const Cesium = window.Cesium;
+  if (!viewer?.entities?.add || !Cesium?.Cartesian3?.fromDegrees) return;
+  points.forEach(({ lat, lon }) => addMapEntity(viewer, {
+    position: Cesium.Cartesian3.fromDegrees(lon, lat, Math.max(3, heightM + 2)),
+    point: {
+      pixelSize,
+      color: Cesium.Color?.fromCssColorString?.(color) ?? color,
+      outlineColor: Cesium.Color?.WHITE,
+      outlineWidth: 2,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  }));
+}
+
+function addMapPolygon(points, color, heightM = 0, label = '') {
+  const viewer = getViewer();
+  const Cesium = window.Cesium;
+  const fromDegrees = Cesium?.Cartesian3?.fromDegreesArray;
   if (!viewer?.entities?.add || !fromDegrees || points.length < 3) return;
-  const entity = viewer.entities.add({
+  const closed = [...points, points[0]];
+  addMapEntity(viewer, {
     polygon: {
       hierarchy: fromDegrees(points.flatMap(({ lon, lat }) => [lon, lat])),
-      material: window.Cesium?.Color?.fromCssColorString?.(color) ?? color,
+      material: Cesium?.Color?.fromCssColorString?.(color) ?? color,
       outline: true,
-      outlineColor: window.Cesium?.Color?.WHITE,
+      outlineColor: Cesium?.Color?.WHITE,
       extrudedHeight: heightM || undefined,
     },
   });
-  mapEntities.push({ viewer, entity });
+  addMapEntity(viewer, {
+    polyline: {
+      positions: fromDegrees(closed.flatMap(({ lon, lat }) => [lon, lat])),
+      width: 4,
+      material: Cesium?.Color?.fromCssColorString?.(color.slice(0, 7)) ?? color,
+      clampToGround: !heightM,
+    },
+  });
+  addMapPoints(points, color.slice(0, 7), heightM);
+  if (label) addMapLabel(points, label, color.slice(0, 7), heightM);
+}
+
+export function installableVisualization(roof, exclusions, input, spacingM = 3) {
+  if (!validPolygon(roof)) return { samples: [], areaM2: 0 };
+  const samples = filterInstallableSamples(samplePolygon(roof, spacingM, 400), roof, exclusions, input?.edgeSetbackM);
+  const areaM2 = calculateRough(input, { months: [] }).installableAreaM2;
+  return { samples, areaM2 };
 }
 
 function renderMapShapes() {
   removeMapEntities();
-  addMapPolygon(state.roof, '#16704488', state.heightM);
-  state.exclusions.forEach((points) => addMapPolygon(points, '#b6434388'));
+  let installable = { samples: [], areaM2: 0 };
+  const roofArea = validPolygon(state.roof) ? polygonMetrics(state.roof).areaM2 : 0;
+  if (validPolygon(state.roof)) installable = installableVisualization(state.roof, state.exclusions, readForm());
+  const draftExclusions = [...state.exclusions, ...(drawing?.kind === 'exclusion' && drawing.points.length >= 3 ? [drawing.points] : [])];
+  if (renderVWorldAnalysisLayer({ roof: state.roof, exclusions: draftExclusions, installableSamples: installable.samples, roofAreaM2: roofArea, installableAreaM2: installable.areaM2, heightM: state.heightM })) return;
+  if (validPolygon(state.roof)) {
+    addMapPolygon(state.roof, '#16704466', state.heightM, `지붕 ${roofArea.toFixed(1)}㎡`);
+    addMapPoints(installable.samples, '#58d68d', state.heightM, 6);
+    if (installable.samples.length) addMapLabel(state.roof, `설치 가능 ${installable.areaM2.toFixed(1)}㎡`, '#0b6e3e', state.heightM + 8);
+  } else if (state.roof.length) {
+    addMapPoints(state.roof, '#167044', state.heightM);
+  }
+  state.exclusions.forEach((points, index) => addMapPolygon(points, '#c0392b77', state.heightM + 1, `제외 ${index + 1} · ${polygonMetrics(points).areaM2.toFixed(1)}㎡`));
+  if (drawing?.kind === 'exclusion' && drawing.points.length) addMapPoints(drawing.points, '#c0392b', state.heightM + 1);
 }
 
 function renderExclusions() {
@@ -270,6 +386,7 @@ function setDraftPoint(point) {
     markDirty();
   } else {
     exclusionCoordinates.value = pointsToText(drawing.points);
+    renderMapShapes();
   }
 }
 
