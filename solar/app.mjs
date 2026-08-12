@@ -618,6 +618,10 @@ export async function selectExistingBuilding(position, { label = '' } = {}) {
     );
     if (!applied) throw new Error('building geometry missing');
     renderBuildingInfo(feature, position, label);
+    // VWorld는 KML 분석 레이어를 추가할 때 레이어 전체 범위로 자동 축소할 수 있다.
+    // 도형 로딩 직후 선택 건물로 다시 이동해 꼭짓점·설치가능점이 식별되는 축척을 유지한다.
+    setTimeout(() => focusBuildingOnMap(position, label || '선택 건물'), 500);
+    setTimeout(() => focusBuildingOnMap(position, label || '선택 건물'), 1400);
     if (height === null) {
       manualFallback('건물 높이를 직접 입력하세요.');
     } else {
