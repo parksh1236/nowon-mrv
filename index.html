@@ -136,6 +136,7 @@
   .bldg-dot { width:14px; height:14px; border-radius:50%; border:1.5px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.35); cursor:pointer; }
   .bldg-pop { background:#fff; border:1px solid #ddd3ba; border-radius:10px; padding:10px 13px; font-size:12px; line-height:1.6; box-shadow:0 4px 16px rgba(0,0,0,.18); min-width:190px; }
   .bldg-pop b { color:#1c1a15; }
+  .solar-lab-frame { display:block; width:100%; height:calc(100vh - 190px); min-height:760px; border:0; border-radius:6px; background:#f4f7f1; }
   @media (max-width:1100px){ .maplayout { flex-direction:column; } .mapside { flex:none; width:100%; } .mapmain { width:100%; } }
 </style>
 </head>
@@ -150,7 +151,7 @@
     <button data-tab="t1">📊 비교</button>
     <button data-tab="t2">📋 프레임워크 평가</button>
     <button data-tab="t3">🧮 온실가스 계산기</button>
-    <button data-tab="t4">🧊 3D 지도</button>
+    <button data-tab="t4">☀️ Solar Lab</button>
   </nav>
 </header>
 
@@ -358,34 +359,9 @@
   </section>
 </div>
 
-<!-- ══════════ 탭4: 3D 지도(브이월드) ══════════ -->
+<!-- ══════════ 탭4: Solar Lab ══════════ -->
 <div id="t4" class="tabpane">
-  <section class="card">
-    <h2>🧊 3D 지도</h2>
-    <div class="cpsub">브이월드(VWorld) 3D 지도로 건물을 입체로 확인하고, 시간대별 그림자(일조권)를 시뮬레이션합니다</div>
-    <div class="maplayout">
-      <div class="mapside">
-        <div class="sidebox">
-          <div class="sidebox-title">☀️ 일조권(그림자) 분석</div>
-          <label style="font-size:12px;color:#4a4433;display:flex;align-items:center;gap:6px">
-            <input type="checkbox" id="shadowToggle"> 그림자 표시
-          </label>
-          <div style="margin-top:10px">
-            <div class="statsub">날짜</div>
-            <input type="date" id="shadowDate" style="width:100%;padding:8px 9px;font-size:13px;border:1px solid #cabd9c;border-radius:4px;margin-top:3px">
-          </div>
-          <div style="margin-top:10px">
-            <div class="statsub"><span id="shadowTimeLabel">12:00</span></div>
-            <input type="range" id="shadowTime" min="0" max="1439" value="720" step="10" style="width:100%;margin-top:3px">
-          </div>
-          <div class="dnote" style="margin-top:8px">체크 후 날짜·시간을 조절하면 건물 그림자 방향과 길이가 실시간으로 바뀝니다.</div>
-        </div>
-      </div>
-      <div class="mapmain">
-        <div id="vworldMap" style="width:100%;height:calc(100vh - 210px);min-height:520px;border-radius:4px;background:#ddd3ba"></div>
-      </div>
-    </div>
-  </section>
+  <iframe class="solar-lab-frame" src="./solar/" title="Solar Lab 태양광 건축 사전분석" loading="lazy"></iframe>
 </div>
 
 </main>
@@ -403,7 +379,6 @@ document.querySelectorAll('nav.tabs button').forEach(btn=>{
     btn.classList.add('on');
     document.getElementById(btn.dataset.tab).classList.add('on');
     if (btn.dataset.tab === 'tMap') ensureKakaoMap();
-    if (btn.dataset.tab === 't4') ensureVworldMap();
   };
 });
 
@@ -1423,74 +1398,7 @@ function ensureKakaoMap(){
   }
 }
 
-// 브이월드(VWorld) WebGL 3D 지도 초기화 (3D 지도 탭을 처음 열 때 1회)
-let vworldMapLoaded = false;
-let vworldViewer = null;
-function ensureVworldMap(){
-  if (vworldMapLoaded) return;
-  if (typeof vw === 'undefined'){ setTimeout(ensureVworldMap, 300); return; }
-  const map = new vw.Map();
-  map.setOption({
-    mapId: 'vworldMap',
-    initPosition: new vw.CameraPosition(
-      new vw.CoordZ(127.0568, 37.6541, 1500), // 노원구청 기준 (검증된 top-down 초기 위치)
-      new vw.Direction(0, -90, 0)
-    ),
-    logo: true,
-    navigation: true
-  });
-  map.start();
-  vworldMapLoaded = true;
-  // 3D 지도 로드 완료 후 건물이 입체로 보이도록 카메라를 비스듬히 기울임 + 그림자 분석 준비
-  vw.ws3dInitCallBack = function(){
-    vworldViewer = ws3d.viewer;
-    vworldViewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(127.0568, 37.6541, 900),
-      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-40), roll: 0 }
-    });
-    initShadowControls();
-  };
-}
-
-/* ═══════════ 탭4: 일조권(그림자) 분석 ═══════════ */
-function updateShadowTime(){
-  if (!vworldViewer) return;
-  const dateStr = document.getElementById('shadowDate').value; // YYYY-MM-DD
-  const mins = +document.getElementById('shadowTime').value;   // 0~1439
-  const h = String(Math.floor(mins/60)).padStart(2,'0');
-  const m = String(mins%60).padStart(2,'0');
-  document.getElementById('shadowTimeLabel').textContent = `${h}:${m}`;
-  if (!dateStr) return;
-  // 대한민국 표준시(KST, UTC+9) 기준 지정 날짜·시각 → UTC로 변환해 클록에 반영
-  const local = new Date(`${dateStr}T${h}:${m}:00+09:00`);
-  const jd = Cesium.JulianDate.fromDate(local);
-  vworldViewer.clock.shouldAnimate = false; // 자동 흐름 방지, 슬라이더로만 시각 제어
-  vworldViewer.clock.currentTime = jd;
-  vworldViewer.clock.startTime = jd.clone();
-  const stop = jd.clone();
-  Cesium.JulianDate.addSeconds(stop, 1, stop);
-  vworldViewer.clock.stopTime = stop;
-  vworldViewer.scene.requestRender && vworldViewer.scene.requestRender();
-}
-
-function toggleShadow(on){
-  if (!vworldViewer) return;
-  vworldViewer.shadows = on;
-  vworldViewer.terrainShadows = on ? 1 : 0; // Cesium.ShadowMode.ENABLED
-  vworldViewer.scene.globe.enableLighting = on; // 태양 위치에 따른 명암/그림자 반영
-  if (vworldViewer.setting) vworldViewer.setting.useSunLighting = on; // VWorld 자체 조명 스위치
-  if (on) updateShadowTime();
-}
-
-function initShadowControls(){
-  const dateInput = document.getElementById('shadowDate');
-  if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0,10);
-  document.getElementById('shadowToggle').onchange = e => toggleShadow(e.target.checked);
-  dateInput.onchange = updateShadowTime;
-  document.getElementById('shadowTime').oninput = updateShadowTime;
-}
 </script>
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=fc301a566a4a2276d0ed3e27ded7ba85&libraries=services&autoload=false"></script>
-<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=F2D115BC-A880-3964-86A5-B82E7333DBFA"></script>
 </body>
 </html>
