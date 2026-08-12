@@ -33,6 +33,13 @@
       .map-legend span { display: inline-flex; align-items: center; gap: .35rem; }
       .map-legend i { width: .8rem; height: .8rem; border-radius: 50%; border: 2px solid currentColor; }
       .legend-roof { color: #167044; } .legend-installable { color: #58d68d; } .legend-exclusion { color: #c0392b; }
+      .shadow-controls { display: grid; grid-template-columns: minmax(9rem, .7fr) minmax(13rem, 1.3fr); gap: .75rem 1rem; align-items: end; margin-top: .75rem; padding: .85rem; border: 1px solid #e0d5ad; border-radius: .5rem; background: #fffaf0; }
+      .shadow-controls h3 { grid-column: 1 / -1; margin: 0; font-size: 1rem; }
+      .shadow-toggle { display: flex; align-items: center; gap: .45rem; min-height: 2.4rem; font-weight: 700; }
+      .shadow-toggle input { width: auto; min-height: auto; }
+      .shadow-time-row { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: center; }
+      .shadow-time-row output { min-width: 3.1rem; font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+      .shadow-help, #shadow-status { grid-column: 1 / -1; margin: 0; font-size: .84rem; line-height: 1.4; color: #5f5538; }
       .map-description { margin: .75rem 0 0; line-height: 1.45; } #results { display: grid; gap: 1rem; }
       .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; } .card { padding: .8rem; border-radius: .5rem; background: #eef6ed; }
       .card strong { display: block; margin-top: .25rem; font-size: 1.25rem; } .estimate { font-size: .9rem; color: #3d4e42; }
@@ -123,6 +130,16 @@
           <span class="legend-installable"><i></i>설치 가능 지점</span>
           <span class="legend-exclusion"><i></i>제외 영역</span>
         </div>
+        <section class="shadow-controls" aria-labelledby="shadow-heading">
+          <h3 id="shadow-heading">☀️ 일조권(그림자) 시뮬레이션</h3>
+          <label class="shadow-toggle"><input id="shadow-toggle" type="checkbox"> 그림자 표시</label>
+          <label for="shadow-date">분석 날짜<input id="shadow-date" type="date"></label>
+          <label for="shadow-time">분석 시간
+            <span class="shadow-time-row"><input id="shadow-time" type="range" min="0" max="1439" step="10" value="720"><output id="shadow-time-label" for="shadow-time">12:00</output></span>
+          </label>
+          <p class="shadow-help">그림자를 켠 뒤 날짜와 시간을 조절하면 3D 건물의 그림자 방향과 길이가 바뀝니다.</p>
+          <p id="shadow-status" role="status">그림자 표시가 꺼져 있습니다.</p>
+        </section>
         <p id="map-description" class="map-description">지도를 조작할 수 없는 경우에도 왼쪽 좌표와 면적을 입력하여 같은 개략 분석을 실행할 수 있습니다.</p>
         <p id="status" role="status">VWorld 지도를 준비합니다.</p>
         <section id="building-info" class="building-info" aria-live="polite" hidden>
@@ -143,6 +160,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=20260812-map-analysis-overlay-3"></script>
+    <script type="module" src="./app.mjs?v=20260812-shadow-simulation-1"></script>
   </body>
 </html>

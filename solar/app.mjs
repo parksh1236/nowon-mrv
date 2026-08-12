@@ -24,6 +24,11 @@ const analysisSubmit = doc?.querySelector('#run-analysis');
 const csvButton = doc?.querySelector('#download-csv');
 const buildingInfo = doc?.querySelector('#building-info');
 const buildingDetails = doc?.querySelector('#building-details');
+const shadowToggle = doc?.querySelector('#shadow-toggle');
+const shadowDate = doc?.querySelector('#shadow-date');
+const shadowTime = doc?.querySelector('#shadow-time');
+const shadowTimeLabel = doc?.querySelector('#shadow-time-label');
+const shadowStatus = doc?.querySelector('#shadow-status');
 let climatePromise;
 let jsonpSequence = 0;
 let analysisGeneration = 0;
@@ -145,6 +150,70 @@ function setRoofCoordinatesError(message = '') {
 
 function getViewer() {
   return mapInstance?.getCesiumViewer?.() ?? window.ws3d?.viewer;
+}
+
+export function shadowDateTime(dateString, minutes) {
+  const totalMinutes = Number(minutes);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString ?? '') || !Number.isFinite(totalMinutes) || totalMinutes < 0 || totalMinutes > 1439) return null;
+  const hour = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const minute = String(totalMinutes % 60).padStart(2, '0');
+  const date = new Date(`${dateString}T${hour}:${minute}:00+09:00`);
+  return Number.isNaN(date.getTime()) ? null : { date, label: `${hour}:${minute}` };
+}
+
+export function currentKstDateString(date = new Date()) {
+  return new Date(date.getTime() + (9 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+}
+
+function setShadowStatus(message) {
+  if (shadowStatus) shadowStatus.textContent = message;
+}
+
+export function updateShadowSimulation(viewer = getViewer(), Cesium = window.Cesium) {
+  const value = shadowDateTime(shadowDate?.value, shadowTime?.value);
+  if (shadowTimeLabel && value) shadowTimeLabel.textContent = value.label;
+  if (!value || !viewer?.clock || !Cesium?.JulianDate?.fromDate) return false;
+  const julianDate = Cesium.JulianDate.fromDate(value.date);
+  viewer.clock.shouldAnimate = false;
+  viewer.clock.currentTime = julianDate;
+  viewer.clock.startTime = julianDate.clone();
+  const stopTime = julianDate.clone();
+  Cesium.JulianDate.addSeconds(stopTime, 1, stopTime);
+  viewer.clock.stopTime = stopTime;
+  viewer.scene?.requestRender?.();
+  setShadowStatus(`${shadowDate.value} ${value.label} 기준 그림자를 표시합니다.`);
+  return true;
+}
+
+export function toggleShadowSimulation(enabled, viewer = getViewer(), Cesium = window.Cesium) {
+  if (!viewer?.scene?.globe) {
+    setShadowStatus('3D 지도를 준비하는 중입니다. 잠시 후 다시 켜 주세요.');
+    return false;
+  }
+  viewer.shadows = enabled;
+  viewer.terrainShadows = enabled ? (Cesium?.ShadowMode?.ENABLED ?? 1) : (Cesium?.ShadowMode?.DISABLED ?? 0);
+  viewer.scene.globe.enableLighting = enabled;
+  if (viewer.setting) viewer.setting.useSunLighting = enabled;
+  if (enabled) updateShadowSimulation(viewer, Cesium);
+  else setShadowStatus('그림자 표시가 꺼져 있습니다.');
+  viewer.scene.requestRender?.();
+  return true;
+}
+
+function initShadowControls() {
+  if (!shadowToggle || !shadowDate || !shadowTime) return;
+  if (!shadowDate.value) shadowDate.value = currentKstDateString();
+  const refreshTime = () => {
+    const value = shadowDateTime(shadowDate.value, shadowTime.value);
+    if (shadowTimeLabel && value) shadowTimeLabel.textContent = value.label;
+    if (shadowToggle.checked) updateShadowSimulation();
+  };
+  shadowToggle.addEventListener('change', () => {
+    if (!toggleShadowSimulation(shadowToggle.checked)) shadowToggle.checked = false;
+  });
+  shadowDate.addEventListener('change', refreshTime);
+  shadowTime.addEventListener('input', refreshTime);
+  refreshTime();
 }
 
 function removeMapEntities() {
@@ -775,6 +844,7 @@ export async function initMap() {
     mapViewSyncStop?.();
     wireMapViewSync(mapInstance);
     renderMapShapes();
+    if (shadowToggle?.checked) toggleShadowSimulation(true);
     setStatus(`${window.SOLAR_CONFIG?.allowedRegion ?? '노원구'} VWorld 지도를 불러왔습니다.`);
     return mapInstance;
   } catch (error) {
@@ -1087,6 +1157,7 @@ document.querySelector('#save-project').addEventListener('click', saveProject);
 csvButton.addEventListener('click', () => downloadCsv(latestResult, latestResult.project));
 
 restoreProject();
+initShadowControls();
 precisionOptions.hidden = new FormData(form).get('analysisMode') !== 'detailed';
 initMap();
 runAnalysis('rough');

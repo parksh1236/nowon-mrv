@@ -836,3 +836,32 @@ test('제외면적과 가장자리 이격이 지붕 면적을 넘으면 관계 �
   assert.ok(validateInputs(validInput({ exclusionAreaM2: 121 })).length > 0);
   assert.ok(validateInputs(validInput({ perimeterM: 100, edgeSetbackM: 2 })).length > 0);
 });
+
+test('일조권 시뮬레이션 시각은 KST 기준으로 변환된다', async () => {
+  const { shadowDateTime } = await import(`./app.mjs?shadow-time=${Date.now()}`);
+  const value = shadowDateTime('2026-08-12', 750);
+  assert.equal(value.label, '12:30');
+  assert.equal(value.date.toISOString(), '2026-08-12T03:30:00.000Z');
+  assert.equal(shadowDateTime('2026-08-12', 1440), null);
+});
+
+test('오늘 날짜는 한국 표준시 기준으로 계산된다', async () => {
+  const { currentKstDateString } = await import(`./app.mjs?kst-date=${Date.now()}`);
+  assert.equal(currentKstDateString(new Date('2026-08-11T16:00:00.000Z')), '2026-08-12');
+});
+
+test('그림자 토글은 Cesium 지형·태양 조명을 함께 켜고 끈다', async () => {
+  const { toggleShadowSimulation } = await import(`./app.mjs?shadow-toggle=${Date.now()}`);
+  let renderCount = 0;
+  const viewer = { scene: { globe: {}, requestRender: () => { renderCount += 1; } }, setting: {} };
+  const Cesium = { ShadowMode: { ENABLED: 7, DISABLED: 8 } };
+  assert.equal(toggleShadowSimulation(true, viewer, Cesium), true);
+  assert.equal(viewer.shadows, true);
+  assert.equal(viewer.terrainShadows, 7);
+  assert.equal(viewer.scene.globe.enableLighting, true);
+  assert.equal(viewer.setting.useSunLighting, true);
+  assert.equal(toggleShadowSimulation(false, viewer, Cesium), true);
+  assert.equal(viewer.terrainShadows, 8);
+  assert.equal(viewer.scene.globe.enableLighting, false);
+  assert.equal(renderCount, 2);
+});
