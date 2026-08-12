@@ -111,15 +111,16 @@
             <label for="roof-area">지붕면적 (㎡)<input id="roof-area" name="roofAreaM2" type="number" min="0" step="0.1" value="120" required></label>
             <label for="exclusion-area">제외면적 (㎡)<input id="exclusion-area" name="exclusionAreaM2" type="number" min="0" step="0.1" value="20" required></label>
             <label for="perimeter">둘레 (m)<input id="perimeter" name="perimeterM" type="number" min="0" step="0.1" value="42" required></label>
-            <label for="setback">이격거리 (m)<input id="setback" name="edgeSetbackM" type="number" min="0" step="0.1" value="0.5" required></label>
-            <label for="layout">배치율 (%)<input id="layout" name="layoutRatio" type="number" min="0" max="100" step="0.1" value="80" required></label>
+            <label for="setback">가장자리 이격 (m)<input id="setback" name="edgeSetbackM" type="number" min="0" step="0.1" value="1" required></label>
+            <label for="layout">실제 배치 가능률 (%)<input id="layout" name="layoutRatio" type="number" min="0" max="100" step="0.1" value="60" required></label>
             <label for="panel-area">패널 면적 (㎡)<input id="panel-area" name="panelAreaM2" type="number" min="0" step="0.01" value="2" required></label>
             <label for="panel-power">패널 정격 (kW)<input id="panel-power" name="panelPowerKw" type="number" min="0" step="0.01" value="0.45" required></label>
             <label for="efficiency">모듈 효율 (%)<input id="efficiency" name="moduleEfficiency" type="number" min="0" max="100" step="0.1" value="22.5" required></label>
-            <label for="loss">시스템 손실률 (%)<input id="loss" name="systemLossRatio" type="number" min="0" max="100" step="0.1" value="14" required></label>
+            <label for="loss">시스템 손실률 (%)<input id="loss" name="systemLossRatio" type="number" min="0" max="100" step="0.1" value="20" required></label>
             <label for="tilt">경사 (°)<input id="tilt" name="tiltDeg" type="number" min="0" max="90" step="0.1" value="20" required></label>
             <label for="azimuth">방위 (°)<input id="azimuth" name="azimuthDeg" type="number" min="0" max="360" step="0.1" value="180" required></label>
           </div>
+          <p class="map-description">기본값은 옥상 통로·소방 이격·구조물·패널 간격을 고려해 배치 가능률 60%, 가장자리 이격 1m, 인버터·배선·온도 등 시스템 손실 20%를 적용합니다.</p>
           <button id="save-project" class="secondary" type="button">프로젝트 저장</button>
           <button id="run-analysis" type="submit">분석 실행</button>
         </form>
@@ -162,6 +163,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=20260812-shadow-solar-hours-1"></script>
+    <script type="module" src="./app.mjs?v=20260812-realistic-yield-1"></script>
   </body>
 </html>

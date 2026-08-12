@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
+  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, equivalentFullSunHours, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -216,6 +216,24 @@ test('설치 가능 면적에서 패널 수와 설비용량을 계산한다', ()
 
   assert.equal(result.panelCount, 40);
   assert.equal(result.capacityKwp, 18);
+});
+
+test('현실 기본값은 옥상 전체가 아닌 보수적 설치용량과 등가 발전시간을 산정한다', () => {
+  const climate = { months: [{ month: 6, dailyGhiKwhM2: 4.6, days: 30 }] };
+  const result = calculateRough({
+    roofAreaM2: 120, exclusionAreaM2: 20, perimeterM: 42, edgeSetbackM: 1,
+    layoutRatio: 0.6, panelAreaM2: 2, panelPowerKw: 0.45,
+    moduleEfficiency: 0.225, systemLossRatio: 0.2, tiltDeg: 20, azimuthDeg: 180,
+  }, climate);
+  assert.equal(result.panelCount, 18);
+  assert.equal(result.capacityKwp, 8.1);
+  assert.ok(result.dailySolarHours > 3 && result.dailySolarHours < 4.6);
+});
+
+test('등가 발전시간은 발전량을 설비용량과 일수로 나눈다', () => {
+  const result = equivalentFullSunHours([{ month: 1, kwh: 310 }], 10, { months: [{ month: 1, days: 31 }] });
+  assert.equal(result.averageHours, 1);
+  assert.deepEqual(result.months, [{ month: 1, hours: 1 }]);
 });
 
 test('제외 면적이 지붕보다 크면 0 결과와 경고를 반환한다', () => {

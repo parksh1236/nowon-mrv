@@ -1034,10 +1034,11 @@ export function renderResult(result) {
     ['설치 가능면적', `${format(rough.installableAreaM2)} ㎡`],
     ['설비용량', `${format(rough.capacityKwp)} kWp`],
     ['개략 연간 발전량', `${format(rough.annualKwh)} kWh/년`],
+    ...(rough.dailySolarHours != null ? [['개략 하루 등가 발전시간', `${format(rough.dailySolarHours)} 시간/일`]] : []),
     ...(detailed ? [
       ['정밀 추정 연간 발전량', `${format(detailed.annualKwh)} kWh/년`],
       ['음영 손실률', `${format(detailed.shadingLossRatio * 100)} %`],
-      ...(detailed.dailySolarHours != null ? [['하루 평균 발전 가능시간', `${format(detailed.dailySolarHours)} 시간/일`]] : []),
+      ...(detailed.dailySolarHours != null ? [['음영 반영 하루 등가 발전시간', `${format(detailed.dailySolarHours)} 시간/일`]] : []),
       ['정밀도 / 표본 간격', `${result.precision} / ${result.spacingM} m`],
     ] : []),
   ];
@@ -1054,7 +1055,7 @@ export function renderResult(result) {
   table.append(element('caption', '월별 발전량 비교'));
   const head = element('thead');
   const headRow = element('tr');
-  for (const label of ['월', '개략 발전량 (kWh)', '정밀 추정 발전량 (kWh)', '음영 반영 발전 가능시간 (시간/일)']) {
+  for (const label of ['월', '개략 발전량 (kWh)', '정밀 추정 발전량 (kWh)', '음영 반영 등가 발전시간 (시간/일)']) {
     const cell = element('th', label);
     cell.scope = 'col';
     headRow.append(cell);

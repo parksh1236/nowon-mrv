@@ -152,20 +152,32 @@ function baseCalculation(input, climate) {
   };
 }
 
-function monthlyGeneration(input, climate, panelCount, directFactor = () => 1) {
-  const panelAreaM2 = panelCount * input.panelAreaM2;
+function monthlyGeneration(input, climate, capacityKwp, directFactor = () => 1) {
   const irradianceFactor = roofIrradianceFactor(input.tiltDeg, input.azimuthDeg);
   return (climate?.months ?? []).map(({ month, dailyGhiKwhM2, days }) => ({
     month,
-    kwh: panelAreaM2 * dailyGhiKwhM2 * days * irradianceFactor * input.moduleEfficiency * (1 - input.systemLossRatio) * directFactor(month),
+    kwh: capacityKwp * dailyGhiKwhM2 * days * irradianceFactor * (1 - input.systemLossRatio) * directFactor(month),
   }));
+}
+
+export function equivalentFullSunHours(monthlyKwh = [], capacityKwp = 0, climate = {}) {
+  if (!(capacityKwp > 0)) return { averageHours: null, months: [] };
+  const daysByMonth = new Map((climate?.months ?? []).map(({ month, days }) => [month, days]));
+  const months = monthlyKwh.flatMap(({ month, kwh }) => {
+    const days = daysByMonth.get(month);
+    return days > 0 && Number.isFinite(kwh) ? [{ month, hours: kwh / capacityKwp / days }] : [];
+  });
+  const totalDays = months.reduce((sum, { month }) => sum + (daysByMonth.get(month) ?? 0), 0);
+  const totalKwh = monthlyKwh.reduce((sum, { kwh }) => sum + (Number(kwh) || 0), 0);
+  return { averageHours: totalDays ? totalKwh / capacityKwp / totalDays : null, months };
 }
 
 export function calculateRough(input, climate) {
   const base = baseCalculation(input, climate);
   if (base.panelCount === 0) return base;
-  const monthlyKwh = monthlyGeneration(input, climate, base.panelCount);
-  return { ...base, monthlyKwh, annualKwh: monthlyKwh.reduce((sum, { kwh }) => sum + kwh, 0), shadingLossRatio: 0 };
+  const monthlyKwh = monthlyGeneration(input, climate, base.capacityKwp);
+  const sunHours = equivalentFullSunHours(monthlyKwh, base.capacityKwp, climate);
+  return { ...base, monthlyKwh, annualKwh: monthlyKwh.reduce((sum, { kwh }) => sum + kwh, 0), shadingLossRatio: 0, dailySolarHours: sunHours.averageHours, monthlySolarHours: sunHours.months };
 }
 
 export function calculateDetailed(input, climate, shadeSamples) {
@@ -186,9 +198,9 @@ export function calculateDetailed(input, climate, shadeSamples) {
     const shadedRatio = totals ? totals.shaded / totals.total : 0;
     return 1 - (1 - diffuseFraction) * shadedRatio;
   };
-  const monthlyKwh = monthlyGeneration(input, climate, rough.panelCount, directFactor);
+  const monthlyKwh = monthlyGeneration(input, climate, rough.capacityKwp, directFactor);
   const annualKwh = monthlyKwh.reduce((sum, { kwh }) => sum + kwh, 0);
-  const solarHours = summarizeDailySolarHours(shadeSamples);
+  const solarHours = equivalentFullSunHours(monthlyKwh, rough.capacityKwp, climate);
 
   return {
     ...rough,
@@ -197,6 +209,7 @@ export function calculateDetailed(input, climate, shadeSamples) {
     shadingLossRatio: rough.annualKwh ? 1 - annualKwh / rough.annualKwh : 0,
     dailySolarHours: solarHours.averageHours,
     monthlySolarHours: solarHours.months,
+    dailyUnshadedWindowHours: summarizeDailySolarHours(shadeSamples).averageHours,
   };
 }
 
