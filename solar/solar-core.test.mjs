@@ -113,6 +113,8 @@ test('지도 분석 KML은 지붕·설치가능점·제외영역과 면적 라�
     assert.match(kml, /제외 1/);
     assert.match(kml, /#installable/);
     assert.match(kml, /127\.0504,37\.6504,16/);
+    assert.match(kml, /<LineStyle><color>ff00d7ff<\/color>/);
+    assert.match(kml, /<PolyStyle><color>8000d7ff<\/color>/);
   } finally {
     delete globalThis.window;
   }
@@ -710,7 +712,7 @@ test('주소 검색 위치는 지도 카메라와 마커에 반영된다', async
       Color: { WHITE: 'white', fromCssColorString(value) { return value; } },
     };
     assert.equal(focusBuildingOnMap({ lat: 37.654, lon: 127.056 }, '노원구청', viewer, Cesium), true);
-    assert.deepEqual(calls[0][1].destination, { lon: 127.056, lat: 37.654, height: 700 });
+    assert.deepEqual(calls[0][1].destination, { lon: 127.056, lat: 37.654, height: 300 });
     assert.equal(calls[1][1].label.text, '노원구청');
   } finally {
     delete globalThis.window;
@@ -731,7 +733,7 @@ test('VWorld 지도는 검색한 건물 위치로 이동한다', async () => {
     assert.equal(focusBuildingOnMap({ lat: 37.654, lon: 127.056 }, '노원구청', null, {}, map, vwApi), true);
     assert.equal(moved[0].position.lon, 127.056);
     assert.equal(moved[0].position.lat, 37.654);
-    assert.equal(moved[0].position.height, 700);
+    assert.equal(moved[0].position.height, 300);
     assert.equal(moved[0].direction.pitch, -90);
   } finally {
     delete globalThis.window;

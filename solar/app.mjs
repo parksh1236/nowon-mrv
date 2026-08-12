@@ -243,8 +243,8 @@ export function buildAnalysisKml({ roof = [], exclusions = [], installableSample
   });
   installableSamples.forEach((point) => placemarks.push(`<Placemark><styleUrl>#installable</styleUrl><Point><altitudeMode>relativeToGround</altitudeMode><coordinates>${point.lon},${point.lat},${heightM + 6}</coordinates></Point></Placemark>`));
   return `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${ANALYSIS_KML_LAYER}</name>
-    <Style id="roof"><LineStyle><color>ff44aa33</color><width>5</width></LineStyle><PolyStyle><color>5533aa44</color></PolyStyle></Style>
-    <Style id="roofPoint"><IconStyle><color>ff44aa33</color><scale>0.75</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle></Style>
+    <Style id="roof"><LineStyle><color>ff00d7ff</color><width>5</width></LineStyle><PolyStyle><color>8000d7ff</color></PolyStyle></Style>
+    <Style id="roofPoint"><IconStyle><color>ff00d7ff</color><scale>0.75</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle></Style>
     <Style id="exclusion"><LineStyle><color>ff2b39c0</color><width>5</width></LineStyle><PolyStyle><color>663039c0</color></PolyStyle></Style>
     <Style id="exclusionPoint"><IconStyle><color>ff2b39c0</color><scale>0.75</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle></Style>
     <Style id="installable"><IconStyle><color>ff8dd658</color><scale>0.45</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
@@ -346,11 +346,11 @@ function renderMapShapes() {
   const draftExclusions = [...state.exclusions, ...(drawing?.kind === 'exclusion' && drawing.points.length >= 3 ? [drawing.points] : [])];
   if (renderVWorldAnalysisLayer({ roof: state.roof, exclusions: draftExclusions, installableSamples: installable.samples, roofAreaM2: roofArea, installableAreaM2: installable.areaM2, heightM: state.heightM })) return;
   if (validPolygon(state.roof)) {
-    addMapPolygon(state.roof, '#16704466', state.heightM, `지붕 ${roofArea.toFixed(1)}㎡`);
+    addMapPolygon(state.roof, '#ffd70080', state.heightM, `지붕 ${roofArea.toFixed(1)}㎡`);
     addMapPoints(installable.samples, '#58d68d', state.heightM, 6);
-    if (installable.samples.length) addMapLabel(state.roof, `설치 가능 ${installable.areaM2.toFixed(1)}㎡`, '#0b6e3e', state.heightM + 8);
+    if (installable.samples.length) addMapLabel(state.roof, `설치 가능 ${installable.areaM2.toFixed(1)}㎡`, '#8a6900', state.heightM + 8);
   } else if (state.roof.length) {
-    addMapPoints(state.roof, '#167044', state.heightM);
+    addMapPoints(state.roof, '#ffd700', state.heightM);
   }
   state.exclusions.forEach((points, index) => addMapPolygon(points, '#c0392b77', state.heightM + 1, `제외 ${index + 1} · ${polygonMetrics(points).areaM2.toFixed(1)}㎡`));
   if (drawing?.kind === 'exclusion' && drawing.points.length) addMapPoints(drawing.points, '#c0392b', state.heightM + 1);
@@ -641,13 +641,13 @@ export function focusBuildingOnMap(
   let focused = false;
   if (map?.moveTo && vwApi?.CameraPosition && vwApi?.CoordZ && vwApi?.Direction) {
     map.moveTo(new vwApi.CameraPosition(
-      new vwApi.CoordZ(position.lon, position.lat, 700),
+      new vwApi.CoordZ(position.lon, position.lat, 300),
       new vwApi.Direction(0, -90, 0),
     ));
     focused = true;
   }
   if (!viewer || !Cesium?.Cartesian3?.fromDegrees) return focused;
-  const destination = Cesium.Cartesian3.fromDegrees(position.lon, position.lat, 700);
+  const destination = Cesium.Cartesian3.fromDegrees(position.lon, position.lat, 300);
   viewer.camera?.flyTo?.({ destination, orientation: { heading: 0, pitch: Cesium.Math?.toRadians?.(-90) ?? -Math.PI / 2, roll: 0 }, duration: 1.1 });
   if (selectedBuildingMarker) viewer.entities?.remove?.(selectedBuildingMarker);
   selectedBuildingMarker = viewer.entities?.add?.({
