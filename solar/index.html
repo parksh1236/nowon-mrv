@@ -22,7 +22,7 @@
       input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #005a2e; outline-offset: 3px; }
       .button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; } .button-row button { margin-top: .5rem; }
       .secondary { background: #35614b; } .geometry-list { margin: .5rem 0 0; padding-left: 1.25rem; }
-      #map { height: 29rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
+      #map { height: 43.5rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
       #status { margin-top: .75rem; padding: .65rem; border-left: 4px solid #167044; background: #edf7ed; line-height: 1.45; }
       .building-info { margin-top: .75rem; padding: .8rem; border: 1px solid #c9d8c8; border-radius: .5rem; background: #f7fbf6; }
       .building-info h3 { margin: 0 0 .55rem; font-size: 1rem; }
@@ -38,7 +38,7 @@
       .comparison { width: 100%; border-collapse: collapse; font-size: .85rem; } .comparison caption { margin-bottom: .45rem; font-weight: 700; text-align: left; }
       .comparison th, .comparison td { position: relative; padding: .45rem; border-bottom: 1px solid #d5dfd3; text-align: right; } .comparison th:first-child { text-align: left; }
       .compare-bar { position: absolute; inset: auto 0 0; display: block; height: .22rem; max-width: 100%; background: #e99b22; }
-      @media (max-width: 1100px) { main { grid-template-columns: 1fr; } #map { height: 22rem; } }
+      @media (max-width: 1100px) { main { grid-template-columns: 1fr; } #map { height: 33rem; } }
       @media (max-width: 420px) { .fields, .cards { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -133,6 +133,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=20260812-building-selection-5"></script>
+    <script type="module" src="./app.mjs?v=20260812-building-selection-6"></script>
   </body>
 </html>

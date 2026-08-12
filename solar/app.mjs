@@ -425,13 +425,13 @@ export function focusBuildingOnMap(
   if (map?.moveTo && vwApi?.CameraPosition && vwApi?.CoordZ && vwApi?.Direction) {
     map.moveTo(new vwApi.CameraPosition(
       new vwApi.CoordZ(position.lon, position.lat, 700),
-      new vwApi.Direction(0, -70, 0),
+      new vwApi.Direction(0, -90, 0),
     ));
     focused = true;
   }
   if (!viewer || !Cesium?.Cartesian3?.fromDegrees) return focused;
   const destination = Cesium.Cartesian3.fromDegrees(position.lon, position.lat, 700);
-  viewer.camera?.flyTo?.({ destination, orientation: { heading: 0, pitch: Cesium.Math?.toRadians?.(-65) ?? -1.134, roll: 0 }, duration: 1.1 });
+  viewer.camera?.flyTo?.({ destination, orientation: { heading: 0, pitch: Cesium.Math?.toRadians?.(-90) ?? -Math.PI / 2, roll: 0 }, duration: 1.1 });
   if (selectedBuildingMarker) viewer.entities?.remove?.(selectedBuildingMarker);
   selectedBuildingMarker = viewer.entities?.add?.({
     position: Cesium.Cartesian3.fromDegrees(position.lon, position.lat, 10),

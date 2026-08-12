@@ -655,7 +655,7 @@ test('VWorld 지도는 검색한 건물 위치로 이동한다', async () => {
     assert.equal(moved[0].position.lon, 127.056);
     assert.equal(moved[0].position.lat, 37.654);
     assert.equal(moved[0].position.height, 700);
-    assert.equal(moved[0].direction.pitch, -70);
+    assert.equal(moved[0].direction.pitch, -90);
   } finally {
     delete globalThis.window;
   }
