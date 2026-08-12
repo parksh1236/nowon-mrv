@@ -904,3 +904,17 @@ test('그림자 토글은 Cesium 지형·태양 조명을 함께 켜고 끈다',
   assert.equal(viewer.scene.globe.enableLighting, false);
   assert.equal(renderCount, 2);
 });
+
+test('산출근거는 면적·설비용량·발전량·음영 공식을 설명한다', async () => {
+  const { calculationBasisRows } = await import(`./app.mjs?calculation-basis=${Date.now()}`);
+  const rows = Object.fromEntries(calculationBasisRows({
+    rough: { usableAreaM2: 60, installableAreaM2: 36, panelCount: 18, capacityKwp: 8.1 },
+    detailed: { shadingLossRatio: 0.12 },
+    project: { input: { roofAreaM2: 120, exclusionAreaM2: 20, perimeterM: 42, edgeSetbackM: 1, layoutRatio: 0.6, panelPowerKw: 0.45, systemLossRatio: 0.2, tiltDeg: 20, azimuthDeg: 180 } },
+    climate: { source: '기상청 태양광 기상자원지도' },
+  }));
+  assert.match(rows['실제 설치 가능면적'], /60\.0%/);
+  assert.match(rows['패널·설비용량'], /18장.*8\.1 kWp/);
+  assert.match(rows['발전량 공식'], /일평균 일사량/);
+  assert.match(rows['그림자 반영'], /12\.0%/);
+});

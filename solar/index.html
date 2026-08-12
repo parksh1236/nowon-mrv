@@ -51,6 +51,12 @@
       .comparison { width: 100%; border-collapse: collapse; font-size: .85rem; } .comparison caption { margin-bottom: .45rem; font-weight: 700; text-align: left; }
       .comparison th, .comparison td { position: relative; padding: .45rem; border-bottom: 1px solid #d5dfd3; text-align: right; } .comparison th:first-child { text-align: left; }
       .compare-bar { position: absolute; inset: auto 0 0; display: block; height: .22rem; max-width: 100%; background: #e99b22; }
+      .calculation-basis { margin-top: 1rem; padding-top: 1rem; border-top: 2px solid #d5dfd3; }
+      .calculation-basis h3 { margin: 0 0 .65rem; font-size: 1.05rem; }
+      .calculation-basis dl { display: grid; grid-template-columns: minmax(8rem, .7fr) minmax(12rem, 1.3fr); gap: .45rem .8rem; margin: 0; font-size: .84rem; line-height: 1.45; }
+      .calculation-basis dt { font-weight: 700; color: #365143; }
+      .calculation-basis dd { margin: 0; overflow-wrap: anywhere; }
+      .basis-note { margin-top: .7rem; font-size: .8rem; line-height: 1.45; color: #6d6247; }
       @media (max-width: 1450px) { main { grid-template-columns: minmax(19rem, .7fr) minmax(36rem, 1.8fr); grid-template-areas: "input map" "results results"; } }
       @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "input" "map" "results"; } #map { height: 33rem; } }
       @media (max-width: 420px) { .fields, .cards { grid-template-columns: 1fr; } }
@@ -153,6 +159,10 @@
       <section class="panel results-panel" aria-label="분석 결과">
         <h2>분석 결과</h2>
         <div id="results" aria-live="polite"><div id="monthly-chart" aria-label="월별 예상 발전량"></div></div>
+        <section id="calculation-basis" class="calculation-basis" aria-labelledby="calculation-basis-heading">
+          <h3 id="calculation-basis-heading">산출근거</h3>
+          <p class="estimate">분석을 실행하면 적용한 면적·설비·발전량 공식을 표시합니다.</p>
+        </section>
         <button id="download-csv" type="button" disabled>CSV 내보내기</button>
       </section>
     </main>
@@ -163,6 +173,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=20260812-realistic-yield-1"></script>
+    <script type="module" src="./app.mjs?v=20260812-calculation-basis-1"></script>
   </body>
 </html>
