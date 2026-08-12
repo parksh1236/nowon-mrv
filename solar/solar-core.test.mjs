@@ -640,6 +640,27 @@ test('주소 검색 위치는 지도 카메라와 마커에 반영된다', async
   }
 });
 
+test('VWorld 지도는 검색한 건물 위치로 이동한다', async () => {
+  globalThis.window = {};
+  try {
+    const { focusBuildingOnMap } = await import(`./app.mjs?vworld-focus=${Date.now()}`);
+    const moved = [];
+    const map = { moveTo(position) { moved.push(position); } };
+    const vwApi = {
+      CoordZ: class { constructor(lon, lat, height) { Object.assign(this, { lon, lat, height }); } },
+      Direction: class { constructor(heading, pitch, roll) { Object.assign(this, { heading, pitch, roll }); } },
+      CameraPosition: class { constructor(position, direction) { Object.assign(this, { position, direction }); } },
+    };
+    assert.equal(focusBuildingOnMap({ lat: 37.654, lon: 127.056 }, '노원구청', null, {}, map, vwApi), true);
+    assert.equal(moved[0].position.lon, 127.056);
+    assert.equal(moved[0].position.lat, 37.654);
+    assert.equal(moved[0].position.height, 700);
+    assert.equal(moved[0].direction.pitch, -70);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('Cesium 화면 클릭 좌표를 위경도로 변환한다', async () => {
   globalThis.window = {};
   try {
