@@ -7,10 +7,8 @@
     <style>
       :root { color-scheme: light; font-family: system-ui, sans-serif; color: #17251d; background: #f4f7f1; }
       * { box-sizing: border-box; } body { margin: 0; }
-      header { padding: 1.5rem clamp(1rem, 4vw, 3rem); background: #153d2e; color: #fff; }
-      h1, h2, p { margin: 0; } h1 { font-size: clamp(1.5rem, 3vw, 2.2rem); letter-spacing: .06em; }
-      header p { margin-top: .35rem; color: #d4ead8; } .notice { margin-top: .75rem; font-size: .9rem; }
-      main { display: grid; grid-template-columns: minmax(19rem, .8fr) minmax(36rem, 1.8fr) minmax(22rem, 1fr); grid-template-areas: "input map results"; align-items: start; gap: 1rem; padding: 1rem; max-width: 2200px; margin: auto; }
+      h1, h2, p { margin: 0; }
+      main { display: grid; grid-template-columns: minmax(19rem, .8fr) minmax(43.2rem, 2.16fr) minmax(22rem, 1fr); grid-template-areas: "input map results"; align-items: start; gap: 1rem; padding: 1rem; max-width: 2400px; margin: auto; }
       .input-panel { grid-area: input; } .map-panel { grid-area: map; } .results-panel { grid-area: results; }
       .results-panel { overflow-x: auto; }
       section, form { min-width: 0; } .panel { padding: 1rem; border: 1px solid #d5dfd3; border-radius: .75rem; background: #fff; box-shadow: 0 1px 2px #17251d10; }
@@ -25,6 +23,7 @@
       .button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; } .button-row button { margin-top: .5rem; }
       .button-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .secondary { background: #35614b; } .geometry-list { margin: .5rem 0 0; padding-left: 1.25rem; }
+      .map-stage { position: relative; }
       #map { height: 43.5rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
       #status { margin-top: .75rem; padding: .65rem; border-left: 4px solid #167044; background: #edf7ed; line-height: 1.45; }
       .building-info { margin-top: .75rem; padding: .8rem; border: 1px solid #c9d8c8; border-radius: .5rem; background: #f7fbf6; }
@@ -35,13 +34,15 @@
       .map-legend span { display: inline-flex; align-items: center; gap: .35rem; }
       .map-legend i { width: .8rem; height: .8rem; border-radius: 50%; border: 2px solid currentColor; }
       .legend-roof { color: #d4ae00; } .legend-installable { color: #58d68d; } .legend-exclusion { color: #c0392b; }
-      .shadow-controls { display: grid; grid-template-columns: minmax(9rem, .7fr) minmax(13rem, 1.3fr); gap: .75rem 1rem; align-items: end; margin-top: .75rem; padding: .85rem; border: 1px solid #e0d5ad; border-radius: .5rem; background: #fffaf0; }
-      .shadow-controls h3 { grid-column: 1 / -1; margin: 0; font-size: 1rem; }
+      .shadow-controls { position: absolute; z-index: 10; top: .75rem; left: .75rem; width: min(18rem, calc(100% - 1.5rem)); max-height: calc(100% - 1.5rem); overflow: auto; padding: .9rem; border: 1px solid #ffffff38; border-radius: .65rem; background: #0d2946e8; color: #fff; box-shadow: 0 .5rem 1.5rem #071a2f50; backdrop-filter: blur(5px); }
+      .shadow-controls h3 { margin: 0 0 .75rem; font-size: 1rem; }
+      .shadow-controls label { margin-top: .65rem; color: #eaf3fb; }
+      .shadow-controls input { border-color: #7890a7; background: #163757; color: #fff; }
       .shadow-toggle { display: flex; align-items: center; gap: .45rem; min-height: 2.4rem; font-weight: 700; }
       .shadow-toggle input { width: auto; min-height: auto; }
       .shadow-time-row { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: center; }
       .shadow-time-row output { min-width: 3.1rem; font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
-      .shadow-help, #shadow-status { grid-column: 1 / -1; margin: 0; font-size: .84rem; line-height: 1.4; color: #5f5538; }
+      .shadow-help, #shadow-status { margin: .65rem 0 0; font-size: .84rem; line-height: 1.4; color: #d9e7f2; }
       .map-description { margin: .75rem 0 0; line-height: 1.45; } #results { display: grid; gap: 1rem; }
       .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; } .card { padding: .8rem; border-radius: .5rem; background: #eef6ed; }
       .card strong { display: block; margin-top: .25rem; font-size: 1.25rem; } .estimate { font-size: .9rem; color: #3d4e42; }
@@ -58,17 +59,12 @@
       .calculation-basis dt { font-weight: 700; color: #365143; }
       .calculation-basis dd { margin: 0; overflow-wrap: anywhere; }
       .basis-note { margin-top: .7rem; font-size: .8rem; line-height: 1.45; color: #6d6247; }
-      @media (max-width: 1450px) { main { grid-template-columns: minmax(19rem, .7fr) minmax(36rem, 1.8fr); grid-template-areas: "input map" "results results"; } }
+      @media (max-width: 1550px) { main { grid-template-columns: minmax(19rem, .7fr) minmax(43.2rem, 2.16fr); grid-template-areas: "input map" "results results"; } }
       @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "input" "map" "results"; } #map { height: 33rem; } }
       @media (max-width: 420px) { .fields, .cards { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
-    <header>
-      <h1>SOLAR LAB</h1>
-      <p>태양광 건축 사전분석</p>
-      <p class="notice">설정 및 결과는 사전 추정치이며 설계·인허가 확정치가 아닙니다.</p>
-    </header>
     <main>
       <section class="panel input-panel" aria-label="분석 입력">
         <form id="analysis-form">
@@ -134,22 +130,24 @@
       </section>
       <section class="panel map-panel" aria-labelledby="map-heading">
         <h2 id="map-heading">노원구 지도</h2>
-        <div id="map" aria-describedby="map-description"></div>
+        <div class="map-stage">
+          <div id="map" aria-describedby="map-description"></div>
+          <section class="shadow-controls" aria-labelledby="shadow-heading">
+            <h3 id="shadow-heading">☀️ 일조권 분석 · 시간별 그림자</h3>
+            <label class="shadow-toggle"><input id="shadow-toggle" type="checkbox"> 그림자 표시</label>
+            <label for="shadow-date">분석 날짜<input id="shadow-date" type="date"></label>
+            <label for="shadow-time">분석 시간
+              <span class="shadow-time-row"><input id="shadow-time" type="range" min="0" max="1439" step="10" value="720"><output id="shadow-time-label" for="shadow-time">12:00</output></span>
+            </label>
+            <p class="shadow-help">날짜와 시간을 조절하면 3D 건물의 그림자 방향과 길이가 바뀝니다.</p>
+            <p id="shadow-status" role="status">그림자 표시가 꺼져 있습니다.</p>
+          </section>
+        </div>
         <div class="map-legend" aria-label="지도 분석 범례">
           <span class="legend-roof"><i></i>지붕 외곽·꼭짓점</span>
           <span class="legend-installable"><i></i>설치 가능 지점</span>
           <span class="legend-exclusion"><i></i>제외 영역</span>
         </div>
-        <section class="shadow-controls" aria-labelledby="shadow-heading">
-          <h3 id="shadow-heading">☀️ 일조권(그림자) 시뮬레이션</h3>
-          <label class="shadow-toggle"><input id="shadow-toggle" type="checkbox"> 그림자 표시</label>
-          <label for="shadow-date">분석 날짜<input id="shadow-date" type="date"></label>
-          <label for="shadow-time">분석 시간
-            <span class="shadow-time-row"><input id="shadow-time" type="range" min="0" max="1439" step="10" value="720"><output id="shadow-time-label" for="shadow-time">12:00</output></span>
-          </label>
-          <p class="shadow-help">그림자를 켠 뒤 날짜와 시간을 조절하면 3D 건물의 그림자 방향과 길이가 바뀝니다.</p>
-          <p id="shadow-status" role="status">그림자 표시가 꺼져 있습니다.</p>
-        </section>
         <p id="map-description" class="map-description">지도를 조작할 수 없는 경우에도 왼쪽 좌표와 면적을 입력하여 같은 개략 분석을 실행할 수 있습니다.</p>
         <p id="status" role="status">VWorld 지도를 준비합니다.</p>
         <section id="building-info" class="building-info" aria-live="polite" hidden>
