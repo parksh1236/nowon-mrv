@@ -35,7 +35,9 @@
       .map-legend i { width: .8rem; height: .8rem; border-radius: 50%; border: 2px solid currentColor; }
       .legend-roof { color: #d4ae00; } .legend-installable { color: #58d68d; } .legend-exclusion { color: #c0392b; }
       .shadow-controls { position: absolute; z-index: 10; top: .75rem; left: .75rem; width: min(18rem, calc(100% - 1.5rem)); max-height: calc(100% - 1.5rem); overflow: auto; padding: .9rem; border: 1px solid #ffffff38; border-radius: .65rem; background: #0d2946e8; color: #fff; box-shadow: 0 .5rem 1.5rem #071a2f50; backdrop-filter: blur(5px); }
-      .shadow-controls h3 { margin: 0 0 .75rem; font-size: 1rem; }
+      .shadow-controls summary { cursor: pointer; font-size: 1rem; font-weight: 800; }
+      .shadow-controls[open] summary { margin-bottom: .75rem; }
+      .shadow-controls summary::marker { color: #ffc836; }
       .shadow-controls label { margin-top: .65rem; color: #eaf3fb; }
       .shadow-controls input { border-color: #7890a7; background: #163757; color: #fff; }
       .shadow-toggle { display: flex; align-items: center; gap: .45rem; min-height: 2.4rem; font-weight: 700; }
@@ -132,8 +134,8 @@
         <h2 id="map-heading">노원구 지도</h2>
         <div class="map-stage">
           <div id="map" aria-describedby="map-description"></div>
-          <section class="shadow-controls" aria-labelledby="shadow-heading">
-            <h3 id="shadow-heading">☀️ 일조권 분석 · 시간별 그림자</h3>
+          <details class="shadow-controls" open>
+            <summary id="shadow-heading">☀️ 일조권 분석 · 시간별 그림자</summary>
             <label class="shadow-toggle"><input id="shadow-toggle" type="checkbox"> 그림자 표시</label>
             <label for="shadow-date">분석 날짜<input id="shadow-date" type="date"></label>
             <label for="shadow-time">분석 시간
@@ -141,7 +143,7 @@
             </label>
             <p class="shadow-help">날짜와 시간을 조절하면 3D 건물의 그림자 방향과 길이가 바뀝니다.</p>
             <p id="shadow-status" role="status">그림자 표시가 꺼져 있습니다.</p>
-          </section>
+          </details>
         </div>
         <div class="map-legend" aria-label="지도 분석 범례">
           <span class="legend-roof"><i></i>지붕 외곽·꼭짓점</span>
