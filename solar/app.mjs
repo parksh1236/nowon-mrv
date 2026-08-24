@@ -34,6 +34,7 @@ const treeHeightInput = doc?.querySelector('#tree-height');
 const treeCrownInput = doc?.querySelector('#tree-crown');
 const treeInputError = doc?.querySelector('#tree-input-error');
 const treeList = doc?.querySelector('#tree-list');
+const updateTreeButton = doc?.querySelector('#update-tree');
 let climatePromise;
 let jsonpSequence = 0;
 let analysisGeneration = 0;
@@ -47,6 +48,7 @@ let mapClickHandler;
 let analysisKmlUrl;
 const ANALYSIS_KML_LAYER = 'nowon-solar-analysis-overlay';
 let mapViewSyncStop;
+let selectedTreeId;
 const mapEntities = [];
 const state = { mode: 'existing', roof: [], exclusions: [], heightM: 0, formValues: {}, dirty: false, trees: [] };
 
@@ -69,6 +71,13 @@ export function treeEntityDefinition(tree, groundHeightM = 0, Cesium = window.Ce
       heightReference: Cesium.HeightReference?.NONE,
     },
   };
+}
+
+export function updateTreeDimensions(trees, id, heightM, crownDiameterM) {
+  const tree = trees.find((candidate) => candidate.id === id);
+  if (!tree) return false;
+  Object.assign(tree, { heightM, crownDiameterM });
+  return true;
 }
 
 const element = (tag, text, className) => {
@@ -401,16 +410,35 @@ function renderTrees() {
   treeList.replaceChildren();
   state.trees.forEach((tree, index) => {
     const item = element('li');
+    if (tree.id === selectedTreeId) item.classList.add('selected');
+    const actions = element('div', undefined, 'tree-actions');
+    const select = element('button', `나무 ${index + 1} 선택`);
+    select.type = 'button';
+    select.setAttribute('aria-pressed', String(tree.id === selectedTreeId));
+    select.addEventListener('click', () => {
+      selectedTreeId = tree.id;
+      treeHeightInput.value = tree.heightM;
+      treeCrownInput.value = tree.crownDiameterM;
+      updateTreeButton.hidden = false;
+      renderTrees();
+      focusBuildingOnMap(tree.center, `가상 나무 ${index + 1}`, null);
+      setStatus(`가상 나무 ${index + 1}을 선택했습니다. 높이와 수관 지름을 수정할 수 있습니다.`);
+    });
     const remove = element('button', `나무 ${index + 1} 삭제`, 'secondary');
     remove.type = 'button';
     remove.addEventListener('click', () => {
+      if (selectedTreeId === tree.id) {
+        selectedTreeId = undefined;
+        updateTreeButton.hidden = true;
+      }
       state.trees.splice(index, 1);
       renderTrees();
       renderMapShapes();
       markDirty();
       setStatus(`가상 나무 ${index + 1}을 삭제했습니다.`);
     });
-    item.append(`나무 ${index + 1} · 높이 ${tree.heightM}m · 지름 ${tree.crownDiameterM}m `, remove);
+    actions.append(select, remove);
+    item.append(`나무 ${index + 1} · 높이 ${tree.heightM}m · 지름 ${tree.crownDiameterM}m`, actions);
     treeList.append(item);
   });
 }
@@ -781,6 +809,8 @@ export function resetAnalysis() {
   form.reset();
   resetBuildingGeometry(state);
   state.trees = [];
+  selectedTreeId = undefined;
+  if (updateTreeButton) updateTreeButton.hidden = true;
   state.mode = 'existing';
   state.formValues = formValues();
   state.dirty = false;
@@ -915,6 +945,8 @@ export function restoreProject() {
   state.heightM = project.heightM;
   state.formValues = project.formValues;
   state.trees = normalizeTrees(project.trees);
+  selectedTreeId = undefined;
+  if (updateTreeButton) updateTreeButton.hidden = true;
   applyFormValues(project.formValues);
   roofCoordinates.value = pointsToText(state.roof);
   heightInput.value = state.heightM;
@@ -1348,6 +1380,23 @@ document.querySelector('#place-tree').addEventListener('click', () => {
   if (errors.length) return setStatus(errors[0]);
   drawing = { kind: 'tree', heightM, crownDiameterM };
   setStatus('지도에서 가상 나무의 중심 위치를 클릭하세요.');
+});
+updateTreeButton.addEventListener('click', () => {
+  const heightM = Number(treeHeightInput.value);
+  const crownDiameterM = Number(treeCrownInput.value);
+  const errors = validateTreeInput(heightM, crownDiameterM);
+  treeInputError.hidden = errors.length === 0;
+  treeInputError.textContent = errors.join(' ');
+  if (errors.length) return setStatus(errors[0]);
+  if (!updateTreeDimensions(state.trees, selectedTreeId, heightM, crownDiameterM)) {
+    selectedTreeId = undefined;
+    updateTreeButton.hidden = true;
+    return setStatus('수정할 가상 나무를 다시 선택하세요.');
+  }
+  renderTrees();
+  renderMapShapes();
+  markDirty();
+  setStatus('선택한 가상 나무의 높이와 수관 지름을 수정했습니다.');
 });
 document.querySelector('#search-building').addEventListener('click', searchBuilding);
 document.querySelector('#select-building').addEventListener('click', () => {

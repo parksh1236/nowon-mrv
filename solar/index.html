@@ -46,6 +46,9 @@
       .shadow-time-row output { min-width: 3.1rem; font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
       .shadow-help, #shadow-status { margin: .65rem 0 0; font-size: .84rem; line-height: 1.4; color: #d9e7f2; }
       .tree-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .tree-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+      .tree-actions button { margin-top: .4rem; }
+      .geometry-list li.selected { padding: .35rem; border-radius: .35rem; background: #e5f4e8; }
       .map-description { margin: .75rem 0 0; line-height: 1.45; } #results { display: grid; gap: 1rem; }
       .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; } .card { padding: .8rem; border-radius: .5rem; background: #eef6ed; }
       .card strong { display: block; margin-top: .25rem; font-size: 1.25rem; } .estimate { font-size: .9rem; color: #3d4e42; }
@@ -107,6 +110,7 @@
             </div>
             <p id="tree-input-error" role="alert" hidden></p>
             <button id="place-tree" type="button">지도에 나무 배치</button>
+            <button id="update-tree" class="secondary" type="button" hidden>선택 나무 수정</button>
             <ul id="tree-list" class="geometry-list" aria-label="배치된 가상 나무"></ul>
           </fieldset>
           <fieldset id="analysis-mode">
@@ -185,6 +189,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=20260812-reset-analysis-1"></script>
+    <script type="module" src="./app.mjs?v=20260824-tree-edit-1"></script>
   </body>
 </html>

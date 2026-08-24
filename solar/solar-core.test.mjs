@@ -572,6 +572,20 @@ test('tree impact reports a non-negative annual loss', async () => {
   }
 });
 
+test('selected tree dimensions update without moving or replacing the tree', async () => {
+  globalThis.window = {};
+  try {
+    const { updateTreeDimensions } = await import(`./app.mjs?tree-update=${Date.now()}`);
+    const trees = [{ id: 'tree-1', center: { lat: 37.654, lon: 127.056 }, heightM: 12, crownDiameterM: 8 }];
+    const updated = updateTreeDimensions(trees, 'tree-1', 15, 10);
+    assert.equal(updated, true);
+    assert.deepEqual(trees[0], { id: 'tree-1', center: { lat: 37.654, lon: 127.056 }, heightM: 15, crownDiameterM: 10 });
+    assert.equal(updateTreeDimensions(trees, 'missing', 20, 12), false);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('detailed shade marks a roof sample blocked only by a virtual tree', async () => {
   class Cartesian3 {
     constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); }
