@@ -50,6 +50,7 @@ export function rayIntersectsTree(sample, direction, tree) {
   const a = direction.east ** 2 + direction.north ** 2;
   const b = 2 * (x * direction.east + y * direction.north);
   const c = x ** 2 + y ** 2 - radius ** 2;
+  if (c <= 0 && sample.up >= tree.baseUp && sample.up <= tree.baseUp + tree.heightM) return true;
   const candidates = [];
   if (a > 1e-12) {
     const discriminant = b ** 2 - 4 * a * c;

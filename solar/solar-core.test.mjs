@@ -37,6 +37,7 @@ test('invalid trees are removed without rejecting valid trees', () => {
 test('sun ray intersects the tree cylinder only when it crosses its volume', () => {
   const tree = { east: 5, north: 0, baseUp: 0, heightM: 12, crownDiameterM: 8 };
   assert.equal(rayIntersectsTree({ east: 0, north: 0, up: 5 }, { east: 1, north: 0, up: 0.5 }, tree), true);
+  assert.equal(rayIntersectsTree({ east: 5, north: 0, up: 5 }, { east: 0.01, north: 0, up: 1 }, tree), true);
   assert.equal(rayIntersectsTree({ east: 0, north: 9, up: 5 }, { east: 1, north: 0, up: 0.5 }, tree), false);
   assert.equal(rayIntersectsTree({ east: 5, north: 0, up: 13 }, { east: 0, north: 0, up: 1 }, tree), false);
 });
