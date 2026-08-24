@@ -45,6 +45,7 @@
       .shadow-time-row { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: center; }
       .shadow-time-row output { min-width: 3.1rem; font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
       .shadow-help, #shadow-status { margin: .65rem 0 0; font-size: .84rem; line-height: 1.4; color: #d9e7f2; }
+      .tree-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .map-description { margin: .75rem 0 0; line-height: 1.45; } #results { display: grid; gap: 1rem; }
       .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; } .card { padding: .8rem; border-radius: .5rem; background: #eef6ed; }
       .card strong { display: block; margin-top: .25rem; font-size: 1.25rem; } .estimate { font-size: .9rem; color: #3d4e42; }
@@ -98,6 +99,16 @@
             <div class="button-row"><button id="start-exclusion-drawing" type="button">제외 영역 그리기</button><button id="add-exclusion" class="secondary" type="button">제외 영역 추가</button></div>
             <ul id="exclusion-list" class="geometry-list"></ul>
           </fieldset>
+          <fieldset>
+            <legend>가상 나무</legend>
+            <div class="fields tree-fields">
+              <label for="tree-height">높이 (m)<input id="tree-height" type="number" min="1" max="50" step="0.1" value="12"></label>
+              <label for="tree-crown">수관 지름 (m)<input id="tree-crown" type="number" min="1" max="30" step="0.1" value="8"></label>
+            </div>
+            <p id="tree-input-error" role="alert" hidden></p>
+            <button id="place-tree" type="button">지도에 나무 배치</button>
+            <ul id="tree-list" class="geometry-list" aria-label="배치된 가상 나무"></ul>
+          </fieldset>
           <fieldset id="analysis-mode">
             <legend>분석 방식</legend>
             <div class="choice">
@@ -148,6 +159,7 @@
           <span class="legend-roof"><i></i>지붕 외곽·꼭짓점</span>
           <span class="legend-installable"><i></i>설치 가능 지점</span>
           <span class="legend-exclusion"><i></i>제외 영역</span>
+          <span><i style="background:#2e8b57"></i>가상 나무</span>
         </div>
         <p id="map-description" class="map-description">지도를 조작할 수 없는 경우에도 왼쪽 좌표와 면적을 입력하여 같은 개략 분석을 실행할 수 있습니다.</p>
         <p id="status" role="status">VWorld 지도를 준비합니다.</p>

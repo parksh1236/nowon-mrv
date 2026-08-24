@@ -41,6 +41,36 @@ test('sun ray intersects the tree cylinder only when it crosses its volume', () 
   assert.equal(rayIntersectsTree({ east: 5, north: 0, up: 13 }, { east: 0, north: 0, up: 1 }, tree), false);
 });
 
+test('virtual tree input enforces documented bounds', async () => {
+  globalThis.window = {};
+  try {
+    const { validateTreeInput } = await import(`./app.mjs?tree-input=${Date.now()}`);
+    assert.deepEqual(validateTreeInput(12, 8), []);
+    assert.match(validateTreeInput(0, 8)[0], /1m.*50m/);
+    assert.match(validateTreeInput(12, 31)[0], /1m.*30m/);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test('tree entity uses the bundled model and casts shadows', async () => {
+  globalThis.window = {};
+  try {
+    const Cesium = {
+      Cartesian3: { fromDegrees: (...values) => values },
+      HeightReference: { NONE: 'none' },
+      ShadowMode: { ENABLED: 'enabled' },
+    };
+    const { treeEntityDefinition } = await import(`./app.mjs?tree-entity=${Date.now()}`);
+    const definition = treeEntityDefinition({ center: { lat: 37.654, lon: 127.056 }, heightM: 12, crownDiameterM: 8 }, 20, Cesium);
+    assert.deepEqual(definition.position, [127.056, 37.654, 20]);
+    assert.equal(definition.model.uri, './assets/tree.glb');
+    assert.equal(definition.model.shadows, 'enabled');
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('project deserialization rejects malformed JSON without throwing', () => {
   assert.equal(deserializeProject('{'), null);
 });
