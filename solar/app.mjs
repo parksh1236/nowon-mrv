@@ -60,13 +60,17 @@ export function validateTreeInput(heightM, crownDiameterM) {
 }
 
 export function treeEntityDefinition(tree, groundHeightM = 0, Cesium = window.Cesium) {
+  const scale = new Cesium.Cartesian3(
+    tree.crownDiameterM / 0.755000054,
+    tree.heightM / 1.70788741,
+    tree.crownDiameterM / 0.653849,
+  );
   return {
     position: Cesium.Cartesian3.fromDegrees(tree.center.lon, tree.center.lat, groundHeightM),
     model: {
       uri: './assets/tree.glb',
-      minimumPixelSize: 24,
-      maximumScale: tree.heightM,
-      scale: tree.heightM,
+      scale: 1,
+      nodeTransformations: { tree_default: { scale } },
       shadows: Cesium.ShadowMode?.ENABLED,
       heightReference: Cesium.HeightReference?.NONE,
     },

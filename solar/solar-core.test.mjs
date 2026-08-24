@@ -57,8 +57,12 @@ test('virtual tree input enforces documented bounds', async () => {
 test('tree entity uses the bundled model and casts shadows', async () => {
   globalThis.window = {};
   try {
+    class Cartesian3 {
+      constructor(x, y, z) { Object.assign(this, { x, y, z }); }
+      static fromDegrees(...values) { return values; }
+    }
     const Cesium = {
-      Cartesian3: { fromDegrees: (...values) => values },
+      Cartesian3,
       HeightReference: { NONE: 'none' },
       ShadowMode: { ENABLED: 'enabled' },
     };
@@ -67,6 +71,10 @@ test('tree entity uses the bundled model and casts shadows', async () => {
     assert.deepEqual(definition.position, [127.056, 37.654, 20]);
     assert.equal(definition.model.uri, './assets/tree.glb');
     assert.equal(definition.model.shadows, 'enabled');
+    const scale = definition.model.nodeTransformations.tree_default.scale;
+    assert.ok(Math.abs(scale.x * 0.755000054 - 8) < 1e-6);
+    assert.ok(Math.abs(scale.y * 1.70788741 - 12) < 1e-6);
+    assert.ok(Math.abs(scale.z * 0.653849 - 8) < 1e-6);
   } finally {
     delete globalThis.window;
   }
