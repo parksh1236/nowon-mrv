@@ -1,4 +1,4 @@
-import { buildCsv, calculateDetailed, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, normalizeTrees, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs';
+import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs';
 
 const PROJECT_KEY = 'nowon-solar-project-v1';
 const NOWON_OFFICE = { lat: 37.654351, lon: 127.056428 };
@@ -1000,16 +1000,21 @@ function setAnalysisBusy(busy) {
 }
 
 export function enuDirection(origin, sun, Cesium = window.Cesium) {
-  const altitude = sun.altitudeDeg * Math.PI / 180;
-  const azimuth = sun.azimuthDeg * Math.PI / 180;
-  const local = new Cesium.Cartesian3(
-    Math.cos(altitude) * Math.sin(azimuth),
-    Math.cos(altitude) * Math.cos(azimuth),
-    Math.sin(altitude),
-  );
+  const { east, north, up } = localSunDirection(sun);
+  const local = new Cesium.Cartesian3(east, north, up);
   const frame = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
   const direction = Cesium.Matrix4.multiplyByPointAsVector(frame, local, new Cesium.Cartesian3());
   return Cesium.Cartesian3.normalize(direction, direction);
+}
+
+function localSunDirection(sun) {
+  const altitude = sun.altitudeDeg * Math.PI / 180;
+  const azimuth = sun.azimuthDeg * Math.PI / 180;
+  return {
+    east: Math.cos(altitude) * Math.sin(azimuth),
+    north: Math.cos(altitude) * Math.cos(azimuth),
+    up: Math.sin(altitude),
+  };
 }
 
 export async function pickSceneFromRay(scene, ray, timeoutMs = 5000) {
@@ -1049,7 +1054,16 @@ export async function buildShadeSamples(project, quality = 'balanced', isCurrent
   const raySamples = roofSamples.map((sample) => {
     const cartographic = window.Cesium?.Cartographic?.fromDegrees?.(sample.lon, sample.lat);
     const roofHeightM = (cartographic ? scene.globe?.getHeight?.(cartographic) ?? 0 : 0) + (project.heightM ?? 0);
-    return { ...sample, roofHeightM, origin: Cartesian3.fromDegrees(sample.lon, sample.lat, roofHeightM) };
+    return { ...sample, ...localOffset(project.roof[0], sample), roofHeightM, origin: Cartesian3.fromDegrees(sample.lon, sample.lat, roofHeightM) };
+  });
+  const localTrees = normalizeTrees(project.trees).map((tree) => {
+    const cartographic = Cesium.Cartographic?.fromDegrees?.(tree.center.lon, tree.center.lat);
+    return {
+      ...localOffset(project.roof[0], tree.center),
+      baseUp: cartographic ? scene.globe?.getHeight?.(cartographic) ?? 0 : 0,
+      heightM: tree.heightM,
+      crownDiameterM: tree.crownDiameterM,
+    };
   });
   const shadeSamples = [];
   if (!isCurrent()) return null;
@@ -1063,14 +1077,17 @@ export async function buildShadeSamples(project, quality = 'balanced', isCurrent
         if (sun.altitudeDeg <= 0) continue;
         const altitude = sun.altitudeDeg * Math.PI / 180;
         const origin = sample.origin;
+        const localSun = localSunDirection(sun);
         const direction = enuDirection(origin, sun, Cesium);
         const hit = await pickSceneFromRay(scene, new Ray(origin, direction));
         if (!isCurrent()) return null;
+        const baselineShaded = Boolean(hit?.position && Cartesian3.distance(origin, hit.position) < 100_000);
         shadeSamples.push({
           month,
           hour,
           weight: Math.sin(altitude),
-          shaded: Boolean(hit?.position && Cartesian3.distance(origin, hit.position) < 100_000),
+          shaded: baselineShaded || localTrees.some((tree) => rayIntersectsTree({ east: sample.east, north: sample.north, up: sample.roofHeightM }, localSun, tree)),
+          baselineShaded,
         });
       }
     }
@@ -1114,7 +1131,7 @@ export async function runAnalysis(mode) {
     try {
       const shadeSamples = await buildShadeSamples({ ...state, input }, precisionSelect.value, () => generation === analysisGeneration);
       if (shadeSamples === null || generation !== analysisGeneration) return null;
-      latestResult = { ...latestResult, detailed: calculateDetailed(input, climate, shadeSamples) };
+      latestResult = { ...latestResult, ...calculateDetailedPair(input, climate, shadeSamples) };
       renderResult(latestResult);
       setStatus('정밀 추정 분석을 완료했습니다.');
       return latestResult.detailed;

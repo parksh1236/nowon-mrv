@@ -66,6 +66,14 @@ export function rayIntersectsTree(sample, direction, tree) {
   });
 }
 
+export function localOffset(origin, point) {
+  const meanLatitude = radians((origin.lat + point.lat) / 2);
+  return {
+    east: radians(point.lon - origin.lon) * EARTH_RADIUS_M * Math.cos(meanLatitude),
+    north: radians(point.lat - origin.lat) * EARTH_RADIUS_M,
+  };
+}
+
 const cross = (a, b, c) => (b.lon - a.lon) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lon - a.lon);
 
 function segmentsIntersect(a, b, c, d) {
@@ -246,6 +254,13 @@ export function calculateDetailed(input, climate, shadeSamples) {
     dailySolarHours: solarHours.averageHours,
     monthlySolarHours: solarHours.months,
     dailyUnshadedWindowHours: summarizeDailySolarHours(shadeSamples).averageHours,
+  };
+}
+
+export function calculateDetailedPair(input, climate, shadeSamples) {
+  return {
+    detailed: calculateDetailed(input, climate, shadeSamples),
+    baselineDetailed: calculateDetailed(input, climate, shadeSamples.map((sample) => ({ ...sample, shaded: sample.baselineShaded }))),
   };
 }
 

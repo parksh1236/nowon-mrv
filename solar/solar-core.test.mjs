@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, equivalentFullSunHours, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
+  buildCsv, calculateDetailed, calculateDetailedPair, calculateRough, currentAnalysisResult, deserializeProject, equivalentFullSunHours, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -545,6 +545,53 @@ test('3D scene boundary는 hit와 no-hit을 음영 표본으로 만들고 미지
     delete globalThis.window;
     delete globalThis.requestAnimationFrame;
   }
+});
+
+test('detailed shade marks a roof sample blocked only by a virtual tree', async () => {
+  class Cartesian3 {
+    constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); }
+    static fromDegrees(lon, lat, height) { return new Cartesian3(lon, lat, height); }
+    static normalize(value, out) { return Object.assign(out, value); }
+    static distance() { return 100_000; }
+  }
+  class Ray { constructor(origin, direction) { Object.assign(this, { origin, direction }); } }
+  const scene = { pickFromRay: () => undefined, globe: { getHeight: () => 0 } };
+  globalThis.window = {
+    Cesium: {
+      Cartesian3,
+      Ray,
+      Cartographic: { fromDegrees: (lon, lat) => ({ lon, lat }) },
+      Transforms: { eastNorthUpToFixedFrame: () => 'enu-frame' },
+      Matrix4: { multiplyByPointAsVector: (_frame, vector, out) => Object.assign(out, vector) },
+    },
+    ws3d: { viewer: { scene } },
+  };
+  globalThis.requestAnimationFrame = (callback) => callback();
+  try {
+    const { buildShadeSamples } = await import(`./app.mjs?tree-shade=${Date.now()}`);
+    const roof = [
+      { lat: 37.654, lon: 127.056 }, { lat: 37.654, lon: 127.056112 },
+      { lat: 37.654099, lon: 127.056112 }, { lat: 37.654099, lon: 127.056 },
+    ];
+    const samples = await buildShadeSamples({
+      roof,
+      exclusions: [],
+      heightM: 5,
+      input: { edgeSetbackM: 0 },
+      trees: [{ id: 'tree-1', center: roof[0], heightM: 50, crownDiameterM: 30 }],
+    }, 'fast');
+    assert.ok(samples.some((sample) => sample.shaded === true && sample.baselineShaded === false));
+  } finally {
+    delete globalThis.window;
+    delete globalThis.requestAnimationFrame;
+  }
+});
+
+test('detailed pair keeps a baseline that excludes only virtual-tree shade', () => {
+  const climate = { months: [{ month: 1, dailyGhiKwhM2: 3, days: 31 }], diffuseFraction: 0.2 };
+  const samples = [{ month: 1, hour: 12, weight: 1, shaded: true, baselineShaded: false }];
+  const { detailed, baselineDetailed } = calculateDetailedPair(validInput(), climate, samples);
+  assert.ok(detailed.annualKwh < baselineDetailed.annualKwh);
 });
 
 test('synchronous scene ray is preferred over a non-returning detailed picker', async () => {
