@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, equivalentFullSunHours, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, polygonMetrics, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
+  buildCsv, calculateDetailed, calculateRough, currentAnalysisResult, deserializeProject, equivalentFullSunHours, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -14,7 +14,31 @@ const validInput = (overrides = {}) => ({
 
 test('project state round-trips without map objects', () => {
   const state = { mode: 'virtual', roof: [{ lat: 37.65, lon: 127.05 }], exclusions: [], heightM: 24 };
-  assert.deepEqual(deserializeProject(serializeProject(state)), state);
+  assert.deepEqual(deserializeProject(serializeProject(state)), { ...state, trees: [] });
+});
+
+test('tree state round-trips and old projects default to no trees', () => {
+  const tree = { id: 'tree-1', center: { lat: 37.654, lon: 127.056 }, heightM: 12, crownDiameterM: 8 };
+  const state = { mode: 'virtual', roof: [], exclusions: [], heightM: 0, formValues: {}, dirty: false, trees: [tree] };
+  assert.deepEqual(deserializeProject(serializeProject(state)).trees, [tree]);
+  const { trees, ...oldState } = state;
+  assert.deepEqual(deserializeProject(JSON.stringify(oldState)).trees, []);
+});
+
+test('invalid trees are removed without rejecting valid trees', () => {
+  const valid = { id: 'tree-1', center: { lat: 37.654, lon: 127.056 }, heightM: 12, crownDiameterM: 8 };
+  assert.deepEqual(normalizeTrees([
+    valid,
+    { ...valid, id: 'too-tall', heightM: 51 },
+    { ...valid, id: 'outside', center: { lat: 36, lon: 127.056 } },
+  ]), [valid]);
+});
+
+test('sun ray intersects the tree cylinder only when it crosses its volume', () => {
+  const tree = { east: 5, north: 0, baseUp: 0, heightM: 12, crownDiameterM: 8 };
+  assert.equal(rayIntersectsTree({ east: 0, north: 0, up: 5 }, { east: 1, north: 0, up: 0.5 }, tree), true);
+  assert.equal(rayIntersectsTree({ east: 0, north: 9, up: 5 }, { east: 1, north: 0, up: 0.5 }, tree), false);
+  assert.equal(rayIntersectsTree({ east: 5, north: 0, up: 13 }, { east: 0, north: 0, up: 1 }, tree), false);
 });
 
 test('project deserialization rejects malformed JSON without throwing', () => {

@@ -1,13 +1,14 @@
 const EARTH_RADIUS_M = 6_371_000;
 const radians = (degrees) => (degrees * Math.PI) / 180;
 const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
-const projectFields = ['mode', 'roof', 'exclusions', 'heightM', 'formValues', 'dirty'];
+const projectFields = ['mode', 'roof', 'exclusions', 'heightM', 'formValues', 'dirty', 'trees'];
 
 export function serializeProject(state = {}) {
   const project = {};
   for (const field of projectFields) {
     if (Object.hasOwn(state, field)) project[field] = state[field];
   }
+  project.trees = normalizeTrees(state.trees);
   return JSON.stringify(project);
 }
 
@@ -19,6 +20,7 @@ export function deserializeProject(value) {
     for (const field of projectFields) {
       if (Object.hasOwn(parsed, field)) project[field] = parsed[field];
     }
+    project.trees = normalizeTrees(parsed.trees);
     return Object.keys(project).length ? project : null;
   } catch {
     return null;
@@ -29,6 +31,39 @@ export function isInsideNowon(points) {
   return Array.isArray(points) && points.length > 0 && points.every((point) => (
     Number.isFinite(point?.lat) && Number.isFinite(point?.lon) && point.lat >= 37.58 && point.lat <= 37.70 && point.lon >= 127.00 && point.lon <= 127.12
   ));
+}
+
+export function normalizeTrees(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 50).filter((tree) => (
+    typeof tree?.id === 'string' && tree.id.length > 0
+    && isInsideNowon([tree.center])
+    && Number.isFinite(tree.heightM) && tree.heightM >= 1 && tree.heightM <= 50
+    && Number.isFinite(tree.crownDiameterM) && tree.crownDiameterM >= 1 && tree.crownDiameterM <= 30
+  )).map((tree) => structuredClone(tree));
+}
+
+export function rayIntersectsTree(sample, direction, tree) {
+  const x = sample.east - tree.east;
+  const y = sample.north - tree.north;
+  const radius = tree.crownDiameterM / 2;
+  const a = direction.east ** 2 + direction.north ** 2;
+  const b = 2 * (x * direction.east + y * direction.north);
+  const c = x ** 2 + y ** 2 - radius ** 2;
+  const candidates = [];
+  if (a > 1e-12) {
+    const discriminant = b ** 2 - 4 * a * c;
+    if (discriminant >= 0) {
+      candidates.push((-b - Math.sqrt(discriminant)) / (2 * a), (-b + Math.sqrt(discriminant)) / (2 * a));
+    }
+  } else if (c <= 0 && direction.up > 0) {
+    candidates.push((tree.baseUp + tree.heightM - sample.up) / direction.up);
+  }
+  return candidates.some((distance) => {
+    if (distance <= 1e-6) return false;
+    const up = sample.up + distance * direction.up;
+    return up >= tree.baseUp && up <= tree.baseUp + tree.heightM;
+  });
 }
 
 const cross = (a, b, c) => (b.lon - a.lon) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lon - a.lon);
@@ -66,7 +101,8 @@ export function isValidProject(project) {
     && Array.isArray(project.roof) && (!project.roof.length || isValidPolygon(project.roof))
     && Array.isArray(project.exclusions) && project.exclusions.every(isValidPolygon)
     && Number.isFinite(project.heightM) && project.heightM >= 0
-    && project.formValues && typeof project.formValues === 'object';
+    && project.formValues && typeof project.formValues === 'object'
+    && Array.isArray(project.trees) && project.trees.length === normalizeTrees(project.trees).length;
 }
 
 export function readStoredProject(storage, key) {
