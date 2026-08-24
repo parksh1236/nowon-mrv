@@ -1161,6 +1161,14 @@ export function renderDetailedFailure(result, message) {
 
 const format = (value, fractionDigits = 1) => Number(value).toLocaleString('ko-KR', { maximumFractionDigits: fractionDigits, minimumFractionDigits: fractionDigits });
 
+export function treeImpact(result = {}) {
+  const baselineAnnualKwh = Number(result.baselineDetailed?.annualKwh);
+  const annualKwh = Number(result.detailed?.annualKwh);
+  if (!Number.isFinite(baselineAnnualKwh) || !Number.isFinite(annualKwh)) return null;
+  const lossKwh = Math.max(0, baselineAnnualKwh - annualKwh);
+  return { baselineAnnualKwh, annualKwh, lossKwh, lossRatio: baselineAnnualKwh > 0 ? lossKwh / baselineAnnualKwh : 0 };
+}
+
 export function calculationBasisRows(result = {}) {
   const rough = result.rough ?? result;
   const input = result.project?.input ?? {};
@@ -1168,6 +1176,8 @@ export function calculationBasisRows(result = {}) {
   const edgeArea = Math.max(0, (Number(input.perimeterM) || 0) * (Number(input.edgeSetbackM) || 0)
     - Math.PI * (Number(input.edgeSetbackM) || 0) ** 2);
   const detailed = result.detailed;
+  const impact = treeImpact(result);
+  const treeCount = normalizeTrees(result.project?.trees).length;
   return [
     ['기준 지붕면적', `${format(input.roofAreaM2 || 0)} ㎡`],
     ['면적 공제', `제외 ${format(input.exclusionAreaM2 || 0)} ㎡ + 가장자리 이격 추정 ${format(edgeArea)} ㎡`],
@@ -1178,6 +1188,8 @@ export function calculationBasisRows(result = {}) {
     ['적용 손실·방향', `시스템 손실 ${format((input.systemLossRatio || 0) * 100)}%, 경사 ${format(input.tiltDeg || 0)}°, 방위 ${format(input.azimuthDeg || 0)}°`],
     ['기상자료', climate.source || '기후자료 미확인'],
     ['그림자 반영', detailed ? `3D 광선분석 음영 손실 ${format(detailed.shadingLossRatio * 100)}%` : '정밀 추정 실행 시 3D 건물 음영을 반영'],
+    ['가상 나무 음영', treeCount ? `${treeCount}개 · 불투명 원기둥으로 단순화` : '가상 나무 없음'],
+    ...(impact ? [['나무 영향', `${format(impact.lossKwh)} kWh/년 감소 (${format(impact.lossRatio * 100)}%)`]] : []),
     ['하루 등가 발전시간', '연간 발전량(kWh) ÷ 설비용량(kWp) ÷ 365일'],
   ];
 }
@@ -1195,6 +1207,8 @@ function renderCalculationBasis(result) {
 export function renderResult(result) {
   const rough = result.rough ?? result;
   const detailed = result.detailed;
+  const impact = treeImpact(result);
+  const treeCount = normalizeTrees(result.project?.trees).length;
   const cards = element('div', undefined, 'cards');
   const values = [
     ['설치 가능면적', `${format(rough.installableAreaM2)} ㎡`],
@@ -1202,10 +1216,15 @@ export function renderResult(result) {
     ['개략 연간 발전량', `${format(rough.annualKwh)} kWh/년`],
     ...(rough.dailySolarHours != null ? [['개략 하루 등가 발전시간', `${format(rough.dailySolarHours)} 시간/일`]] : []),
     ...(detailed ? [
-      ['정밀 추정 연간 발전량', `${format(detailed.annualKwh)} kWh/년`],
+      [treeCount ? '나무 반영 정밀 발전량' : '정밀 추정 연간 발전량', `${format(detailed.annualKwh)} kWh/년`],
       ['음영 손실률', `${format(detailed.shadingLossRatio * 100)} %`],
       ...(detailed.dailySolarHours != null ? [['음영 반영 하루 등가 발전시간', `${format(detailed.dailySolarHours)} 시간/일`]] : []),
       ['정밀도 / 표본 간격', `${result.precision} / ${result.spacingM} m`],
+      ...(impact && treeCount ? [
+        ['나무 미반영 발전량', `${format(impact.baselineAnnualKwh)} kWh/년`],
+        ['나무로 인한 감소량', `${format(impact.lossKwh)} kWh/년`],
+        ['나무 영향 감소율', `${format(impact.lossRatio * 100)} %`],
+      ] : []),
     ] : []),
   ];
   for (const [label, value] of values) {

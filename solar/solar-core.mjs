@@ -435,6 +435,11 @@ export function buildCsv(result = {}, project = {}, climate = {}) {
   const solarHoursByMonth = new Map((detailed?.monthlySolarHours ?? []).map(({ month, hours }) => [month, hours]));
   const formLoss = Number(project.formValues?.systemLossRatio);
   const systemLossRatio = project.systemLossRatio ?? project.input?.systemLossRatio ?? (Number.isFinite(formLoss) ? formLoss / 100 : '');
+  const trees = normalizeTrees(project.trees);
+  const baselineAnnualKwh = result.baselineDetailed?.annualKwh ?? '';
+  const detailedAnnualKwh = detailed?.annualKwh ?? '';
+  const treeLossKwh = Number.isFinite(baselineAnnualKwh) && Number.isFinite(detailedAnnualKwh)
+    ? Math.max(0, baselineAnnualKwh - detailedAnnualKwh) : '';
   const rows = [['월', '개략발전량_kWh', '정밀추정발전량_kWh', '음영반영_일평균발전가능시간_h']];
   for (let month = 1; month <= 12; month += 1) rows.push([month, roughByMonth.get(month), detailedByMonth.get(month), solarHoursByMonth.get(month)]);
   rows.push(
@@ -446,6 +451,11 @@ export function buildCsv(result = {}, project = {}, climate = {}) {
     ['정밀도', result.precision ?? project.precision ?? ''],
     ['표본간격m', result.spacingM ?? project.spacingM ?? ''],
     ['연평균_일발전가능시간h', detailed?.dailySolarHours ?? ''],
+    ['가상 나무 수', trees.length],
+    ['나무 미반영 연간 발전량(kWh)', baselineAnnualKwh],
+    ['나무 반영 연간 발전량(kWh)', detailedAnnualKwh],
+    ['나무로 인한 감소량(kWh)', treeLossKwh],
+    ...trees.map((tree, index) => [`가상 나무 ${index + 1}`, `${tree.center.lat},${tree.center.lon}`, `높이 ${tree.heightM}m`, `수관 지름 ${tree.crownDiameterM}m`]),
     ['기후자료출처', climate.source ?? ''],
     ['분석구분', '사전 추정치'],
   );

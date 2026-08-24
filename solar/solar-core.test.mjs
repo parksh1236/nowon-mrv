@@ -547,6 +547,30 @@ test('3D scene boundary는 hit와 no-hit을 음영 표본으로 만들고 미지
   }
 });
 
+test('CSV includes virtual tree count and before-after generation', () => {
+  const csv = buildCsv(
+    { detailed: { annualKwh: 850 }, baselineDetailed: { annualKwh: 1000 } },
+    { trees: [{ id: 'tree-1', center: { lat: 37.654, lon: 127.056 }, heightM: 12, crownDiameterM: 8 }] },
+    {},
+  );
+  assert.match(csv, /가상 나무 수,1/);
+  assert.match(csv, /나무 미반영 연간 발전량\(kWh\),1000/);
+  assert.match(csv, /나무로 인한 감소량\(kWh\),150/);
+});
+
+test('tree impact reports a non-negative annual loss', async () => {
+  globalThis.window = {};
+  try {
+    const { treeImpact } = await import(`./app.mjs?tree-impact=${Date.now()}`);
+    assert.deepEqual(treeImpact({
+      baselineDetailed: { annualKwh: 1000 },
+      detailed: { annualKwh: 850 },
+    }), { baselineAnnualKwh: 1000, annualKwh: 850, lossKwh: 150, lossRatio: 0.15 });
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('detailed shade marks a roof sample blocked only by a virtual tree', async () => {
   class Cartesian3 {
     constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); }
