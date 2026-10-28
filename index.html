@@ -856,6 +856,7 @@ const BLDENGY_BASE = 'https://apis.data.go.kr/1613000/BldEngyHubService';
 function recentYearMonths(n){
   const list = [];
   const d = new Date();
+  d.setDate(1); // 31일에서 월을 바꿀 때 다음 달로 넘치는 현상 방지
   d.setMonth(d.getMonth() - 1);
   for (let i=0; i<n; i++){
     const y = d.getFullYear();
@@ -917,12 +918,21 @@ function renderUsageChart(rows){
 
 // 공공데이터포털 API 공통 호출 — 응답이 JSON이 아니면(Forbidden 등) 에러로 처리
 async function callDataGoKr(url){
-  const res = await fetch(url);
-  const text = await res.text();
   try {
-    return { ok: true, data: JSON.parse(text) };
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return { ok:false, raw: res.status===401 || res.status===403 ? 'API 인증·활용신청 확인 필요' : `API 서버 응답 오류 (${res.status})` };
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch(e){ return { ok:false, raw:'API 응답 형식·인증 확인 필요' }; }
+    const header = data.response && data.response.header;
+    if (!header) return { ok:false, raw:'API 응답 형식 확인 필요' };
+    if (String(header.resultCode) !== '00' && String(header.resultCode) !== '0'){
+      return { ok:false, raw:`API 활용신청·호출 한도 확인 필요 (코드 ${String(header.resultCode).replace(/[^0-9A-Za-z]/g,'').slice(0,10)})` };
+    }
+    return { ok:true, data };
   } catch(e){
-    return { ok: false, raw: text.slice(0,200) };
+    return { ok:false, raw: e.name==='TimeoutError' || e.name==='AbortError' ? 'API 응답 시간 초과' : '네트워크 연결 확인 필요' };
   }
 }
 
@@ -933,9 +943,12 @@ async function fetchBeUsage(op, sigunguCd, bjdongCd, bun, ji, useYm){
   const body = r.data.response && r.data.response.body;
   const total = body ? Number(body.totalCount) : 0;
   if (!total) return { found:false };
-  let item = body.items.item;
+  let item = body.items && body.items.item;
   if (Array.isArray(item)) item = item[0];
-  return { found:true, useQty:item.useQty };
+  if (!item || item.useQty == null || String(item.useQty).trim()==='' || !Number.isFinite(Number(item.useQty)) || Number(item.useQty)<0){
+    return { found:false, error:'사용량 응답 형식 확인 필요' };
+  }
+  return { found:true, useQty:Number(item.useQty) };
 }
 
 // 시군구코드별 총괄표제부(건물유형) 로컬 자료 — 예전에 BldRgstHubService가 계속 Forbidden을
@@ -1371,14 +1384,18 @@ function initKakaoMap(){
         fetchBeUsage('getBeElctyUsgInfo', sigunguCd, bjdongCd, bun, ji, ym),
         fetchBeUsage('getBeGasUsgInfo', sigunguCd, bjdongCd, bun, ji, ym)
       ]);
-      if (e.found || g.found){ foundYm = ym; elec = e; gas = g; break; }
+      elec = e; gas = g;
+      if (e.found || g.found){ foundYm = ym; break; }
+      if (e.error || g.error) break; // 연결 오류를 자료 없음으로 덮거나 12회 반복 호출하지 않음
     }
-    elElec.textContent = elec.found ? `${Number(elec.useQty).toLocaleString()} kWh` : (elec.error ? '조회 권한 확인 필요' : '자료 없음');
-    elGas.textContent = gas.found ? `${Number(gas.useQty).toLocaleString()} kWh` : (gas.error ? '조회 권한 확인 필요' : '자료 없음');
+    elElec.textContent = elec.found ? `${Number(elec.useQty).toLocaleString()} kWh` : (elec.error || '자료 없음');
+    elGas.textContent = gas.found ? `${Number(gas.useQty).toLocaleString()} kWh` : (gas.error || '자료 없음');
     document.getElementById('infoBuildingSub').textContent = '총괄표제부(건축물대장) 자료 — 지역별 수동 확보';
     status.textContent = foundYm
       ? `📍 ${label} — 전기·가스 사용량은 ${foundYm.slice(0,4)}년 ${foundYm.slice(4)}월 기준 (단독주택·소규모 공동주택 등 일부 건물은 제외될 수 있음)`
-      : `📍 ${label} — 최근 12개월 내 전기·가스 사용량 자료를 찾지 못했습니다.`;
+      : `📍 ${label} — ${elec.error || gas.error || '최근 12개월 내 전기·가스 사용량 자료를 찾지 못했습니다. (집계·공개 지연 또는 비공개 건물 가능)'}`;
+
+    if (!foundYm) return;
 
     // 2026.01~현재 월별 추이
     document.getElementById('usageChart').innerHTML = '월별 추이 조회 중…';
