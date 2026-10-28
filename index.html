@@ -216,17 +216,19 @@
           <div class="infocard">
             <div class="ic-label">전기 사용량</div>
             <div class="ic-value" id="infoElectric">-</div>
-            <div class="ic-sub">공공데이터포털 건물에너지 API</div>
+            <div class="ic-sub" id="infoElectricMeta">공공데이터포털 건물에너지 API</div>
           </div>
           <div class="infocard">
             <div class="ic-label">가스 사용량</div>
             <div class="ic-value" id="infoGas">-</div>
-            <div class="ic-sub">공공데이터포털 건물에너지 API</div>
+            <div class="ic-sub" id="infoGasMeta">공공데이터포털 건물에너지 API</div>
           </div>
         </div>
         <div class="dnote" id="mapInfoEmpty">지도에서 건물 점을 클릭하거나 주소를 검색하면 여기에 상세정보가 표시됩니다.</div>
         <div id="usageChartBox" style="display:none;margin-top:14px">
           <div class="sidebox-title">월별 사용량 추이</div>
+          <div class="dnote" id="usageChartBuilding"></div>
+          <div class="dnote" id="usageChartStatus" role="status" aria-live="polite" style="margin:8px 0;line-height:1.7"></div>
           <div id="usageChart"></div>
           <table class="dt" id="usageTable" style="margin-top:6px;font-size:11px"></table>
         </div>
@@ -889,22 +891,44 @@ function monthsFromJan2026(){
 }
 
 // 건물 하나의 2026.01~현재 월별 전기·가스 사용량 시계열 조회
-async function fetchMonthlySeries(sigunguCd, bjdongCd, bun, ji, platGbCd='0'){
-  const months = monthsFromJan2026();
-  return Promise.all(months.map(async ym=>{
-    const [e, g] = await Promise.all([
-      fetchBeUsage('getBeElctyUsgInfo', sigunguCd, bjdongCd, bun, ji, ym, platGbCd),
-      fetchBeUsage('getBeGasUsgInfo', sigunguCd, bjdongCd, bun, ji, ym, platGbCd)
-    ]);
-    return { ym, elec: e.found ? Number(e.useQty) : null, gas: g.found ? Number(g.useQty) : null };
-  }));
+async function fetchMonthlySeries(sigunguCd, bjdongCd, bun, ji, platGbCd='0', {onProgress=()=>{},isCurrent=()=>true}={}){
+  const rows=monthsFromJan2026().map(ym=>({ym,elec:null,gas:null,elecStatus:'pending',gasStatus:'pending'}));
+  const publish=()=>{ if (isCurrent()) onProgress(rows.map(r=>({...r}))); };
+  publish();
+  for (const row of rows){
+    for (const [kind,op] of [['elec','getBeElctyUsgInfo'],['gas','getBeGasUsgInfo']]){
+      if (!isCurrent()) return rows;
+      let result;
+      try { result=await fetchBeUsage(op,sigunguCd,bjdongCd,bun,ji,row.ym,platGbCd); }
+      catch(e){ result={found:false,error:'API 연결 실패'}; }
+      if (!isCurrent()) return rows;
+      row[kind]=result.found?Number(result.useQty):null;
+      row[kind+'Status']=result.found?'available':result.error?'error':'no-data';
+      if (result.error) row[kind+'Error']=result.error;
+      if (result.error){
+        rows.forEach(r=>['elec','gas'].forEach(k=>{ if (r[k+'Status']==='pending') r[k+'Status']='not-requested'; }));
+        publish(); return rows; // 인증/호출 제한 시 같은 실패를 나머지 월에 반복하지 않음
+      }
+      publish();
+    }
+  }
+  return rows;
 }
 
 // 월별 시계열을 우측 패널에 막대그래프(SVG) + 표로 렌더링
 function renderUsageChart(rows){
   const box = document.getElementById('usageChartBox');
-  if (!rows || !rows.some(r=>r.elec!=null || r.gas!=null)){ box.style.display='none'; return; }
   box.style.display = 'block';
+  rows=Array.isArray(rows)?rows:[];
+  const escape=s=>String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const pending=rows.some(r=>r.elecStatus==='pending' || r.gasStatus==='pending');
+  const error=rows.map(r=>r.elecError || r.gasError).find(Boolean);
+  const hasData=rows.some(r=>r.elec!=null || r.gas!=null);
+  const note=document.getElementById('usageChartStatus');
+  note.textContent=error?`월별 조회 실패: ${error} · 미조회 월은 빈 값이나 0이 아닙니다. 다시 조회해 주세요.`
+    :pending?'월별 자료 조회 중… 도착한 값부터 그래프에 표시합니다.'
+    :hasData?'공공데이터포털 월별 응답입니다. 미제공은 0kWh를 의미하지 않습니다.'
+    :'선택 건물의 조회 기간에 공개된 전기·가스 자료가 없습니다. 월별 표에서 미제공 상태를 확인하세요.';
   const maxV = Math.max(1, ...rows.map(r=>Math.max(r.elec||0, r.gas||0)));
   const barW=8, gap=6, H=90;
   const chartW = rows.length*(barW*2+gap);
@@ -913,15 +937,16 @@ function renderUsageChart(rows){
     const x = i*(barW*2+gap);
     const eh = r.elec!=null ? Math.max(1, r.elec/maxV*H) : 0;
     const gh = r.gas!=null ? Math.max(1, r.gas/maxV*H) : 0;
-    if (r.elec!=null) svg += `<rect x="${x}" y="${H-eh}" width="${barW}" height="${eh}" fill="#1c1a15"><title>${r.ym} 전기 ${r.elec.toLocaleString()}kWh</title></rect>`;
-    if (r.gas!=null) svg += `<rect x="${x+barW}" y="${H-gh}" width="${barW}" height="${gh}" fill="#9c7a3e"><title>${r.ym} 가스 ${r.gas.toLocaleString()}kWh</title></rect>`;
-    svg += `<text x="${x+barW}" y="${H+12}" font-size="7" text-anchor="middle" fill="#7a7360">${r.ym.slice(4)}월</text>`;
+    if (r.elec!=null) svg += `<rect x="${x}" y="${H-eh}" width="${barW}" height="${eh}" fill="#1c1a15"><title>${escape(r.ym)} 전기 ${escape(r.elec.toLocaleString())}kWh</title></rect>`;
+    if (r.gas!=null) svg += `<rect x="${x+barW}" y="${H-gh}" width="${barW}" height="${gh}" fill="#9c7a3e"><title>${escape(r.ym)} 가스 ${escape(r.gas.toLocaleString())}kWh</title></rect>`;
+    svg += `<text x="${x+barW}" y="${H+12}" font-size="7" text-anchor="middle" fill="#7a7360">${escape(String(r.ym).slice(4))}월</text>`;
   });
   svg += `</svg><div class="dnote"><span style="color:#1c1a15">■</span> 전기 &nbsp;<span style="color:#9c7a3e">■</span> 가스</div>`;
-  document.getElementById('usageChart').innerHTML = svg;
+  document.getElementById('usageChart').innerHTML = hasData?svg:'<div class="empty">'+(pending?'월별 자료를 조회하고 있습니다.':error?'API 오류로 그래프 값을 확인하지 못했습니다.':'표시할 사용량 자료가 없습니다.')+'</div>';
+  const cell=(r,k)=>r[k]!=null?escape(Number(r[k]).toLocaleString()):r[k+'Status']==='pending'?'조회 중…':r[k+'Status']==='error'?'조회 실패':r[k+'Status']==='not-requested'?'미조회 (오류로 중단)':'자료 미제공';
   document.getElementById('usageTable').innerHTML =
     `<thead><tr><th>월</th><th>전기(kWh)</th><th>가스(kWh)</th></tr></thead><tbody>` +
-    rows.map(r=>`<tr><td>${r.ym.slice(0,4)}.${r.ym.slice(4)}</td><td>${r.elec!=null?r.elec.toLocaleString():'-'}</td><td>${r.gas!=null?r.gas.toLocaleString():'-'}</td></tr>`).join('') +
+    rows.map(r=>`<tr><td>${escape(String(r.ym).slice(0,4))}.${escape(String(r.ym).slice(4))}</td><td>${cell(r,'elec')}</td><td>${cell(r,'gas')}</td></tr>`).join('') +
     `</tbody>`;
 }
 
@@ -1000,9 +1025,9 @@ function yyyymmdd(s){
 
 // 건물 상세정보(용도·건축연도·층수·면적·세대수) — 표제부(개별 건물) + 총괄표제부(대지 전체) 라이브 조회,
 // 실패 시 로컬 캐시로 보조
-async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji){
+async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji, platGbCd='0'){
   try {
-    const qs = `serviceKey=${DATA_GO_KR_KEY}&sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}&_type=json&numOfRows=5&pageNo=1`;
+    const qs = `serviceKey=${DATA_GO_KR_KEY}&sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&platGbCd=${platGbCd}&bun=${bun}&ji=${ji}&_type=json&numOfRows=5&pageNo=1`;
     const [titleR, recapR] = await Promise.all([
       callDataGoKr(`${BLDRGST_BASE}/getBrTitleInfo?${qs}`),
       callDataGoKr(`${BLDRGST_BASE}/getBrRecapTitleInfo?${qs}`)
@@ -1036,6 +1061,7 @@ async function fetchBuildingType(sigunguCd, bjdongCd, bun, ji){
     }
   } catch(e){ /* 라이브 실패 시 로컬로 폴백 */ }
 
+  if (platGbCd!=='0') return {found:false}; // 로컬 표본은 산 여부를 구분하지 못하므로 산 지번과 임의 매칭하지 않음
   const local = await loadBuildingLocal(sigunguCd);
   if (!local) return { found:false };
   const match = local.find(row => row[0] === bjdongCd && row[1] === bun && row[2] === ji);
@@ -1049,7 +1075,7 @@ function renderBuildingDetail(bt, elTypeEl){
   const detailTable = document.getElementById('infoDetailTable');
   detailCard.style.display = 'none';
   if (!bt.found){
-    elTypeEl.textContent = '자료 없음 (등록되지 않은 필지)';
+    elTypeEl.textContent = '건축물대장 자료 확인 불가 (미제공 또는 연결 오류)';
     return;
   }
   elTypeEl.textContent = bt.mainPurpsCdNm + (bt.etcPurps ? ` (${bt.etcPurps})` : '');
@@ -1075,6 +1101,8 @@ const ENERGY_MAP_REGIONS = {
 
 let energyMapModule;
 function getEnergyMapTools(){ return energyMapModule ||= import('./energy-map.mjs'); }
+let usageDetailsModule;
+function getUsageDetailsTools(){ return usageDetailsModule ||= import('./usage-details.mjs'); }
 let buildingPageSequence=0;
 function requestBuildingPage(tools, options){
   return new Promise((resolve,reject)=>{
@@ -1135,9 +1163,11 @@ function initKakaoMap(){
   const status = document.getElementById('mapStatus');
   const grid = document.getElementById('mapInfoGrid');
   const infoEmpty = document.getElementById('mapInfoEmpty');
+  let detailGeneration=0, searchGeneration=0;
   function setInfoVisible(on){
     grid.style.display = on ? 'grid' : 'none';
     infoEmpty.style.display = on ? 'none' : 'block';
+    if (!on){ detailGeneration++; document.getElementById('usageChartBox').style.display='none'; }
   }
 
   // ── 지역 선택: 시·도 → 시군구 2단 선택 (data/region_centers.json 기준) ──
@@ -1194,6 +1224,7 @@ function initKakaoMap(){
   }
   async function loadLiveBuildings(next=false){
     if (!currentRegion) return;
+    setInfoVisible(false); searchGeneration++;
     const name=currentRegion.name, generation=++liveGeneration;
     const isCurrent=()=>generation===liveGeneration && currentRegion?.name===name;
     loadBuildingsButton.disabled=true; nextBuildingsButton.disabled=true;
@@ -1338,6 +1369,7 @@ function initKakaoMap(){
   kakao.maps.event.addListener(kakaoMap, 'idle', updateDisplayMode);
 
   async function loadRegion(name){
+    searchGeneration++;
     const generation=++liveGeneration;
     coverage.setAttribute('aria-busy','false');
     liveBatch=null;
@@ -1409,7 +1441,6 @@ function initKakaoMap(){
     }
     document.getElementById('mapStatBox').style.display = 'block';
     legendBox.style.display = 'block';
-    status.textContent = `${name} — 지도 축척이 ${DISTRICT_MODE_THRESHOLD_KM}km 미만이면 건물별 점이, ${DISTRICT_MODE_THRESHOLD_KM}km 이상이면 지역 총 배출량이 표시됩니다.`;
 
     // 컨테이너 레이아웃이 완전히 반영된 뒤 확대범위를 계산해야 정확한 줌 레벨이 나옴
     // (백그라운드 탭 등에서 requestAnimationFrame이 지연/미실행될 수 있어 setTimeout 사용)
@@ -1426,27 +1457,74 @@ function initKakaoMap(){
       }
       displayMode = null; // 강제 재계산
       updateDisplayMode();
+      status.textContent = `${name} — 지도 축척이 ${DISTRICT_MODE_THRESHOLD_KM}km 미만이면 건물별 점이, ${DISTRICT_MODE_THRESHOLD_KM}km 이상이면 지역 총 배출량이 표시됩니다.`;
       if (supportsLive && !buildingFile) loadLiveBuildings();
     }, 80);
   }
 
-  function showBuildingInfo(b){
-    const generation=liveGeneration;
+  function lookupParcelAddress(address){
+    return new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(new Error('주소 검색 시간 초과')),10000);
+      kakaoGeocoder.addressSearch(address,(rows,code)=>{
+        clearTimeout(timer);
+        if (code===kakao.maps.services.Status.OK) resolve(rows);
+        else if (code===kakao.maps.services.Status.ZERO_RESULT) resolve([]);
+        else reject(new Error('주소 검색 실패'));
+      });
+    });
+  }
+
+  async function showBuildingInfo(b){
+    const request=++detailGeneration, regionGeneration=liveGeneration;
+    searchGeneration++;
+    const isCurrent=()=>request===detailGeneration && regionGeneration===liveGeneration;
     setInfoVisible(true);
-    const elBType = document.getElementById('infoBuildingType');
-    elBType.textContent = b.type ? (b.type + (b.etc ? ` (${b.etc})` : '')) : '자료 없음';
-    document.getElementById('infoElectric').textContent = b.elec != null ? `${Number(b.elec).toLocaleString()} kWh` : b.energyStatus==='pending'?'미조회':b.energyStatus==='error'?(b.energyError || '조회 실패'):'자료 미제공';
-    document.getElementById('infoGas').textContent = b.gas != null ? `${Number(b.gas).toLocaleString()} kWh` : b.gasStatus==='unqueried'?'미조회 (아래 월별 추이 참조)':'자료 없음';
-    document.getElementById('infoBuildingSub').textContent = b.source==='live'?'VWorld 건물 위치 · 공공데이터포털 필지별 전기 API':'저장된 건물 표본';
-    status.textContent = `📍 ${b.addr}` + (b.ym ? ` — ${b.ym.slice(0,4)}년 ${b.ym.slice(4)}월 기준` : '');
-    document.getElementById('infoDetailCard').style.display = 'none';
-    if (b.sigunguCd && b.bjdongCd && b.bun && b.ji){
-      document.getElementById('usageChart').innerHTML = '조회 중…';
-      document.getElementById('usageChartBox').style.display = 'block';
-      fetchMonthlySeries(b.sigunguCd, b.bjdongCd, b.bun, b.ji, b.platGbCd || '0').then(rows=>{ if (generation===liveGeneration) renderUsageChart(rows); });
-      fetchBuildingType(b.sigunguCd, b.bjdongCd, b.bun, b.ji).then(bt=>{ if (generation===liveGeneration) renderBuildingDetail(bt, elBType); });
-    } else {
-      document.getElementById('usageChartBox').style.display = 'none';
+    const elBType=document.getElementById('infoBuildingType');
+    elBType.textContent=b.type || '건축물대장 조회 준비 중…';
+    document.getElementById('infoDetailCard').style.display='none';
+    document.getElementById('infoBuildingSub').textContent='API 공동 조회에 사용할 지번 확인 중…';
+    ['infoElectric','infoGas'].forEach(id=>document.getElementById(id).textContent='조회 중…');
+    ['infoElectricMeta','infoGasMeta'].forEach(id=>document.getElementById(id).textContent='월별 API 자료 확인 중');
+    document.getElementById('usageChartBuilding').textContent=b.addr || '선택 건물';
+    renderUsageChart(monthsFromJan2026().map(ym=>({ym,elec:null,gas:null,elecStatus:'pending',gasStatus:'pending'})));
+    status.textContent=`📍 ${b.addr || '선택 건물'} — 지번 확인 중…`;
+    let parcel;
+    try {
+      const tools=await getUsageDetailsTools();
+      parcel=await tools.resolveParcel(b,lookupParcelAddress);
+      if (!isCurrent()) return;
+      Object.assign(b,parcel); // 이 표본을 다시 클릭하면 확인된 코드를 재사용
+    } catch(e){
+      if (!isCurrent()) return;
+      ['infoElectric','infoGas'].forEach(id=>document.getElementById(id).textContent='지번 확인 실패');
+      renderUsageChart([]);
+      document.getElementById('usageChartStatus').textContent=e.message;
+      document.getElementById('infoBuildingSub').textContent='지번을 확인하지 못해 API를 호출하지 않았습니다.';
+      status.textContent=`📍 ${b.addr || '선택 건물'} — ${e.message}`;
+      return;
+    }
+    document.getElementById('infoBuildingSub').textContent=`지번 확인 완료 (${parcel.sigunguCd} / ${parcel.bjdongCd} / ${parcel.bun}-${parcel.ji}) · 건축물대장·건물에너지 공동 조회`;
+    fetchBuildingType(parcel.sigunguCd,parcel.bjdongCd,parcel.bun,parcel.ji,parcel.platGbCd).then(bt=>{
+      if (isCurrent()) renderBuildingDetail(bt,elBType);
+    }).catch(()=>{ if (isCurrent()) elBType.textContent='건축물대장 조회 실패'; });
+    const update=rows=>{
+      if (!isCurrent()) return;
+      renderUsageChart(rows);
+      const pending=rows.some(r=>r.elecStatus==='pending' || r.gasStatus==='pending');
+      for (const [kind,id,meta] of [['elec','infoElectric','infoElectricMeta'],['gas','infoGas','infoGasMeta']]){
+        const latest=rows.filter(r=>r[kind]!=null).at(-1);
+        const failed=rows.some(r=>r[kind+'Status']==='error' || r[kind+'Status']==='not-requested');
+        document.getElementById(id).textContent=latest?`${Number(latest[kind]).toLocaleString()} kWh`:pending?'조회 중…':failed?'조회 실패·미조회':'자료 미제공';
+        document.getElementById(meta).textContent=latest?`${latest.ym.slice(0,4)}년 ${latest.ym.slice(4)}월 API 응답${failed?' · 일부 월 조회 실패':''}`:pending?'월별 자료 조회 중':failed?'오류 안내와 월별 표를 확인하세요.':'조회 기간에 API 공개 자료 없음';
+      }
+      const failed=rows.some(r=>r.elecStatus==='error' || r.gasStatus==='error');
+      status.textContent=`📍 ${b.addr} — ${pending?'월별 사용량 조회 중…':failed?'월별 조회 일부 실패. 안내와 표를 확인해 주세요.':'월별 사용량 조회 완료 (미제공은 0kWh가 아님)'}`;
+    };
+    try {
+      const rows=await fetchMonthlySeries(parcel.sigunguCd,parcel.bjdongCd,parcel.bun,parcel.ji,parcel.platGbCd,{isCurrent,onProgress:update});
+      if (isCurrent()) update(rows);
+    } catch(e){
+      if (isCurrent()){ renderUsageChart([]); document.getElementById('usageChartStatus').textContent='월별 조회 처리에 실패했습니다. 건물을 다시 선택해 주세요.'; }
     }
   }
 
@@ -1455,18 +1533,24 @@ function initKakaoMap(){
   function search(){
     const q = input.value.trim();
     if (!q) return;
+    const request=++searchGeneration;
+    detailGeneration++;
+    const currentSearch=()=>request===searchGeneration;
     status.textContent = '검색 중…';
     // 주소 검색 우선 시도, 실패하면 키워드(장소명) 검색으로 폴백
     kakaoGeocoder.addressSearch(q, (result, status2)=>{
+      if (!currentSearch()) return;
       if (status2 === kakao.maps.services.Status.OK){
         moveTo(result[0]);
       } else {
         const places = new kakao.maps.services.Places();
         places.keywordSearch(q, (data, status3)=>{
+          if (!currentSearch()) return;
           if (status3 === kakao.maps.services.Status.OK && data.length){
             // 장소 검색 결과는 법정동코드가 없으므로, 지번주소로 재검색해 법정동코드를 얻음
             const place = data[0];
             kakaoGeocoder.addressSearch(place.address_name, (r2, s2)=>{
+              if (!currentSearch()) return;
               if (s2 === kakao.maps.services.Status.OK && r2.length){
                 moveTo(Object.assign({}, r2[0], { y: place.y, x: place.x, place_name: place.place_name }));
               } else {
@@ -1495,59 +1579,7 @@ function initKakaoMap(){
 
   // 건물 용도(건축물대장)·전기·가스 사용량 조회
   async function loadBuildingGasElectric(r, label){
-    setInfoVisible(true);
-    const elBType = document.getElementById('infoBuildingType');
-    const elElec = document.getElementById('infoElectric');
-    const elGas = document.getElementById('infoGas');
-    elBType.textContent = '조회 중…';
-    elElec.textContent = '조회 중…';
-    elGas.textContent = '조회 중…';
-    document.getElementById('usageChartBox').style.display = 'none';
-
-    const addr = r.address; // 지번 주소 상세 (b_code, main_address_no, sub_address_no)
-    if (!addr || !addr.b_code){
-      status.textContent = `📍 ${label} — 지번 정보를 확인할 수 없어 건물 데이터를 조회할 수 없습니다.`;
-      elBType.textContent = '확인 불가';
-      elElec.textContent = '확인 불가';
-      elGas.textContent = '확인 불가';
-      return;
-    }
-    const sigunguCd = addr.b_code.slice(0,5);
-    const bjdongCd = addr.b_code.slice(5,10);
-    const bun = String(addr.main_address_no || '0').padStart(4,'0');
-    const ji = String(addr.sub_address_no || '0').padStart(4,'0');
-
-    // 건축물대장(건물 용도·건축연도·층수·면적·세대수) 조회
-    try {
-      const bt = await fetchBuildingType(sigunguCd, bjdongCd, bun, ji);
-      renderBuildingDetail(bt, elBType);
-    } catch(e){ elBType.textContent = '조회 실패'; document.getElementById('infoDetailCard').style.display='none'; }
-
-    // 전기·가스 사용량 조회 — 최근 12개월 중 데이터가 있는 최신 월 탐색
-    const months = recentYearMonths(12);
-    let foundYm = null, elec = {found:false}, gas = {found:false};
-    for (const ym of months){
-      const [e, g] = await Promise.all([
-        fetchBeUsage('getBeElctyUsgInfo', sigunguCd, bjdongCd, bun, ji, ym),
-        fetchBeUsage('getBeGasUsgInfo', sigunguCd, bjdongCd, bun, ji, ym)
-      ]);
-      elec = e; gas = g;
-      if (e.found || g.found){ foundYm = ym; break; }
-      if (e.error || g.error) break; // 연결 오류를 자료 없음으로 덮거나 12회 반복 호출하지 않음
-    }
-    elElec.textContent = elec.found ? `${Number(elec.useQty).toLocaleString()} kWh` : (elec.error || '자료 없음');
-    elGas.textContent = gas.found ? `${Number(gas.useQty).toLocaleString()} kWh` : (gas.error || '자료 없음');
-    document.getElementById('infoBuildingSub').textContent = '총괄표제부(건축물대장) 자료 — 지역별 수동 확보';
-    status.textContent = foundYm
-      ? `📍 ${label} — 전기·가스 사용량은 ${foundYm.slice(0,4)}년 ${foundYm.slice(4)}월 기준 (단독주택·소규모 공동주택 등 일부 건물은 제외될 수 있음)`
-      : `📍 ${label} — ${elec.error || gas.error || '최근 12개월 내 전기·가스 사용량 자료를 찾지 못했습니다. (집계·공개 지연 또는 비공개 건물 가능)'}`;
-
-    if (!foundYm) return;
-
-    // 2026.01~현재 월별 추이
-    document.getElementById('usageChart').innerHTML = '월별 추이 조회 중…';
-    document.getElementById('usageChartBox').style.display = 'block';
-    fetchMonthlySeries(sigunguCd, bjdongCd, bun, ji).then(renderUsageChart);
+    return showBuildingInfo({addr:label,address:r.address,lat:Number(r.y),lng:Number(r.x)});
   }
 
   document.getElementById('mapSearchBtn').onclick = search;
