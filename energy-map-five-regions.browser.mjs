@@ -27,5 +27,5 @@ try {
     console.log(JSON.stringify({name,dots,coverage}));
   }
   assert.deepEqual(errors,[]);
-  console.log('PASS: five regions show real building positions and energy responses');
+  console.log('PASS: '+names.length+' regions show real building positions and energy responses');
 } finally {await browser.close();}

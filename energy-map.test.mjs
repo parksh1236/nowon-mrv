@@ -26,6 +26,24 @@ for (const [name,code] of [['강동구','11740'],['중랑구','11260'],['구로�
     assert.equal(converted.buildings[0].sigunguCd,code);
   });
 }
+for (const [name,code] of [['종로구','11110'],['중구','11140']]) {
+  test(`${name} connects the final Seoul district to building and energy lookup`,async()=>{
+    const {LIVE_REGIONS,buildingPageUrl,buildingsFromFeatures}=await load();
+    assert.deepEqual(LIVE_REGIONS[name],[code]);
+    const u=new URL(buildingPageUrl({bounds:[126.97,37.56,126.98,37.57],codes:LIVE_REGIONS[name],key:'test-only'}));
+    assert.equal(u.searchParams.get('attrFilter'),`bd_mgt_sn:like:${code}`);
+    assert.equal(buildingsFromFeatures([feature(code+'10100100010000000001')],LIVE_REGIONS[name]).buildings[0].sigunguCd,code);
+  });
+}
+test('all 25 Seoul districts have matching official district codes',async()=>{
+  const {LIVE_REGIONS}=await load();
+  const centers=JSON.parse(readFileSync(new URL('./data/region_centers.json',import.meta.url),'utf8'));
+  const names=Object.keys(centers).filter(n=>centers[n].province==='서울'&&n.endsWith('구'));
+  assert.equal(names.length,25);
+  assert.deepEqual(names.filter(n=>!LIVE_REGIONS[n]),[]);
+  for (const n of names) assert.deepEqual(LIVE_REGIONS[n],[centers[n].sigunguCd]);
+});
+
 test('second Seoul batch is the first five previously unconnected districts in Korean order',()=>{
   const prior=new Set(['강남구','강동구','강북구','강서구','구로구','금천구','노원구','중랑구']);
   const centers=JSON.parse(readFileSync(new URL('./data/region_centers.json',import.meta.url),'utf8'));
