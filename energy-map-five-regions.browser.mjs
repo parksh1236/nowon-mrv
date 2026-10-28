@@ -12,7 +12,8 @@ try {
   await page.locator('[data-tab="tMap"]').click();
   await page.locator('#mapProvinceSelect option[value="서울"]').waitFor({state:'attached'});
   await page.selectOption('#mapProvinceSelect','서울');
-  for (const name of ['강동구','중랑구','구로구','금천구','강서구']) {
+  const names=process.env.ENERGY_QA_REGIONS?.split(',') || ['강동구','중랑구','구로구','금천구','강서구'];
+  for (const name of names) {
     await page.selectOption('#mapRegionSelect',name);
     await page.waitForFunction(()=>{
       const text=document.querySelector('#mapEnergyCoverage').textContent;

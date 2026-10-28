@@ -14,7 +14,7 @@ test('three requested regions include all three Yongin districts', async () => {
   assert.deepEqual(LIVE_REGIONS['강북구'], ['11305']);
   assert.deepEqual(LIVE_REGIONS['용인시'], ['41461','41463','41465']);
 });
-for (const [name,code] of [['강동구','11740'],['중랑구','11260'],['구로구','11530'],['금천구','11545'],['강서구','11500']]) {
+for (const [name,code] of [['강동구','11740'],['중랑구','11260'],['구로구','11530'],['금천구','11545'],['강서구','11500'],['관악구','11620'],['광진구','11215'],['도봉구','11320'],['동대문구','11230'],['동작구','11590']]) {
   test(`${name} connects its official district code to building and energy lookup`,async()=>{
     const {LIVE_REGIONS,buildingPageUrl,buildingsFromFeatures}=await load();
     const centers=JSON.parse(readFileSync(new URL('./data/region_centers.json',import.meta.url),'utf8'));
@@ -26,6 +26,12 @@ for (const [name,code] of [['강동구','11740'],['중랑구','11260'],['구로�
     assert.equal(converted.buildings[0].sigunguCd,code);
   });
 }
+test('second Seoul batch is the first five previously unconnected districts in Korean order',()=>{
+  const prior=new Set(['강남구','강동구','강북구','강서구','구로구','금천구','노원구','중랑구']);
+  const centers=JSON.parse(readFileSync(new URL('./data/region_centers.json',import.meta.url),'utf8'));
+  const next=Object.keys(centers).filter(n=>centers[n].province==='서울'&&n.endsWith('구')&&!prior.has(n)).sort((a,b)=>a.localeCompare(b,'ko')).slice(0,5);
+  assert.deepEqual(next,['관악구','광진구','도봉구','동대문구','동작구']);
+});
 test('official building ID maps to exact API parcel without inventing usage', async () => {
   const { buildingsFromFeatures } = await load();
   const r=buildingsFromFeatures([feature()],['11305']);
