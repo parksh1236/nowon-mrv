@@ -14,6 +14,18 @@ test('three requested regions include all three Yongin districts', async () => {
   assert.deepEqual(LIVE_REGIONS['강북구'], ['11305']);
   assert.deepEqual(LIVE_REGIONS['용인시'], ['41461','41463','41465']);
 });
+for (const [name,code] of [['강동구','11740'],['중랑구','11260'],['구로구','11530'],['금천구','11545'],['강서구','11500']]) {
+  test(`${name} connects its official district code to building and energy lookup`,async()=>{
+    const {LIVE_REGIONS,buildingPageUrl,buildingsFromFeatures}=await load();
+    const centers=JSON.parse(readFileSync(new URL('./data/region_centers.json',import.meta.url),'utf8'));
+    assert.deepEqual(LIVE_REGIONS[name],[code]);
+    assert.equal(centers[name].sigunguCd,code);
+    const u=new URL(buildingPageUrl({bounds:[126.88,37.49,126.89,37.50],codes:LIVE_REGIONS[name],page:1,key:'test-only'}));
+    assert.equal(u.searchParams.get('attrFilter'),`bd_mgt_sn:like:${code}`);
+    const converted=buildingsFromFeatures([feature(code+'10100100010000000001')],LIVE_REGIONS[name]);
+    assert.equal(converted.buildings[0].sigunguCd,code);
+  });
+}
 test('official building ID maps to exact API parcel without inventing usage', async () => {
   const { buildingsFromFeatures } = await load();
   const r=buildingsFromFeatures([feature()],['11305']);
