@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 function client(fetch) {
   const source = html.slice(html.indexOf('async function callDataGoKr('), html.indexOf('// 시군구코드별 총괄표제부'));
-  const context = vm.createContext({ fetch, AbortSignal, URL, DATA_GO_KR_KEY: 'test-only', BLDENGY_BASE: 'https://apis.data.go.kr/1613000/BldEngyHubService' });
+  const context = vm.createContext({ fetch, AbortSignal, URL, setTimeout:callback=>{callback();return 0;}, DATA_GO_KR_KEY: 'test-only', BLDENGY_BASE: 'https://apis.data.go.kr/1613000/BldEngyHubService' });
   vm.runInContext(source, context);
   return context;
 }
@@ -45,4 +45,20 @@ test('month lookback works on the 31st without skipping February', () => {
   const c = vm.createContext({ Date: class extends Date { constructor() { super('2026-03-31T12:00:00Z'); } } });
   vm.runInContext(source, c);
   assert.equal(c.recentYearMonths(2).join(','), '202602,202601');
+});
+test('rate-limit response is retried before reporting failure',async()=>{
+  let calls=0;
+  const c=client(async()=>++calls===1?response({},429):response(usage([{useQty:42}])));
+  assert.equal((await c.fetchBeUsage('getBeElctyUsgInfo','11305','10300','0192','0058','202604')).useQty,42);
+  assert.equal(calls,2);
+});
+test('concurrent callers use a shared API queue',async()=>{
+  let active=0,max=0;
+  const c=client(async()=>{
+    active++;max=Math.max(max,active);
+    await new Promise(resolve=>setTimeout(resolve,2));active--;
+    return response(usage([{useQty:42}]));
+  });
+  await Promise.all([c.callDataGoKr('https://example.test'),c.callDataGoKr('https://example.test')]);
+  assert.equal(max,1);
 });
