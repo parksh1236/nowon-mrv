@@ -1146,3 +1146,15 @@ test('가상 지붕 클릭은 지붕 미리보기 대신 지도 지형에서 좌
   const Cesium = { Cartographic: { fromCartesian: point => point } };
   assert.deepEqual(coordinateFromClick({ position: { x: 10, y: 20 } }, viewer, Cesium, true), { lon: 127.056, lat: 37.654 });
 });
+
+test('설치공사비는 설치 가능한 패널의 설비용량과 입력 단가로 계산하고 CSV에 기록한다', () => {
+  const climate = { months: [] };
+  const input = validInput({ installationUnitCostKrw: 1_900_000 });
+  const rough = calculateRough(input, climate);
+  assert.equal(rough.capacityKwp, 18);
+  assert.equal(rough.installationCostKrw, 34_200_000);
+  assert.equal(calculateDetailedPair(input, climate, []).detailed.installationCostKrw, rough.installationCostKrw);
+  assert.equal(calculateRough({ ...input, roofAreaM2: 0 }, climate).installationCostKrw, 0);
+  assert.equal(calculateRough({ ...input, installationUnitCostKrw: -1 }, climate).installationCostKrw, undefined);
+  assert.match(buildCsv(rough), /예상 설치공사비\(원, 보조금 차감 전\)",34200000/);
+});

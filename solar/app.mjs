@@ -1,5 +1,5 @@
 import { buildingParcel, drawBuildingPreview, lookupBuildingTitle, positiveNumber } from './building-preview.mjs';
-import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs';
+import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs?v=installation-cost-1';
 
 const PROJECT_KEY = 'nowon-solar-project-v1';
 const NOWON_OFFICE = { lat: 37.654351, lon: 127.056428 };
@@ -1142,6 +1142,7 @@ export function readForm() {
   const number = (name) => Number(data.get(name));
   return {
     roofAreaM2: number('roofAreaM2'), exclusionAreaM2: number('exclusionAreaM2'), perimeterM: number('perimeterM'), edgeSetbackM: number('edgeSetbackM'),
+    installationUnitCostKrw: number('installationUnitCostKrw'),
     layoutRatio: number('layoutRatio') / 100, panelAreaM2: number('panelAreaM2'), panelPowerKw: number('panelPowerKw'),
     moduleEfficiency: number('moduleEfficiency') / 100, systemLossRatio: number('systemLossRatio') / 100, tiltDeg: number('tiltDeg'), azimuthDeg: number('azimuthDeg'),
   };
@@ -1350,6 +1351,7 @@ export function calculationBasisRows(result = {}) {
     ['유효 옥상면적', `${format(rough.usableAreaM2 || 0)} ㎡ = 지붕면적 - 제외면적 - 이격면적`],
     ['실제 설치 가능면적', `${format(rough.installableAreaM2 || 0)} ㎡ = 유효면적 × ${format((input.layoutRatio || 0) * 100)}%`],
     ['패널·설비용량', `${rough.panelCount || 0}장 × ${format(input.panelPowerKw || 0, 2)} kW = ${format(rough.capacityKwp || 0)} kWp`],
+    ['설치공사비 산식', rough.installationCostKrw == null ? '유효한 설치공사 단가를 입력하세요.' : `${format(rough.capacityKwp, 3)} kWp × ${format(rough.installationUnitCostKrw, 0)} 원/kWp = ${format(rough.installationCostKrw, 0)} 원 (보조금 차감 전)`],
     ['발전량 공식', '설비용량 × 일평균 일사량 × 일수 × 경사·방위 보정 × (1 - 시스템 손실률)'],
     ['적용 손실·방향', `시스템 손실 ${format((input.systemLossRatio || 0) * 100)}%, 경사 ${format(input.tiltDeg || 0)}°, 방위 ${format(input.azimuthDeg || 0)}°`],
     ['기상자료', climate.source || '기후자료 미확인'],
@@ -1379,6 +1381,7 @@ export function renderResult(result) {
   const values = [
     ['설치 가능면적', `${format(rough.installableAreaM2)} ㎡`],
     ['설비용량', `${format(rough.capacityKwp)} kWp`],
+    ['예상 설치공사비 (보조금 차감 전)', rough.installationCostKrw == null ? '단가 확인 필요' : `${format(rough.installationCostKrw, 0)} 원`],
     ['개략 연간 발전량', `${format(rough.annualKwh)} kWh/년`],
     ...(rough.dailySolarHours != null ? [['개략 하루 등가 발전시간', `${format(rough.dailySolarHours)} 시간/일`]] : []),
     ...(detailed ? [

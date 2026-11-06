@@ -219,6 +219,12 @@ export function equivalentFullSunHours(monthlyKwh = [], capacityKwp = 0, climate
 
 export function calculateRough(input, climate) {
   const base = baseCalculation(input, climate);
+  const unitCost = input?.installationUnitCostKrw;
+  const totalCost = base.capacityKwp * unitCost;
+  if (Number.isFinite(unitCost) && unitCost > 0 && Number.isSafeInteger(Math.round(totalCost))) {
+    base.installationUnitCostKrw = unitCost;
+    base.installationCostKrw = Math.round(totalCost);
+  }
   if (base.panelCount === 0) return base;
   const monthlyKwh = monthlyGeneration(input, climate, base.capacityKwp);
   const sunHours = equivalentFullSunHours(monthlyKwh, base.capacityKwp, climate);
@@ -448,6 +454,8 @@ export function buildCsv(result = {}, project = {}, climate = {}) {
     ['항목', '값'],
     ['설치 가능면적㎡', rough.installableAreaM2],
     ['설비용량kWp', rough.capacityKwp],
+    ['설치공사 단가(원/kWp)', rough.installationUnitCostKrw],
+    ['예상 설치공사비(원, 보조금 차감 전)', rough.installationCostKrw],
     ['시스템손실률', systemLossRatio],
     ['정밀도', result.precision ?? project.precision ?? ''],
     ['표본간격m', result.spacingM ?? project.spacingM ?? ''],
