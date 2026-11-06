@@ -1,3 +1,4 @@
+import { buildingParcel, drawBuildingPreview, lookupBuildingTitle, positiveNumber } from './building-preview.mjs';
 import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs';
 
 const PROJECT_KEY = 'nowon-solar-project-v1';
@@ -43,6 +44,8 @@ let mapInstance;
 let drawing;
 let latestResult;
 let selectingExistingBuilding = false;
+let buildingSelectionGeneration = 0;
+let renderBuildingAngle;
 let selectedBuildingMarker;
 let mapClickHandler;
 let analysisKmlUrl;
@@ -523,6 +526,9 @@ export function setBuildingMode(mode) {
     return false;
   }
   state.mode = mode;
+  selectingExistingBuilding = false;
+  buildingSelectionGeneration += 1;
+  buildingInfo?.close();
   drawing = undefined;
   state.roof = [];
   state.exclusions = [];
@@ -700,8 +706,7 @@ function polygonFromGeometry(geometry) {
 }
 
 function featureHeight(properties = {}) {
-  const entry = Object.entries(properties).find(([name, value]) => /height|hgt/i.test(name) && Number.isFinite(Number(value)));
-  return entry ? Number(entry[1]) : null;
+  return positiveNumber(propertyValue(properties, [/^height$/i, /^bldg?_?(height|hgt)$/i, /^heit$/i, /^hgt$/i]));
 }
 
 const propertyValue = (properties, patterns) => {
@@ -716,7 +721,7 @@ export function buildingSummary(feature, position, label = '') {
   return [
     ['검색 위치', label || `${position.lat.toFixed(6)}, ${position.lon.toFixed(6)}`],
     ['건물명', propertyValue(properties, [/bld.*nm/i, /bul.*nm/i, /^name$/i]) ?? '자료 없음'],
-    ['주용도', propertyValue(properties, [/main.*purps/i, /use.*nm/i, /用途/i]) ?? '자료 없음'],
+    ['주용도', propertyValue(properties, [/main.*purps.*nm/i, /use.*nm/i, /用途/i]) ?? '자료 없음'],
     ['지상층수', propertyValue(properties, [/grnd.*flr/i, /ground.*floor/i]) ?? '자료 없음'],
     ['지하층수', propertyValue(properties, [/ugrnd.*flr/i, /under.*floor/i]) ?? '자료 없음'],
     ['건물 높이', featureHeight(properties) == null ? '자료 없음' : `${featureHeight(properties)} m`],
@@ -725,13 +730,71 @@ export function buildingSummary(feature, position, label = '') {
   ];
 }
 
-function renderBuildingInfo(feature, position, label) {
+function renderBuildingInfo(feature, polygon, position, label, isCurrent) {
   if (!buildingInfo || !buildingDetails) return;
-  buildingDetails.replaceChildren();
-  for (const [name, value] of buildingSummary(feature, position, label)) {
-    buildingDetails.append(element('dt', name), element('dd', String(value)));
+  const properties = feature.properties ?? {};
+  const preview = doc.querySelector('#building-preview');
+  const previewNote = doc.querySelector('#building-preview-note');
+  const controls = doc.querySelector('#preview-controls');
+  const titleDetails = doc.querySelector('#building-title-details');
+  const titleStatus = doc.querySelector('#building-title-status');
+  const appendRows = (list, rows) => list.replaceChildren(...rows.flatMap(([name, value]) =>
+    [element('dt', name), element('dd', String(value ?? '자료 없음'))]));
+  appendRows(buildingDetails, buildingSummary(feature, position, label));
+  titleDetails.replaceChildren();
+
+  let angle = 0;
+  let height = featureHeight(properties);
+  let floors = positiveNumber(propertyValue(properties, [/grnd.*flr/i, /ground.*floor/i]));
+  let heightSource = height ? 'V월드 높이' : '';
+  const renderPreview = () => {
+    const modelHeight = height ?? (floors ? floors * 3 : null);
+    preview.style.display = modelHeight ? '' : 'none';
+    controls.hidden = !modelHeight;
+    previewNote.textContent = modelHeight
+      ? `${heightSource || '지상층수 × 3 m 추정'} ${Number(modelHeight.toFixed(1))} m · 평지붕, 창·출입문 위치는 예시입니다.`
+      : '높이와 지상층수 자료가 없어 입체 모형을 표시할 수 없습니다.';
+    if (modelHeight) drawBuildingPreview(preview, polygon, modelHeight, floors, angle);
+  };
+  renderBuildingAngle = (step) => {
+    angle += step;
+    renderPreview();
+  };
+  renderPreview();
+  if (!buildingInfo.open) buildingInfo.showModal();
+
+  const parcel = buildingParcel(properties);
+  const key = typeof DATA_GO_KR_KEY === 'string' ? DATA_GO_KR_KEY : '';
+  if (!parcel || !key) {
+    titleStatus.textContent = parcel ? '건축물대장 API 키를 확인하세요.' : '건물의 필지 식별 정보가 없어 표제부를 조회할 수 없습니다.';
+    return;
   }
-  buildingInfo.hidden = false;
+
+  titleStatus.textContent = '건축물대장 조회 중…';
+  lookupBuildingTitle(parcel, properties, key).then(({ row, status }) => {
+    if (!isCurrent()) return;
+    titleStatus.textContent = status;
+    if (!row) return;
+    const unit = (value, suffix) => value == null || value === '' ? null : `${value} ${suffix}`;
+    const approval = String(row.useAprDay ?? '');
+    appendRows(titleDetails, [
+      ['건물명 / 동', [row.bldNm, row.dongNm].filter(Boolean).join(' / ') || null],
+      ['주소', row.newPlatPlc || row.platPlc || null],
+      ['주용도', row.mainPurpsCdNm || null], ['구조', row.strctCdNm || null],
+      ['지상층 / 지하층', `${row.grndFlrCnt ?? '—'} / ${row.ugrndFlrCnt ?? '—'}`],
+      ['높이', unit(positiveNumber(row.heit), 'm')], ['건축면적', unit(row.archArea, '㎡')],
+      ['연면적', unit(row.totArea, '㎡')],
+      ['사용승인일', /^\d{8}$/.test(approval) ? approval.replace(/^(....)(..)(..)$/, '$1-$2-$3') : null],
+    ]);
+    if (!height && positiveNumber(row.heit)) {
+      height = positiveNumber(row.heit);
+      heightSource = '건축물대장 높이';
+    }
+    floors = positiveNumber(row.grndFlrCnt) ?? floors;
+    renderPreview();
+  }).catch(() => {
+    if (isCurrent()) titleStatus.textContent = '건축물대장 조회에 실패했습니다. 잠시 후 건물을 다시 선택해 주세요.';
+  });
 }
 
 export function focusBuildingOnMap(
@@ -797,7 +860,8 @@ function clearBuildingSelection() {
   renderExclusions();
   renderMapShapes();
   markDirty();
-  if (buildingInfo) buildingInfo.hidden = true;
+  buildingSelectionGeneration += 1;
+  buildingInfo?.close();
 }
 
 export function resetAnalysis() {
@@ -829,7 +893,8 @@ export function resetAnalysis() {
   updateModeTools();
   setAnalysisBusy(false);
   precisionOptions.hidden = true;
-  if (buildingInfo) buildingInfo.hidden = true;
+  buildingSelectionGeneration += 1;
+  buildingInfo?.close();
   if (shadowToggle?.checked) {
     shadowToggle.checked = false;
     toggleShadowSimulation(false);
@@ -848,6 +913,8 @@ export function resetAnalysis() {
 
 export async function selectExistingBuilding(position, { label = '' } = {}) {
   clearBuildingSelection();
+  const generation = buildingSelectionGeneration;
+  const isCurrent = () => generation === buildingSelectionGeneration;
   if (!vworldKey() || !isInsideNowon([position])) {
     manualFallback('지도 API 키 또는 선택 좌표를 확인하세요.');
     return false;
@@ -855,6 +922,7 @@ export async function selectExistingBuilding(position, { label = '' } = {}) {
   focusBuildingOnMap(position, label || '선택 건물');
   try {
     const feature = firstFeature(await loadJsonp(buildingLookupUrl(position, vworldKey())));
+    if (!isCurrent()) return false;
     const polygon = polygonFromGeometry(feature?.geometry);
     const height = featureHeight(feature?.properties);
     const applied = polygon && applyBuildingGeometry(
@@ -867,11 +935,11 @@ export async function selectExistingBuilding(position, { label = '' } = {}) {
       setRoofPolygon,
     );
     if (!applied) throw new Error('building geometry missing');
-    renderBuildingInfo(feature, position, label);
+    renderBuildingInfo(feature, polygon, position, label, isCurrent);
     // VWorld는 KML 분석 레이어를 추가할 때 레이어 전체 범위로 자동 축소할 수 있다.
     // 도형 로딩 직후 선택 건물로 다시 이동해 꼭짓점·설치가능점이 식별되는 축척을 유지한다.
-    setTimeout(() => focusBuildingOnMap(position, label || '선택 건물'), 500);
-    setTimeout(() => focusBuildingOnMap(position, label || '선택 건물'), 1400);
+    setTimeout(() => isCurrent() && focusBuildingOnMap(position, label || '선택 건물'), 500);
+    setTimeout(() => isCurrent() && focusBuildingOnMap(position, label || '선택 건물'), 1400);
     if (height === null) {
       manualFallback('건물 높이를 직접 입력하세요.');
     } else {
@@ -879,7 +947,7 @@ export async function selectExistingBuilding(position, { label = '' } = {}) {
     }
     return true;
   } catch {
-    manualFallback();
+    if (isCurrent()) manualFallback();
     return false;
   }
 }
@@ -893,12 +961,14 @@ function positionFromSearch(item) {
 
 async function searchBuilding() {
   clearBuildingSelection();
+  const generation = buildingSelectionGeneration;
   const query = document.querySelector('#address-query').value.trim();
   if (!query || !vworldKey()) return manualFallback('주소와 지도 API 키를 확인하세요.');
   try {
     const result = await loadJsonp(vworldUrl('/req/search', {
       service: 'search', request: 'search', version: '2.0', crs: 'EPSG:4326', size: '10', page: '1', type: 'address', category: 'road', format: 'json', key: vworldKey(), query,
     }));
+    if (generation !== buildingSelectionGeneration) return;
     const items = result?.response?.result?.items ?? [];
     const position = positionFromSearch(items[0]);
     if (!position) throw new Error('address not found');
@@ -906,7 +976,7 @@ async function searchBuilding() {
     focusBuildingOnMap(position, label);
     await selectExistingBuilding(position, { label });
   } catch {
-    manualFallback();
+    if (generation === buildingSelectionGeneration) manualFallback();
   }
 }
 
@@ -1333,6 +1403,8 @@ form.querySelectorAll('input[name="analysisMode"]').forEach((control) => control
 form.addEventListener('input', (event) => {
   if (event.target.name !== 'buildingMode' && ![roofCoordinates, exclusionCoordinates, heightInput].includes(event.target)) markDirty();
 });
+doc.querySelector('#preview-left')?.addEventListener('click', () => renderBuildingAngle?.(-Math.PI / 4));
+doc.querySelector('#preview-right')?.addEventListener('click', () => renderBuildingAngle?.(Math.PI / 4));
 form.querySelectorAll('input[name="buildingMode"]').forEach((control) => control.addEventListener('change', () => setBuildingMode(control.value)));
 roofCoordinates.addEventListener('input', () => {
   const points = parsePoints(roofCoordinates.value);

@@ -1,0 +1,1 @@
+const DATA_GO_KR_KEY = '7e30bb2fb9af78e89ac8240a5c7a295c68754482fc838f43e2df6842d7da95ca';

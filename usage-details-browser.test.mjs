@@ -9,7 +9,7 @@ try {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const origin='https://parksh1236.github.io/nowon-mrv/';
   await page.route(origin,route=>route.fulfill({contentType:'text/html',body:readFileSync(new URL('./index.html',import.meta.url),'utf8')}));
-  for (const file of ['usage-details.mjs','energy-map.mjs']) await page.route(origin+file,route=>route.fulfill({contentType:'text/javascript',body:readFileSync(new URL('./'+file,import.meta.url),'utf8')}));
+  for (const file of ['usage-details.mjs','energy-map.mjs','data-go-kr-config.js']) await page.route(origin+file,route=>route.fulfill({contentType:'text/javascript',body:readFileSync(new URL('./'+file,import.meta.url),'utf8')}));
   await page.goto(origin);
   await page.locator('[data-tab="tMap"]').click();
   await page.locator('#mapProvinceSelect option[value="서울"]').waitFor({state:'attached'});

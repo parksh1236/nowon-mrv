@@ -373,7 +373,7 @@
 
 <!-- ══════════ 탭4: Solar Lab ══════════ -->
 <div id="t4" class="tabpane">
-  <iframe class="solar-lab-frame" src="./solar/?v=20260824-tree-crown-1" title="Solar Lab 태양광 건축 사전분석" loading="lazy"></iframe>
+  <iframe class="solar-lab-frame" src="./solar/?v=building-preview-1" title="Solar Lab 태양광 건축 사전분석" loading="lazy"></iframe>
 </div>
 
 </main>
@@ -382,6 +382,7 @@
   문의 : <a href="mailto:parksh1236@gmail.com" style="color:#9c7a3e;text-decoration:none">parksh1236@gmail.com</a>
 </footer>
 
+<script src="./data-go-kr-config.js"></script>
 <script>
 /* ═══════════ 공통: 탭 전환 ═══════════ */
 document.querySelectorAll('nav.tabs button').forEach(btn=>{
@@ -860,7 +861,6 @@ async function loadRegionCenters(){
 }
 
 // 공공데이터포털(data.go.kr) 인증키 — 건물에너지(전기·가스) API
-const DATA_GO_KR_KEY = '7e30bb2fb9af78e89ac8240a5c7a295c68754482fc838f43e2df6842d7da95ca';
 const BLDENGY_BASE = 'https://apis.data.go.kr/1613000/BldEngyHubService';
 
 // 최근 N개월 YYYYMM 목록 생성 (당월은 집계 전일 수 있어 전월부터 시작)

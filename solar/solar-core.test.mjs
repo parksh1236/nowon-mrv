@@ -1066,3 +1066,42 @@ test('산출근거는 면적·설비용량·발전량·음영 공식을 설명�
   assert.match(rows['발전량 공식'], /일평균 일사량/);
   assert.match(rows['그림자 반영'], /12\.0%/);
 });
+
+test('건축물대장 조회는 산지번을 보존하고 복수 동을 임의 선택하지 않는다', async () => {
+  const { buildingParcel, lookupBuildingTitle } = await import('./building-preview.mjs');
+  const parcel = buildingParcel({ pnu: '1135010200200120003' });
+  assert.deepEqual(parcel, { sigunguCd: '11350', bjdongCd: '10200', platGbCd: '1', bun: '0012', ji: '0003' });
+  const first = { mgmBldrgstPk: 'first', dongNm: '101동' };
+  const second = { mgmBldrgstPk: 'second', dongNm: '102동' };
+  const fetcher = async url => {
+    assert.equal(url.searchParams.get('platGbCd'), '1');
+    assert.equal(url.searchParams.get('serviceKey'), 'test+/=');
+    return { ok: true, json: async () => ({
+      response: { header: { resultCode: '00' }, body: { totalCount: 2, items: { item: [first, second] } } },
+    }) };
+  };
+  assert.equal((await lookupBuildingTitle(parcel, {}, 'test+/=', fetcher)).row, undefined);
+  assert.deepEqual((await lookupBuildingTitle(parcel, { bldrgst_pk: 'second' }, 'test+/=', fetcher)).row, second);
+  assert.deepEqual((await lookupBuildingTitle(parcel, { dong_nm: '101 동' }, 'test+/=', fetcher)).row, first);
+});
+
+test('입체 미리보기는 회전해도 출입문을 다른 벽에 다시 만들지 않는다', async () => {
+  const { drawBuildingPreview } = await import('./building-preview.mjs');
+  const svg = {
+    shapes: [],
+    ownerDocument: { createElementNS: () => ({ attrs: {}, setAttribute(key, value) { this.attrs[key] = value; } }) },
+    replaceChildren() { this.shapes = []; },
+    append(node) { this.shapes.push(node.attrs); },
+  };
+  const footprint = [
+    { lat: 37.654, lon: 127.056 }, { lat: 37.654, lon: 127.0562 },
+    { lat: 37.6541, lon: 127.0562 }, { lat: 37.6541, lon: 127.056 },
+  ];
+  drawBuildingPreview(svg, footprint, 9, 3, 0);
+  assert.ok(svg.shapes.some(shape => shape.fill === '#45748a'));
+  assert.equal(svg.shapes.filter(shape => shape.fill === '#324d46').length, 1);
+  assert.ok(svg.shapes.every(shape => !/NaN|Infinity/.test(shape.points)));
+  drawBuildingPreview(svg, footprint, 9, 3, Math.PI);
+  assert.ok(svg.shapes.some(shape => shape.fill === '#45748a'));
+  assert.equal(svg.shapes.filter(shape => shape.fill === '#324d46').length, 0);
+});

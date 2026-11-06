@@ -12,7 +12,7 @@ try {
   // Preview only the changed source at the already allowed production origin.
   const origin='https://parksh1236.github.io/nowon-mrv/';
   await page.route(origin,route=>route.fulfill({contentType:'text/html',body:readFileSync(new URL('./index.html',import.meta.url),'utf8')}));
-  await page.route(origin+'energy-map.mjs',route=>route.fulfill({contentType:'text/javascript',body:readFileSync(new URL('./energy-map.mjs',import.meta.url),'utf8')}));
+  for (const file of ['energy-map.mjs','data-go-kr-config.js']) await page.route(origin+file,route=>route.fulfill({contentType:'text/javascript',body:readFileSync(new URL('./'+file,import.meta.url),'utf8')}));
   await page.goto(origin);
   console.log('Preview loaded');
   await page.locator('[data-tab="tMap"]').click();
