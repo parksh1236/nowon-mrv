@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildCsv, calculateDetailed, calculateDetailedPair, calculateRough, currentAnalysisResult, deserializeProject, equivalentFullSunHours, filterInstallableSamples, isInsideNowon, isValidPolygon, isValidProject, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
+  buildCsv, calculateDetailed, calculateDetailedPair, calculateRough, currentAnalysisResult, deserializeProject, equivalentFullSunHours, filterInstallableSamples, isInsideSeoul, isValidPolygon, isValidProject, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -84,10 +84,11 @@ test('project deserialization rejects malformed JSON without throwing', () => {
   assert.equal(deserializeProject('{'), null);
 });
 
-test('Nowon boundary accepts inside points and rejects outside points', () => {
-  assert.equal(isInsideNowon([{ lat: 37.65, lon: 127.05 }]), true);
-  assert.equal(isInsideNowon([{ lat: 37.57, lon: 127.05 }]), false);
-  assert.equal(isInsideNowon([null]), false);
+test('Seoul map extent accepts inside points and rejects outside points', () => {
+  assert.equal(isInsideSeoul([{ lat: 37.65, lon: 127.05 }]), true);
+  assert.equal(isInsideSeoul([{ lat: 37.51, lon: 127.10 }]), true);
+  assert.equal(isInsideSeoul([{ lat: 36, lon: 127.05 }]), false);
+  assert.equal(isInsideSeoul([null]), false);
 });
 
 const validProject = {
@@ -1171,4 +1172,19 @@ test('설치공사비는 설치 가능한 패널의 설비용량과 입력 단�
   assert.equal(calculateRough({ ...input, roofAreaM2: 0 }, climate).installationCostKrw, 0);
   assert.equal(calculateRough({ ...input, installationUnitCostKrw: -1 }, climate).installationCostKrw, undefined);
   assert.match(buildCsv(rough), /예상 설치공사비\(원, 보조금 차감 전\)",34200000/);
+});
+
+test('서울 GIS는 같은 필지의 여러 동을 외곽으로 구분하고 중정은 제외한다', async () => {
+  const { matchSeoulBuilding } = await import('./seoul-buildings.mjs');
+  const ring = (x, y, size) => [[x, y], [x + size, y], [x + size, y + size], [x, y + size]];
+  const parcel = '1171010100100010000';
+  const x = 127100000, y = 37510000;
+  const first = ['first', parcel, '첫 건물', '', '', '', 10, 3, null, null, null, '', '11710', '20260710',
+    [ring(x, y, 100), ring(x + 20, y + 20, 60)]];
+  const second = ['second', parcel, '둘째 건물', '', '', '', 15, 5, null, null, null, '', '11710', '20260710',
+    [ring(x + 120, y, 100)]];
+  const lookup = (dx, dy) => matchSeoulBuilding([first, second], { lon: (x + dx) / 1e6, lat: (y + dy) / 1e6 });
+  assert.equal(lookup(10, 10).properties.bldrgst_pk, 'first');
+  assert.equal(lookup(150, 10).properties.bldrgst_pk, 'second');
+  assert.equal(lookup(50, 50), null);
 });

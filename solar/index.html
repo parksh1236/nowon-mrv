@@ -175,7 +175,7 @@
           </div>
         </form>
       </section>
-      <section class="panel map-panel" aria-label="노원구 지도">
+      <section class="panel map-panel" aria-label="서울시 지도">
         <div class="map-stage">
           <div id="map" aria-describedby="map-description"></div>
           <details class="shadow-controls" open>
@@ -209,7 +209,7 @@
           </div>
           <p id="building-preview-note" class="map-description"></p>
           <button id="show-vworld-facade" class="secondary" type="button">V월드 지도에서 입면 보기</button>
-          <h4>V월드 건물 정보</h4>
+          <h4 id="building-details-source">건물 정보</h4>
           <dl id="building-details"></dl>
           <h4>건축물대장 표제부</h4>
           <p id="building-title-status" class="map-description" role="status"></p>
@@ -234,6 +234,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=facade-preview-1"></script>
+    <script type="module" src="./app.mjs?v=seoul-gis-1"></script>
   </body>
 </html>

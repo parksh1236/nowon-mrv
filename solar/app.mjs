@@ -1,5 +1,6 @@
+import { lookupSeoulBuilding } from './seoul-buildings.mjs';
 import { buildingParcel, drawBuildingPreview, lookupBuildingTitle, positiveNumber } from './building-preview.mjs?v=facade-preview-1';
-import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs?v=installation-cost-1';
+import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideSeoul, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs?v=seoul-gis-1';
 
 const INSTALLATION_COST_REFERENCE = {
   unitCostKrw: 1_900_000,
@@ -7,7 +8,7 @@ const INSTALLATION_COST_REFERENCE = {
   url: 'https://www.nabo.go.kr/board/file/down.do?fid=33319180#page=631',
 };
 const PROJECT_KEY = 'nowon-solar-project-v1';
-const NOWON_OFFICE = { lat: 37.654351, lon: 127.056428 };
+const SEOUL_CENTER = { lat: 37.5666, lon: 126.9784 };
 const PRECISION = {
   fast: { gridM: 5, hours: [9, 12, 15] },
   balanced: { gridM: 3, hours: [8, 10, 12, 14, 16] },
@@ -518,7 +519,7 @@ function validPolygon(points) {
 
 export function setRoofPolygon(points) {
   if (!Array.isArray(points) || !validPolygon(points)) {
-    setStatus('지붕은 노원구 범위 안의 좌표 3개 이상으로 입력하세요.');
+    setStatus('지붕은 서울시 지도 범위 안의 좌표 3개 이상으로 입력하세요.');
     return false;
   }
   state.roof = points.map(({ lat, lon }) => ({ lat, lon }));
@@ -533,7 +534,7 @@ export function setRoofPolygon(points) {
 
 export function addExclusionPolygon(points) {
   if (!Array.isArray(points) || !validPolygon(points)) {
-    setStatus('제외 영역은 노원구 범위 안의 좌표 3개 이상으로 입력하세요.');
+    setStatus('제외 영역은 서울시 지도 범위 안의 좌표 3개 이상으로 입력하세요.');
     return false;
   }
   state.exclusions.push(points.map(({ lat, lon }) => ({ lat, lon })));
@@ -582,7 +583,7 @@ export function setBuildingMode(mode) {
 }
 
 function setDraftPoint(point) {
-  if (!drawing || !isInsideNowon([point])) return;
+  if (!drawing || !isInsideSeoul([point])) return;
   drawing.points.push(point);
   if (drawing.kind === 'roof') {
     state.roof = [...drawing.points];
@@ -629,7 +630,7 @@ async function handleMapClick(event) {
     const position = coordinateFromClick(event, getViewer(), window.Cesium, drawing?.kind === 'roof');
     if (!position) return;
     if (drawing?.kind === 'tree') {
-      if (!isInsideNowon([position])) return setStatus('가상 나무는 노원구 범위 안에 배치하세요.');
+      if (!isInsideSeoul([position])) return setStatus('가상 나무는 서울시 지도 범위 안에 배치하세요.');
       state.trees.push({
         id: `tree-${Date.now()}-${state.trees.length + 1}`,
         center: position,
@@ -767,7 +768,7 @@ export function buildingSummary(feature, position, label = '') {
     ['검색 위치', label || `${position.lat.toFixed(6)}, ${position.lon.toFixed(6)}`],
     ['건물명', propertyValue(properties, [/bld.*nm/i, /bul.*nm/i, /^name$/i]) ?? '자료 없음'],
     ['주용도', propertyValue(properties, [/main.*purps.*nm/i, /use.*nm/i, /用途/i]) ?? '자료 없음'],
-    ['지상층수', propertyValue(properties, [/grnd.*flr/i, /ground.*floor/i]) ?? '자료 없음'],
+    ['지상층수', propertyValue(properties, [/^grnd.*flr/i, /ground.*floor/i]) ?? '자료 없음'],
     ['지하층수', propertyValue(properties, [/ugrnd.*flr/i, /under.*floor/i]) ?? '자료 없음'],
     ['건물 높이', featureHeight(properties) == null ? '자료 없음' : `${featureHeight(properties)} m`],
     ['지붕 추정면적', metrics ? `${metrics.areaM2.toFixed(1)} ㎡` : '자료 없음'],
@@ -791,13 +792,24 @@ function renderBuildingInfo(feature, polygon, position, label, isCurrent) {
   const titleStatus = doc.querySelector('#building-title-status');
   const appendRows = (list, rows) => list.replaceChildren(...rows.flatMap(([name, value]) =>
     [element('dt', name), element('dd', String(value ?? '자료 없음'))]));
-  appendRows(buildingDetails, buildingSummary(feature, position, label));
+  const seoulGis = properties.source === 'seoul-building-gis';
+  doc.querySelector('#building-details-source').textContent = seoulGis ? '서울 건물 GIS 정보' : 'V월드 건물 정보';
+  const dateText = value => /^\d{8}$/.test(value ?? '') ? value.replace(/^(....)(..)(..)$/, '$1-$2-$3') : null;
+  const areaText = value => value == null ? null : `${value} ㎡`;
+  appendRows(buildingDetails, [
+    ...buildingSummary(feature, position, label),
+    ...(seoulGis ? [
+      ['동명', properties.dong_nm || null], ['구조', properties.structure || null],
+      ['건축면적', areaText(properties.area)], ['연면적', areaText(properties.total)],
+      ['사용승인일', dateText(properties.approval)], ['GIS 자료 기준일', dateText(properties.date)],
+    ] : []),
+  ]);
   titleDetails.replaceChildren();
 
   let angle = 0;
   let height = featureHeight(properties);
-  let floors = positiveNumber(propertyValue(properties, [/grnd.*flr/i, /ground.*floor/i]));
-  let heightSource = height ? 'V월드 높이' : '';
+  let floors = positiveNumber(propertyValue(properties, [/^grnd.*flr/i, /ground.*floor/i]));
+  let heightSource = height ? (seoulGis ? '서울 GIS 높이' : 'V월드 높이') : '';
   const renderPreview = () => {
     const modelHeight = height ?? (floors ? floors * 3 : null);
     preview.style.display = modelHeight ? '' : 'none';
@@ -995,13 +1007,15 @@ export async function selectExistingBuilding(position, { label = '' } = {}) {
   }
   const generation = buildingSelectionGeneration;
   const isCurrent = () => generation === buildingSelectionGeneration;
-  if (!vworldKey() || !isInsideNowon([position])) {
-    manualFallback('지도 API 키 또는 선택 좌표를 확인하세요.');
+  if (!isInsideSeoul([position])) {
+    setStatus('서울시 지도 범위 안에서 건물을 선택하세요.');
     return false;
   }
   focusBuildingOnMap(position, label || '선택 건물');
   try {
-    const feature = firstFeature(await loadJsonp(buildingLookupUrl(position, vworldKey())));
+    const gisFeature = await lookupSeoulBuilding(position).catch(() => null);
+    if (!isCurrent()) return false;
+    const feature = gisFeature ?? (vworldKey() ? firstFeature(await loadJsonp(buildingLookupUrl(position, vworldKey()))) : null);
     if (!isCurrent()) return false;
     const polygon = polygonFromGeometry(feature?.geometry);
     if (!polygon) throw new Error('building geometry missing');
@@ -1140,7 +1154,7 @@ export async function initMap() {
     const options = {
       mapId: 'map',
       initPosition: new vw.CameraPosition(
-        new vw.CoordZ(NOWON_OFFICE.lon, NOWON_OFFICE.lat, 1800),
+        new vw.CoordZ(SEOUL_CENTER.lon, SEOUL_CENTER.lat, 12000),
         new vw.Direction(0, -70, 0),
       ),
       logo: true,
@@ -1156,7 +1170,7 @@ export async function initMap() {
     wireMapViewSync(mapInstance);
     renderMapShapes();
     if (shadowToggle?.checked) toggleShadowSimulation(true);
-    setStatus(`${window.SOLAR_CONFIG?.allowedRegion ?? '노원구'} VWorld 지도를 불러왔습니다.`);
+    setStatus(`서울시 V월드 지도를 불러왔습니다.`);
     return mapInstance;
   } catch (error) {
     setStatus(`${error.message} 좌표 입력으로 개략 분석을 계속할 수 있습니다.`);
@@ -1384,7 +1398,7 @@ export function calculationBasisRows(result = {}) {
     ['설치공사비 산식', rough.installationCostKrw == null ? '유효한 설치공사 단가를 입력하세요.' : `${format(rough.capacityKwp, 3)} kWp × ${format(rough.installationUnitCostKrw, 0)} 원/kWp = ${format(rough.installationCostKrw, 0)} 원 (보조금 차감 전)`],
     ['발전량 공식', '설비용량 × 일평균 일사량 × 일수 × 경사·방위 보정 × (1 - 시스템 손실률)'],
     ['적용 손실·방향', `시스템 손실 ${format((input.systemLossRatio || 0) * 100)}%, 경사 ${format(input.tiltDeg || 0)}°, 방위 ${format(input.azimuthDeg || 0)}°`],
-    ['기상자료', climate.source || '기후자료 미확인'],
+    ['기상자료', climate.source ? `${climate.source}${climate.region ? ` · ${climate.region} 기준값을 서울 전역에 공통 적용` : ''}` : '기후자료 미확인'],
     ['그림자 반영', detailed ? `3D 광선분석 음영 손실 ${format(detailed.shadingLossRatio * 100)}%` : '정밀 추정 실행 시 3D 건물 음영을 반영'],
     ['가상 나무 음영', treeCount ? `${treeCount}개 · 불투명 원기둥으로 단순화` : '가상 나무 없음'],
     ...(impact ? [['나무 영향', `${format(impact.lossKwh)} kWh/년 감소 (${format(impact.lossRatio * 100)}%)`]] : []),
@@ -1524,7 +1538,7 @@ roofCoordinates.addEventListener('input', () => {
   const points = parsePoints(roofCoordinates.value);
   const error = points === null
     ? '좌표는 한 줄에 lat, lon 형식으로 입력하세요.'
-    : !validPolygon(points) ? '지붕은 노원구 범위 안의 좌표 3개 이상으로 입력하세요.' : '';
+    : !validPolygon(points) ? '지붕은 서울시 지도 범위 안의 좌표 3개 이상으로 입력하세요.' : '';
   if (error) {
     state.roof = [];
     invalidateRoof();
