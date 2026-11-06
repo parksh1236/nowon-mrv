@@ -30,7 +30,7 @@ test('invalid trees are removed without rejecting valid trees', () => {
   assert.deepEqual(normalizeTrees([
     valid,
     { ...valid, id: 'too-tall', heightM: 51 },
-    { ...valid, id: 'outside', center: { lat: 36, lon: 127.056 } },
+    { ...valid, id: 'outside', center: { lat: 32, lon: 127.056 } },
   ]), [valid]);
 });
 
@@ -84,14 +84,18 @@ test('project deserialization rejects malformed JSON without throwing', () => {
   assert.equal(deserializeProject('{'), null);
 });
 
-test('서울·경기 지도 범위에서 건물, 가상 지붕과 나무를 허용한다', () => {
+test('전국 지도 범위에서 건물, 가상 지붕과 나무를 허용한다', () => {
   assert.equal(isInsideSupportedMap([{ lat: 37.65, lon: 127.05 }]), true);
   assert.equal(isInsideSupportedMap([{ lat: 37.51, lon: 127.10 }]), true);
   const suwon = { lat: 37.2636, lon: 127.0286 };
   assert.equal(isInsideSupportedMap([suwon, { lat: 38.20, lon: 127.05 }]), true);
+  assert.equal(isInsideSupportedMap([
+    { lat: 35.18, lon: 129.08 }, { lat: 33.11, lon: 126.27 },
+    { lat: 37.24, lon: 131.87 }, { lat: 37.97, lon: 124.63 },
+  ]), true);
   assert.equal(isValidPolygon([suwon, { ...suwon, lat: 37.2637 }, { ...suwon, lon: 127.0287 }]), true);
   assert.equal(normalizeTrees([{ id: 'suwon', center: suwon, heightM: 8, crownDiameterM: 4 }]).length, 1);
-  assert.equal(isInsideSupportedMap([{ lat: 36, lon: 127.05 }]), false);
+  assert.equal(isInsideSupportedMap([{ lat: 32, lon: 127.05 }]), false);
   assert.equal(isInsideSupportedMap([null]), false);
 });
 

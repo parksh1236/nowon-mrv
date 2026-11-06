@@ -29,7 +29,8 @@ export function deserializeProject(value) {
 
 export function isInsideSupportedMap(points) {
   return Array.isArray(points) && points.length > 0 && points.every((point) => (
-    Number.isFinite(point?.lat) && Number.isFinite(point?.lon) && point.lat >= 36.85 && point.lat <= 38.35 && point.lon >= 126.30 && point.lon <= 127.90
+    Number.isFinite(point?.lat) && Number.isFinite(point?.lon)
+    && point.lat >= 32.9 && point.lat <= 38.7 && point.lon >= 124.5 && point.lon <= 132
   ));
 }
 
