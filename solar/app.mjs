@@ -8,7 +8,7 @@ const INSTALLATION_COST_REFERENCE = {
   url: 'https://www.nabo.go.kr/board/file/down.do?fid=33319180#page=631',
 };
 const PROJECT_KEY = 'nowon-solar-project-v1';
-const SEOUL_CENTER = { lat: 37.5666, lon: 126.9784 };
+const NOWON_OFFICE = { lat: 37.654351, lon: 127.056428 };
 const PRECISION = {
   fast: { gridM: 5, hours: [9, 12, 15] },
   balanced: { gridM: 3, hours: [8, 10, 12, 14, 16] },
@@ -1154,7 +1154,7 @@ export async function initMap() {
     const options = {
       mapId: 'map',
       initPosition: new vw.CameraPosition(
-        new vw.CoordZ(SEOUL_CENTER.lon, SEOUL_CENTER.lat, 12000),
+        new vw.CoordZ(NOWON_OFFICE.lon, NOWON_OFFICE.lat, 1800),
         new vw.Direction(0, -70, 0),
       ),
       logo: true,
