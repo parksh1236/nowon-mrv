@@ -8,7 +8,7 @@
       :root { color-scheme: light; font-family: system-ui, sans-serif; color: #17251d; background: #f4f7f1; }
       * { box-sizing: border-box; } body { margin: 0; }
       h1, h2, p { margin: 0; }
-      main { display: grid; grid-template-columns: minmax(19rem, .8fr) minmax(43.2rem, 2.16fr) minmax(22rem, 1fr); grid-template-areas: "input map results"; align-items: start; gap: 1rem; padding: 1rem; max-width: 2400px; margin: auto; }
+      main { display: grid; grid-template-columns: minmax(19rem, .8fr) minmax(64.8rem, 3.24fr) minmax(22rem, 1fr); grid-template-areas: "input map results"; align-items: start; gap: 1rem; padding: 1rem; max-width: 2400px; margin: auto; }
       .input-panel { grid-area: input; } .map-panel { grid-area: map; } .results-panel { grid-area: results; }
       .results-panel { overflow-x: auto; }
       section, form { min-width: 0; } .panel { padding: 1rem; border: 1px solid #d5dfd3; border-radius: .75rem; background: #fff; box-shadow: 0 1px 2px #17251d10; }
@@ -24,17 +24,16 @@
       .button-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .secondary { background: #35614b; } .geometry-list { margin: .5rem 0 0; padding-left: 1.25rem; }
       .map-stage { position: relative; }
-      #map { height: 43.5rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
+      #map { height: 52.2rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
       #status { margin-top: .75rem; padding: .65rem; border-left: 4px solid #167044; background: #edf7ed; line-height: 1.45; }
-      .building-info { box-sizing: border-box; width: min(560px, 94vw); max-height: 88dvh; padding: 1.2rem; border: 1px solid #c9d8c8; border-radius: .85rem; background: #f7fbf6; color: #203b30; }
-      .building-info::backdrop { background: #102c2266; }
-      .building-header, .preview-controls { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+      .building-info { grid-area: results; background: #f7fbf6; color: #203b30; }
+      .preview-controls { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
       .building-info button { width: auto; margin: 0; padding: .45rem .75rem; }
       .building-info h4 { margin: 1rem 0 .4rem; }
       .building-preview { display: block; width: 100%; max-height: 29dvh; margin: .6rem 0; background: #edf4eb; border-radius: .6rem; }
       .preview-controls { justify-content: center; }
       .preview-controls[hidden], .map-legend[hidden] { display: none; }
-      .building-info h3 { margin: 0 0 .55rem; font-size: 1rem; }
+      .building-info h2 { margin: 0 0 .55rem; font-size: 1.15rem; }
       .building-info dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem .7rem; margin: 0; font-size: .88rem; }
       .building-info dt { color: #4d6555; font-weight: 700; } .building-info dd { margin: 0; overflow-wrap: anywhere; }
       .map-legend { display: flex; flex-wrap: wrap; gap: .45rem 1rem; margin: .75rem 0 0; font-size: .84rem; color: #365143; }
@@ -72,8 +71,16 @@
       .calculation-basis dt { font-weight: 700; color: #365143; }
       .calculation-basis dd { margin: 0; overflow-wrap: anywhere; }
       .basis-note { margin-top: .7rem; font-size: .8rem; line-height: 1.45; color: #6d6247; }
-      @media (max-width: 1550px) { main { grid-template-columns: minmax(19rem, .7fr) minmax(43.2rem, 2.16fr); grid-template-areas: "input map" "results results"; } }
-      @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "input" "map" "results"; } #map { height: 33rem; } }
+      @media (max-width: 1750px) {
+        main { grid-template-columns: minmax(18rem, .6fr) minmax(0, 3.24fr); grid-template-areas: "input map" "results results"; }
+        main[data-task="information"] { grid-template-columns: minmax(0, 3.24fr) minmax(17rem, 1fr); grid-template-areas: "input input" "map results"; }
+        main[data-task="information"] #analysis-form { display: flex; gap: 1rem; flex-wrap: wrap; align-items: start; }
+        main[data-task="information"] #analysis-form > fieldset { margin-bottom: 0; }
+      }
+      @media (max-width: 900px) {
+        main, main[data-task="information"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "input" "map" "results"; }
+        #map { height: 39.6rem; }
+      }
       @media (max-width: 420px) { .fields, .cards { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -183,11 +190,11 @@
         </div>
         <p id="map-description" class="map-description">지도를 조작할 수 없는 경우에도 왼쪽 좌표와 면적을 입력하여 같은 개략 분석을 실행할 수 있습니다.</p>
         <p id="status" role="status">VWorld 지도를 준비합니다.</p>
-        <dialog id="building-info" class="building-info" aria-labelledby="building-info-heading">
-          <div class="building-header">
-            <h3 id="building-info-heading">선택 건물 정보</h3>
-            <form method="dialog"><button class="secondary" type="submit" autofocus>닫기</button></form>
-          </div>
+      </section>
+      <aside id="building-info-panel" class="panel building-info" aria-labelledby="building-info-heading" hidden>
+        <h2 id="building-info-heading">선택 건물 정보</h2>
+        <p id="building-info-empty" class="map-description">주소를 검색하거나 지도에서 건물을 선택하면 여기에 정보가 표시됩니다.</p>
+        <div id="building-info" hidden>
           <svg id="building-preview" class="building-preview" viewBox="0 0 380 212" role="img" aria-label="선택 건물의 입체 모형"></svg>
           <div id="preview-controls" class="preview-controls">
             <button id="preview-left" class="secondary" type="button">왼쪽으로 회전</button>
@@ -199,8 +206,8 @@
           <h4>건축물대장 표제부</h4>
           <p id="building-title-status" class="map-description" role="status"></p>
           <dl id="building-title-details"></dl>
-        </dialog>
-      </section>
+        </div>
+      </aside>
       <section id="simulation-results" class="panel results-panel" aria-label="분석 결과">
         <h2>분석 결과</h2>
         <div id="results" aria-live="polite"><div id="monthly-chart" aria-label="월별 예상 발전량"></div></div>
@@ -219,6 +226,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=solar-task-2"></script>
+    <script type="module" src="./app.mjs?v=solar-layout-3"></script>
   </body>
 </html>

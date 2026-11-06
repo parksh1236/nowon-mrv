@@ -144,6 +144,8 @@ function manualFallback(detail = '') {
 
 function updateModeTools() {
   const informationOnly = solarTask === 'information';
+  document.querySelector('main').dataset.task = solarTask;
+  document.querySelector('#building-info-panel').hidden = !informationOnly;
   document.querySelector('#simulation-inputs').hidden = informationOnly;
   document.querySelector('#simulation-results').hidden = informationOnly;
   document.querySelector('#existing-tools').hidden = !informationOnly && state.mode !== 'existing';
@@ -559,7 +561,7 @@ export function setBuildingMode(mode) {
   state.mode = mode;
   selectingExistingBuilding = false;
   buildingSelectionGeneration += 1;
-  buildingInfo?.close();
+  clearBuildingInfo();
   drawing = undefined;
   state.roof = [];
   state.exclusions = [];
@@ -798,7 +800,8 @@ function renderBuildingInfo(feature, polygon, position, label, isCurrent) {
     renderPreview();
   };
   renderPreview();
-  if (!buildingInfo.open) buildingInfo.showModal();
+  buildingInfo.hidden = false;
+  doc.querySelector('#building-info-empty').hidden = true;
 
   const parcel = buildingParcel(properties);
   const key = typeof DATA_GO_KR_KEY === 'string' ? DATA_GO_KR_KEY : '';
@@ -887,6 +890,12 @@ export function resetBuildingGeometry(target) {
   target.heightM = 0;
 }
 
+function clearBuildingInfo() {
+  if (!buildingInfo) return;
+  buildingInfo.hidden = true;
+  doc.querySelector('#building-info-empty').hidden = false;
+}
+
 function clearBuildingSelection() {
   drawing = undefined;
   resetBuildingGeometry(state);
@@ -898,7 +907,7 @@ function clearBuildingSelection() {
   renderMapShapes();
   markDirty();
   buildingSelectionGeneration += 1;
-  buildingInfo?.close();
+  clearBuildingInfo();
 }
 
 export function resetAnalysis() {
@@ -932,7 +941,7 @@ export function resetAnalysis() {
   setAnalysisBusy(false);
   precisionOptions.hidden = true;
   buildingSelectionGeneration += 1;
-  buildingInfo?.close();
+  clearBuildingInfo();
   if (shadowToggle?.checked) {
     shadowToggle.checked = false;
     toggleShadowSimulation(false);
@@ -953,7 +962,7 @@ export async function selectExistingBuilding(position, { label = '' } = {}) {
   const informationOnly = solarTask === 'information';
   if (informationOnly) {
     buildingSelectionGeneration += 1;
-    buildingInfo?.close();
+    clearBuildingInfo();
   } else {
     clearBuildingSelection();
   }
@@ -1460,7 +1469,7 @@ form.querySelectorAll('input[name="solarTask"]').forEach((control) => control.ad
   solarTask = control.value;
   selectingExistingBuilding = false;
   buildingSelectionGeneration += 1;
-  buildingInfo?.close();
+  clearBuildingInfo();
   drawing = undefined;
   updateModeTools();
   renderMapShapes();
