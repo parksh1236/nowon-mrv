@@ -2,6 +2,7 @@
 import argparse
 from collections import defaultdict
 import json
+from math import floor
 from pathlib import Path
 from struct import unpack, unpack_from
 
@@ -47,9 +48,15 @@ def export(source, destination):
             starts = unpack_from(f"<{part_count}i", shape, 44)
             pairs = list(unpack_from("<2d", shape, 44 + 4 * part_count + 16 * i) for i in range(point_count))
             lon, lat = transformer.transform(*zip(*pairs))
-            points = list(zip((round(x * 1_000_000) for x in lon), (round(y * 1_000_000) for y in lat)))
-            rings = [points[a:b-1] for a, b in zip(starts, (*starts[1:], point_count))]
-            rings = [ring for ring in rings if len(set(ring)) >= 3]
+            precise = list(zip((x * 1_000_000 for x in lon), (y * 1_000_000 for y in lat)))
+            points = [(round(x), round(y)) for x, y in precise]
+            rings = []
+            for a, b in zip(starts, (*starts[1:], point_count)):
+                ring = points[a:b-1]
+                if len(set(ring)) < 3:
+                    ring = precise[a:b-1]
+                if len(set(ring)) >= 3:
+                    rings.append(ring)
             if not rings:
                 continue
             record = [
@@ -57,8 +64,11 @@ def export(source, destination):
                 number("A31"), number("A32"), number("A33"), number("A23"), number("A24"),
                 value("A35"), value("A39"), value("A38"), rings,
             ]
-            for x in range(min(p[0] for p in points) // 10000, max(p[0] for p in points) // 10000 + 1):
-                for y in range(min(p[1] for p in points) // 10000, max(p[1] for p in points) // 10000 + 1):
+            geometry = points + [point for ring in rings for point in ring if isinstance(point[0], float)]
+            min_x, max_x = (floor(fn(p[0] for p in geometry) / 10000) for fn in (min, max))
+            min_y, max_y = (floor(fn(p[1] for p in geometry) / 10000) for fn in (min, max))
+            for x in range(min_x, max_x + 1):
+                for y in range(min_y, max_y + 1):
                     tiles[x, y].append(record)
             records += 1
     destination.mkdir(parents=True, exist_ok=True)
