@@ -1,4 +1,4 @@
-import { buildingParcel, drawBuildingPreview, lookupBuildingTitle, positiveNumber } from './building-preview.mjs';
+import { buildingParcel, drawBuildingPreview, lookupBuildingTitle, positiveNumber } from './building-preview.mjs?v=facade-preview-1';
 import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs?v=installation-cost-1';
 
 const INSTALLATION_COST_REFERENCE = {
@@ -52,6 +52,7 @@ let selectingExistingBuilding = false;
 let solarTask = 'simulation';
 let buildingSelectionGeneration = 0;
 let renderBuildingAngle;
+let showBuildingFacade;
 let selectedBuildingMarker;
 let mapClickHandler;
 let analysisKmlUrl;
@@ -780,6 +781,12 @@ function renderBuildingInfo(feature, polygon, position, label, isCurrent) {
   const preview = doc.querySelector('#building-preview');
   const previewNote = doc.querySelector('#building-preview-note');
   const controls = doc.querySelector('#preview-controls');
+  const facadeButton = doc.querySelector('#show-vworld-facade');
+  const facadeCenter = polygonCenter(polygon);
+  const footprintRadius = Math.max(...polygon.map(point => {
+    const { east, north } = localOffset(facadeCenter, point);
+    return Math.hypot(east, north);
+  }));
   const titleDetails = doc.querySelector('#building-title-details');
   const titleStatus = doc.querySelector('#building-title-status');
   const appendRows = (list, rows) => list.replaceChildren(...rows.flatMap(([name, value]) =>
@@ -796,9 +803,24 @@ function renderBuildingInfo(feature, polygon, position, label, isCurrent) {
     preview.style.display = modelHeight ? '' : 'none';
     controls.hidden = !modelHeight;
     previewNote.textContent = modelHeight
-      ? `${heightSource || '지상층수 × 3 m 추정'} ${Number(modelHeight.toFixed(1))} m · 평지붕, 창·출입문 위치는 예시입니다.`
+      ? `${heightSource || '지상층수 × 3 m 추정'} ${Number(modelHeight.toFixed(1))} m · 외곽과 층수 기반 추정 입면 · 창틀·창턱·출입구 위치는 예시입니다.`
       : '높이와 지상층수 자료가 없어 입체 모형을 표시할 수 없습니다.';
-    if (modelHeight) drawBuildingPreview(preview, polygon, modelHeight, floors, angle);
+    const heading = modelHeight ? drawBuildingPreview(preview, polygon, modelHeight, floors, angle) : Math.PI;
+    const viewer = getViewer();
+    const Cesium = window.Cesium;
+    facadeButton.disabled = !viewer?.camera?.flyToBoundingSphere || !Cesium?.BoundingSphere || !Cesium?.HeadingPitchRange;
+    showBuildingFacade = () => {
+      if (facadeButton.disabled || !isCurrent()) return;
+      const ground = viewer.scene?.globe?.getHeight?.(Cesium.Cartographic.fromDegrees(facadeCenter.lon, facadeCenter.lat)) ?? 0;
+      const halfHeight = (modelHeight ?? 12) / 2;
+      const center = Cesium.Cartesian3.fromDegrees(facadeCenter.lon, facadeCenter.lat, ground + halfHeight);
+      const radius = Math.hypot(footprintRadius, halfHeight);
+      viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, radius), {
+        offset: new Cesium.HeadingPitchRange(heading + Math.PI, -0.22, Math.max(35, radius * 3.2)),
+        duration: 1.1,
+      });
+      setStatus('V월드 지도에서 선택 건물의 입면을 표시합니다. 세부 표현은 건물별 지도 자료에 따라 달라집니다.');
+    };
   };
   renderBuildingAngle = (step) => {
     angle += step;
@@ -1484,6 +1506,7 @@ form.querySelectorAll('input[name="analysisMode"]').forEach((control) => control
 form.addEventListener('input', (event) => {
   if (!['buildingMode', 'solarTask'].includes(event.target.name) && ![roofCoordinates, exclusionCoordinates, heightInput].includes(event.target)) markDirty();
 });
+doc.querySelector('#show-vworld-facade')?.addEventListener('click', () => showBuildingFacade?.());
 doc.querySelector('#preview-left')?.addEventListener('click', () => renderBuildingAngle?.(-Math.PI / 4));
 doc.querySelector('#preview-right')?.addEventListener('click', () => renderBuildingAngle?.(Math.PI / 4));
 form.querySelectorAll('input[name="solarTask"]').forEach((control) => control.addEventListener('change', () => {

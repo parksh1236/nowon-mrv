@@ -208,6 +208,7 @@
             <button id="preview-right" class="secondary" type="button">오른쪽으로 회전</button>
           </div>
           <p id="building-preview-note" class="map-description"></p>
+          <button id="show-vworld-facade" class="secondary" type="button">V월드 지도에서 입면 보기</button>
           <h4>V월드 건물 정보</h4>
           <dl id="building-details"></dl>
           <h4>건축물대장 표제부</h4>
@@ -233,6 +234,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=installation-cost-basis-2"></script>
+    <script type="module" src="./app.mjs?v=facade-preview-1"></script>
   </body>
 </html>

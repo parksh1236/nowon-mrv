@@ -1091,7 +1091,7 @@ test('건축물대장 조회는 산지번을 보존하고 복수 동을 임의 �
   assert.deepEqual((await lookupBuildingTitle(parcel, { dong_nm: '101 동' }, 'test+/=', fetcher)).row, first);
 });
 
-test('입체 미리보기는 회전해도 출입문을 다른 벽에 다시 만들지 않는다', async () => {
+test('입체 미리보기는 좌우를 반전하지 않고 회전해도 출입문 위치를 유지한다', async () => {
   const { drawBuildingPreview } = await import('./building-preview.mjs');
   const svg = {
     shapes: [],
@@ -1101,12 +1101,20 @@ test('입체 미리보기는 회전해도 출입문을 다른 벽에 다시 만�
   };
   const footprint = [
     { lat: 37.654, lon: 127.056 }, { lat: 37.654, lon: 127.0562 },
-    { lat: 37.6541, lon: 127.0562 }, { lat: 37.6541, lon: 127.056 },
+    { lat: 37.65405, lon: 127.0562 }, { lat: 37.6541, lon: 127.05612 },
+    { lat: 37.6541, lon: 127.056 },
   ];
   drawBuildingPreview(svg, footprint, 9, 3, 0);
   assert.ok(svg.shapes.some(shape => shape.fill === '#45748a'));
   assert.equal(svg.shapes.filter(shape => shape.fill === '#324d46').length, 1);
   assert.ok(svg.shapes.every(shape => !/NaN|Infinity/.test(shape.points)));
+  assert.ok(svg.shapes.some(shape => shape.fill === '#b7c8cc'));
+  const roof = svg.shapes.at(-1).points.split(' ').map(pair => pair.split(',').map(Number));
+  const signedArea = roof.reduce((sum, [x, y], i) => {
+    const [nextX, nextY] = roof[(i + 1) % roof.length];
+    return sum + x * nextY - y * nextX;
+  }, 0);
+  assert.ok(signedArea < 0, '북쪽 위 지도의 반시계 외곽과 같은 화면 방향을 유지해야 합니다.');
   drawBuildingPreview(svg, footprint, 9, 3, Math.PI);
   assert.ok(svg.shapes.some(shape => shape.fill === '#45748a'));
   assert.equal(svg.shapes.filter(shape => shape.fill === '#324d46').length, 0);

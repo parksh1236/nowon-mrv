@@ -63,7 +63,8 @@ export function drawBuildingPreview(svg, footprint, height, floorCount, angle) {
   const heading = Math.atan2(entrance.b[1] - entrance.a[1], entrance.a[0] - entrance.b[0]) + 0.55 + angle;
   const c = Math.cos(heading), s = Math.sin(heading);
   const depth = ([x, y]) => x * s + y * c;
-  const project = ([x, y], z) => [x * c - y * s, depth([x, y]) * 0.46 - z * 0.89];
+  // The camera faces back toward the footprint from the positive depth axis.
+  const project = ([x, y], z) => [y * s - x * c, depth([x, y]) * 0.46 - z * 0.89];
   const base = points.map(point => project(point, 0));
   const roof = points.map(point => project(point, height));
   const bounds = [...base, ...roof];
@@ -82,7 +83,7 @@ export function drawBuildingPreview(svg, footprint, height, floorCount, angle) {
   }
 
   svg.replaceChildren();
-  const walls = edges.filter(({ i }) => base[(i + 1) % points.length][0] < base[i][0])
+  const walls = edges.filter(({ i }) => base[(i + 1) % points.length][0] > base[i][0])
     .sort((a, b) => depth(a.a) + depth(a.b) - depth(b.a) - depth(b.b));
   const floors = Math.min(60, Math.max(1, Math.round(floorCount || height / 3)));
   const story = height / floors;
@@ -92,19 +93,38 @@ export function drawBuildingPreview(svg, footprint, height, floorCount, angle) {
     shape([base[i], base[next], roof[next], roof[i]], i % 2 ? '#b9c9ba' : '#e1e9dc', '#758a7c');
     if (width < 1) continue;
     const face = (t, z) => project([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], z);
-    const panel = (from, to, bottom, upper, color) =>
-      shape([face(from, bottom), face(to, bottom), face(to, upper), face(from, upper)], color);
-    const columns = Math.min(24, Math.max(1, Math.floor(width / 3)));
+    const panel = (from, to, bottom, upper, color, stroke) =>
+      shape([face(from, bottom), face(to, bottom), face(to, upper), face(from, upper)], color, stroke);
+    const columns = Math.min(24, Math.max(1, Math.floor(width / (wall === entrance ? 2.8 : 3.5))));
     const doorColumn = Math.floor(columns / 2);
+    const bay = (column, offset) => (column + offset) / columns;
+    const glazed = (from, to, bottom, upper, color, dividerHeight) => {
+      panel(from, to, bottom, upper, color, '#344f58');
+      const middle = (from + to) / 2;
+      const frame = (to - from) * 0.025;
+      panel(middle - frame, middle + frame, bottom, upper, '#b7c8cc');
+      if (dividerHeight) {
+        const trim = (upper - bottom) * 0.02;
+        panel(from, to, dividerHeight - trim, dividerHeight + trim, '#b7c8cc');
+      }
+    };
     for (let floor = 0; floor < floors; floor += 1) {
+      const level = story * floor;
+      if (floor) panel(0, 1, level, level + story * 0.04, '#9baca0');
       for (let column = 0; column < columns; column += 1) {
         if (wall === entrance && floor === 0 && column === doorColumn) {
-          panel((column + 0.25) / columns, (column + 0.75) / columns, 0, story * 0.75, '#324d46');
+          panel(bay(column, 0.1), bay(column, 0.9), 0, story * 0.91, '#758a7c');
+          glazed(bay(column, 0.19), bay(column, 0.81), 0, story * 0.84, '#324d46', story * 0.65);
         } else {
-          panel((column + 0.2) / columns, (column + 0.8) / columns, story * (floor + 0.3), story * (floor + 0.8), '#45748a');
+          const inset = wall === entrance ? 0.16 : 0.27;
+          const bottom = level + story * 0.31;
+          const top = level + story * 0.8;
+          glazed(bay(column, inset), bay(column, 1 - inset), bottom, top, '#45748a', top - story * 0.11);
+          panel(bay(column, inset - 0.04), bay(column, 1 - inset + 0.04), bottom - story * 0.04, bottom, '#edf3ee');
         }
       }
     }
   }
   shape(roof, '#dcebdd', '#758a7c');
+  return heading;
 }
