@@ -1196,3 +1196,31 @@ test('서울 GIS는 같은 필지의 여러 동을 외곽으로 구분하고 중
   assert.equal(lookup(150, 10).properties.bldrgst_pk, 'second');
   assert.equal(lookup(50, 50), null);
 });
+
+test('선택한 좌표의 월별 NASA 일사량을 쓰고 결측 응답은 노원구 기준값으로 대체한다', async () => {
+  const { loadClimateForLocation } = await import(`./app.mjs?location-climate=${Date.now()}`);
+  const parameter = 'ALLSKY_SFC_SW_DWN';
+  const monthly = Object.fromEntries('JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(' ').map((name, i) => [name, 2 + i / 10]));
+  const calls = [];
+  const fetcher = async url => {
+    calls.push(String(url));
+    if (typeof url === 'string') return { ok: true, json: async () => ({ region: '노원구', months: [] }) };
+    assert.equal(url.searchParams.get('longitude'), '129.0750');
+    const values = url.searchParams.get('latitude') === '35.1800' ? monthly : { ...monthly, JAN: -999 };
+    return { ok: true, json: async () => ({
+      header: { range: 'Climatologies (January 2001 - December 2025)' },
+      parameters: { [parameter]: { units: 'kW-hr/m^2/day' } },
+      properties: { parameter: { [parameter]: values } },
+    }) };
+  };
+  const position = { lat: 35.18, lon: 129.075 };
+  const climate = await loadClimateForLocation(position, fetcher);
+  assert.equal(climate.period, '2001–2025');
+  assert.equal(climate.months.length, 12);
+  assert.deepEqual(climate.months[1], { month: 2, days: 28, dailyGhiKwhM2: 2.1 });
+  assert.equal(await loadClimateForLocation(position, fetcher), climate);
+  assert.equal(calls.length, 1);
+  const fallback = await loadClimateForLocation({ ...position, lat: 35.2 }, fetcher);
+  assert.equal(fallback.region, '노원구');
+  assert.match(fallback.fallbackReason, /조회 실패/);
+});

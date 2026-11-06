@@ -1,6 +1,6 @@
 import { lookupSeoulBuilding } from './seoul-buildings.mjs';
 import { buildingParcel, drawBuildingPreview, lookupBuildingTitle, positiveNumber } from './building-preview.mjs?v=facade-preview-1';
-import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideSupportedMap, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs?v=national-map-1';
+import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideSupportedMap, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs?v=local-climate-1';
 
 const INSTALLATION_COST_REFERENCE = {
   unitCostKrw: 1_900_000,
@@ -43,6 +43,9 @@ const treeInputError = doc?.querySelector('#tree-input-error');
 const treeList = doc?.querySelector('#tree-list');
 const updateTreeButton = doc?.querySelector('#update-tree');
 let climatePromise;
+const locationClimate = new Map();
+const POWER_PARAMETER = 'ALLSKY_SFC_SW_DWN';
+const POWER_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 let jsonpSequence = 0;
 let analysisGeneration = 0;
 let busyGeneration = 0;
@@ -1200,6 +1203,46 @@ export async function loadClimate(fetcher = fetch) {
   return climatePromise;
 }
 
+export async function loadClimateForLocation(position, fetcher = fetch) {
+  if (!position) return { ...await loadClimate(fetcher), fallbackReason: '선택 위치 없음' };
+  const latitude = position.lat.toFixed(4);
+  const longitude = position.lon.toFixed(4);
+  const key = `${latitude},${longitude}`;
+  if (!locationClimate.has(key)) {
+    const url = new URL('https://power.larc.nasa.gov/api/temporal/climatology/point');
+    url.search = new URLSearchParams({ parameters: POWER_PARAMETER, community: 'RE', longitude, latitude, format: 'JSON' });
+    const request = (async () => {
+      const response = await fetcher(url, { signal: AbortSignal.timeout(6500) });
+      if (!response.ok) throw new Error('NASA POWER 일사량 조회 실패');
+      const data = await response.json();
+      const parameter = data.properties?.parameter?.[POWER_PARAMETER];
+      if (data.parameters?.[POWER_PARAMETER]?.units !== 'kW-hr/m^2/day') throw new Error('일사량 단위 확인 필요');
+      const months = POWER_MONTHS.map((name, i) => {
+        const dailyGhiKwhM2 = parameter?.[name];
+        if (!Number.isFinite(dailyGhiKwhM2) || dailyGhiKwhM2 <= 0) throw new Error('월별 일사량 누락');
+        return { month: i + 1, days: new Date(Date.UTC(2025, i + 1, 0)).getUTCDate(), dailyGhiKwhM2 };
+      });
+      const years = data.header?.range?.match(/\b\d{4}\b/g);
+      return {
+        latitude: Number(latitude), longitude: Number(longitude), months,
+        source: 'NASA POWER 월평균 일사량',
+        sourceUrl: url.href,
+        period: years?.length === 2 ? years.join('–') : data.header?.range,
+        diffuseFraction: 0.2,
+      };
+    })();
+    locationClimate.set(key, request);
+    if (locationClimate.size > 24) locationClimate.delete(locationClimate.keys().next().value);
+  }
+  const request = locationClimate.get(key);
+  try {
+    return await request;
+  } catch {
+    if (locationClimate.get(key) === request) locationClimate.delete(key);
+    return { ...await loadClimate(fetcher), fallbackReason: '선택 위치의 NASA POWER 일사량 조회 실패' };
+  }
+}
+
 function setAnalysisBusy(busy) {
   detailedMode.disabled = busy;
   precisionSelect.disabled = busy;
@@ -1326,7 +1369,7 @@ export async function runAnalysis(mode) {
   if (detailed) announceDetailedStart();
   try {
     const input = readForm();
-    const climate = await loadClimate();
+    const climate = await loadClimateForLocation(validPolygon(state.roof) ? polygonCenter(state.roof) : null);
     if (generation !== analysisGeneration) return null;
     const rough = calculateRough(input, climate);
     const quality = precisionSelect.value;
@@ -1398,7 +1441,11 @@ export function calculationBasisRows(result = {}) {
     ['설치공사비 산식', rough.installationCostKrw == null ? '유효한 설치공사 단가를 입력하세요.' : `${format(rough.capacityKwp, 3)} kWp × ${format(rough.installationUnitCostKrw, 0)} 원/kWp = ${format(rough.installationCostKrw, 0)} 원 (보조금 차감 전)`],
     ['발전량 공식', '설비용량 × 일평균 일사량 × 일수 × 경사·방위 보정 × (1 - 시스템 손실률)'],
     ['적용 손실·방향', `시스템 손실 ${format((input.systemLossRatio || 0) * 100)}%, 경사 ${format(input.tiltDeg || 0)}°, 방위 ${format(input.azimuthDeg || 0)}°`],
-    ['기상자료', climate.source ? `${climate.source}${climate.region ? ` · ${climate.region} 기준값을 전국에 공통 적용` : ''}` : '기후자료 미확인'],
+    ['기상자료', climate.source ? `${climate.source}${climate.period ? ` · ${climate.period} 평균` : ''}` : '기후자료 미확인',
+      climate.sourceUrl && { title: ' 원자료 보기', url: climate.sourceUrl }],
+    ...(Number.isFinite(climate.latitude) && Number.isFinite(climate.longitude)
+      ? [['일사량 적용 좌표', `위도 ${climate.latitude.toFixed(4)}, 경도 ${climate.longitude.toFixed(4)}`]] : []),
+    ...(climate.fallbackReason ? [['기후 기준값 안내', `${climate.fallbackReason} · ${climate.region ?? '노원구'} 기준값 적용`]] : []),
     ['그림자 반영', detailed ? `3D 광선분석 음영 손실 ${format(detailed.shadingLossRatio * 100)}%` : '정밀 추정 실행 시 3D 건물 음영을 반영'],
     ['가상 나무 음영', treeCount ? `${treeCount}개 · 불투명 원기둥으로 단순화` : '가상 나무 없음'],
     ...(impact ? [['나무 영향', `${format(impact.lossKwh)} kWh/년 감소 (${format(impact.lossRatio * 100)}%)`]] : []),

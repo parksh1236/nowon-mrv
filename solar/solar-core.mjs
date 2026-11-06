@@ -467,6 +467,11 @@ export function buildCsv(result = {}, project = {}, climate = {}) {
     ['나무로 인한 감소량(kWh)', treeLossKwh],
     ...trees.map((tree, index) => [`가상 나무 ${index + 1}`, `${tree.center.lat},${tree.center.lon}`, `높이 ${tree.heightM}m`, `수관 지름 ${tree.crownDiameterM}m`]),
     ['기후자료출처', climate.source ?? ''],
+    ['기후자료 평균 기간', climate.period ?? ''],
+    ['일사량 적용 위도', climate.latitude ?? ''],
+    ['일사량 적용 경도', climate.longitude ?? ''],
+    ['기후 기준값 안내', climate.fallbackReason ?? ''],
+    ['기후자료 URL', climate.sourceUrl ?? ''],
     ['분석구분', '사전 추정치'],
   );
   return rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
