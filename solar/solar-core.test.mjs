@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildCsv, calculateDetailed, calculateDetailedPair, calculateRough, currentAnalysisResult, deserializeProject, equivalentFullSunHours, filterInstallableSamples, isInsideSeoul, isValidPolygon, isValidProject, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
+  buildCsv, calculateDetailed, calculateDetailedPair, calculateRough, currentAnalysisResult, deserializeProject, equivalentFullSunHours, filterInstallableSamples, isInsideSupportedMap, isValidPolygon, isValidProject, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, summarizeDailySolarHours, sunPosition, validateInputs,
 } from './solar-core.mjs';
 
 const validInput = (overrides = {}) => ({
@@ -84,11 +84,15 @@ test('project deserialization rejects malformed JSON without throwing', () => {
   assert.equal(deserializeProject('{'), null);
 });
 
-test('Seoul map extent accepts inside points and rejects outside points', () => {
-  assert.equal(isInsideSeoul([{ lat: 37.65, lon: 127.05 }]), true);
-  assert.equal(isInsideSeoul([{ lat: 37.51, lon: 127.10 }]), true);
-  assert.equal(isInsideSeoul([{ lat: 36, lon: 127.05 }]), false);
-  assert.equal(isInsideSeoul([null]), false);
+test('서울·경기 지도 범위에서 건물, 가상 지붕과 나무를 허용한다', () => {
+  assert.equal(isInsideSupportedMap([{ lat: 37.65, lon: 127.05 }]), true);
+  assert.equal(isInsideSupportedMap([{ lat: 37.51, lon: 127.10 }]), true);
+  const suwon = { lat: 37.2636, lon: 127.0286 };
+  assert.equal(isInsideSupportedMap([suwon, { lat: 38.20, lon: 127.05 }]), true);
+  assert.equal(isValidPolygon([suwon, { ...suwon, lat: 37.2637 }, { ...suwon, lon: 127.0287 }]), true);
+  assert.equal(normalizeTrees([{ id: 'suwon', center: suwon, heightM: 8, crownDiameterM: 4 }]).length, 1);
+  assert.equal(isInsideSupportedMap([{ lat: 36, lon: 127.05 }]), false);
+  assert.equal(isInsideSupportedMap([null]), false);
 });
 
 const validProject = {

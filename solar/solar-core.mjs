@@ -27,9 +27,9 @@ export function deserializeProject(value) {
   }
 }
 
-export function isInsideSeoul(points) {
+export function isInsideSupportedMap(points) {
   return Array.isArray(points) && points.length > 0 && points.every((point) => (
-    Number.isFinite(point?.lat) && Number.isFinite(point?.lon) && point.lat >= 37.41 && point.lat <= 37.71 && point.lon >= 126.75 && point.lon <= 127.19
+    Number.isFinite(point?.lat) && Number.isFinite(point?.lon) && point.lat >= 36.85 && point.lat <= 38.35 && point.lon >= 126.30 && point.lon <= 127.90
   ));
 }
 
@@ -37,7 +37,7 @@ export function normalizeTrees(value) {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 50).filter((tree) => (
     typeof tree?.id === 'string' && tree.id.length > 0
-    && isInsideSeoul([tree.center])
+    && isInsideSupportedMap([tree.center])
     && Number.isFinite(tree.heightM) && tree.heightM >= 1 && tree.heightM <= 50
     && Number.isFinite(tree.crownDiameterM) && tree.crownDiameterM >= 1 && tree.crownDiameterM <= 30
   )).map((tree) => structuredClone(tree));
@@ -102,7 +102,7 @@ function isSimplePolygon(points) {
 }
 
 export function isValidPolygon(points) {
-  return Array.isArray(points) && points.length >= 3 && isInsideSeoul(points) && isSimplePolygon(points) && polygonMetrics(points).areaM2 > 0;
+  return Array.isArray(points) && points.length >= 3 && isInsideSupportedMap(points) && isSimplePolygon(points) && polygonMetrics(points).areaM2 > 0;
 }
 
 export function isValidProject(project) {
