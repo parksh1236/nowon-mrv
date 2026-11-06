@@ -44,6 +44,7 @@ let mapInstance;
 let drawing;
 let latestResult;
 let selectingExistingBuilding = false;
+let solarTask = 'simulation';
 let buildingSelectionGeneration = 0;
 let renderBuildingAngle;
 let selectedBuildingMarker;
@@ -142,7 +143,13 @@ function manualFallback(detail = '') {
 }
 
 function updateModeTools() {
-  document.querySelector('#existing-tools').hidden = state.mode !== 'existing';
+  const informationOnly = solarTask === 'information';
+  document.querySelector('#simulation-inputs').hidden = informationOnly;
+  document.querySelector('#simulation-results').hidden = informationOnly;
+  document.querySelector('#existing-tools').hidden = !informationOnly && state.mode !== 'existing';
+  document.querySelector('#reset-analysis').hidden = informationOnly;
+  document.querySelector('.shadow-controls').hidden = informationOnly;
+  document.querySelector('.map-legend').hidden = informationOnly;
   document.querySelector('#virtual-tools').hidden = state.mode !== 'virtual';
   form.querySelector(`input[name="buildingMode"][value="${state.mode}"]`).checked = true;
 }
@@ -330,14 +337,13 @@ function addMapLabel(points, text, color, heightM = 0) {
   });
 }
 
-function addMapPoints(points, color, heightM = 0, pixelSize = 9) {
-  const viewer = getViewer();
-  const Cesium = window.Cesium;
+function addMapPoints(points, color, heightM = 0, pixelSize = 9, heightReference, viewer = getViewer(), Cesium = window.Cesium) {
   if (!viewer?.entities?.add || !Cesium?.Cartesian3?.fromDegrees) return;
   points.forEach(({ lat, lon }) => addMapEntity(viewer, {
     position: Cesium.Cartesian3.fromDegrees(lon, lat, Math.max(3, heightM + 2)),
     point: {
       pixelSize,
+      heightReference,
       color: Cesium.Color?.fromCssColorString?.(color) ?? color,
       outlineColor: Cesium.Color?.WHITE,
       outlineWidth: 2,
@@ -382,23 +388,48 @@ export function installableVisualization(roof, exclusions, input, spacingM = 3) 
 
 function renderMapShapes() {
   removeMapEntities();
+  if (solarTask === 'information') {
+    getViewer()?.scene?.requestRender?.();
+    return;
+  }
   let installable = { samples: [], areaM2: 0 };
   const roofArea = validPolygon(state.roof) ? polygonMetrics(state.roof).areaM2 : 0;
   if (validPolygon(state.roof)) installable = installableVisualization(state.roof, state.exclusions, readForm());
   const draftExclusions = [...state.exclusions, ...(drawing?.kind === 'exclusion' && drawing.points.length >= 3 ? [drawing.points] : [])];
-  const renderedKml = renderVWorldAnalysisLayer({ roof: state.roof, exclusions: draftExclusions, installableSamples: installable.samples, roofAreaM2: roofArea, installableAreaM2: installable.areaM2, heightM: state.heightM });
+  const draftingRoof = drawing?.kind === 'roof';
+  const renderedKml = !draftingRoof && renderVWorldAnalysisLayer({ roof: state.roof, exclusions: draftExclusions, installableSamples: installable.samples, roofAreaM2: roofArea, installableAreaM2: installable.areaM2, heightM: state.heightM });
   if (!renderedKml) {
-    if (validPolygon(state.roof)) {
+    if (draftingRoof) {
+      renderRoofDraft(state.roof, state.heightM);
+    } else if (validPolygon(state.roof)) {
       addMapPolygon(state.roof, '#ffd70080', state.heightM, `지붕 ${roofArea.toFixed(1)}㎡`);
       addMapPoints(installable.samples, '#58d68d', state.heightM, 6);
       if (installable.samples.length) addMapLabel(state.roof, `설치 가능 ${installable.areaM2.toFixed(1)}㎡`, '#8a6900', state.heightM + 8);
     } else if (state.roof.length) {
       addMapPoints(state.roof, '#ffd700', state.heightM);
     }
-    state.exclusions.forEach((points, index) => addMapPolygon(points, '#c0392b77', state.heightM + 1, `제외 ${index + 1} · ${polygonMetrics(points).areaM2.toFixed(1)}㎡`));
+    draftExclusions.filter(validPolygon).forEach((points, index) => addMapPolygon(points, '#c0392b77', state.heightM + 1, `제외 ${index + 1} · ${polygonMetrics(points).areaM2.toFixed(1)}㎡`));
     if (drawing?.kind === 'exclusion' && drawing.points.length) addMapPoints(drawing.points, '#c0392b', state.heightM + 1);
   }
   renderTreeEntities();
+}
+
+export function renderRoofDraft(points, heightM, viewer = getViewer(), Cesium = window.Cesium) {
+  if (!viewer?.entities?.add || !Cesium?.Cartesian3?.fromDegreesArray) return;
+  const relative = Cesium.HeightReference?.RELATIVE_TO_GROUND;
+  if (validPolygon(points)) {
+    addMapEntity(viewer, {
+      polygon: {
+        hierarchy: Cesium.Cartesian3.fromDegreesArray(points.flatMap(({ lon, lat }) => [lon, lat])),
+        material: Cesium.Color?.fromCssColorString?.('#ffd70080') ?? '#ffd70080',
+        height: heightM + 1,
+        heightReference: relative,
+      },
+    });
+  }
+  addMapPoints(points, '#ffd700', heightM, 9, relative, viewer, Cesium);
+  viewer.scene?.requestRender?.();
+  mapInstance?._wsViewer?.map?.wakeupRenderer?.();
 }
 
 function renderTreeEntities() {
@@ -559,17 +590,23 @@ function setDraftPoint(point) {
 
 function finishRoofDrawing() {
   const points = drawing?.kind === 'roof' ? drawing.points : state.roof;
+  if (!validPolygon(points)) {
+    setStatus('지붕 면을 만들려면 일직선에 있지 않은 꼭짓점이 3개 이상 필요합니다.');
+    return;
+  }
+  drawing = undefined;
   if (setRoofPolygon(points)) {
-    drawing = undefined;
     setStatus('지붕 외곽을 반영했습니다.');
   }
 }
 
-export function coordinateFromClick(event, viewer = getViewer(), Cesium = window.Cesium) {
+export function coordinateFromClick(event, viewer = getViewer(), Cesium = window.Cesium, groundOnly = false) {
   let cartographic = event?.cartographic ?? event?.coordinate ?? event;
   if ((!Number.isFinite(cartographic?.latitude) || !Number.isFinite(cartographic?.longitude)) && event?.position) {
     const scene = viewer?.scene;
-    const cartesian = (scene?.pickPositionSupported && scene?.pickPosition?.(event.position))
+    const ray = groundOnly && viewer?.camera?.getPickRay?.(event.position);
+    const cartesian = (ray && scene?.globe?.pick?.(ray, scene))
+      || (!groundOnly && scene?.pickPositionSupported && scene?.pickPosition?.(event.position))
       || viewer?.camera?.pickEllipsoid?.(event.position, scene?.globe?.ellipsoid);
     cartographic = cartesian && Cesium?.Cartographic?.fromCartesian?.(cartesian);
   }
@@ -581,7 +618,7 @@ export function coordinateFromClick(event, viewer = getViewer(), Cesium = window
 }
 
 async function handleMapClick(event) {
-    const position = coordinateFromClick(event);
+    const position = coordinateFromClick(event, getViewer(), window.Cesium, drawing?.kind === 'roof');
     if (!position) return;
     if (drawing?.kind === 'tree') {
       if (!isInsideNowon([position])) return setStatus('가상 나무는 노원구 범위 안에 배치하세요.');
@@ -597,7 +634,7 @@ async function handleMapClick(event) {
       markDirty();
       setStatus('가상 나무를 배치했습니다.');
     } else if (drawing) setDraftPoint(position);
-    else if (state.mode === 'existing' && selectingExistingBuilding) {
+    else if ((solarTask === 'information' || state.mode === 'existing') && selectingExistingBuilding) {
       selectingExistingBuilding = false;
       await selectExistingBuilding(position, { label: '지도에서 선택한 건물' });
     }
@@ -875,6 +912,7 @@ export function resetAnalysis() {
   selectedBuildingMarker = undefined;
   removeMapEntities();
   form.reset();
+  solarTask = 'simulation';
   resetBuildingGeometry(state);
   state.trees = [];
   selectedTreeId = undefined;
@@ -912,7 +950,13 @@ export function resetAnalysis() {
 }
 
 export async function selectExistingBuilding(position, { label = '' } = {}) {
-  clearBuildingSelection();
+  const informationOnly = solarTask === 'information';
+  if (informationOnly) {
+    buildingSelectionGeneration += 1;
+    buildingInfo?.close();
+  } else {
+    clearBuildingSelection();
+  }
   const generation = buildingSelectionGeneration;
   const isCurrent = () => generation === buildingSelectionGeneration;
   if (!vworldKey() || !isInsideNowon([position])) {
@@ -924,6 +968,12 @@ export async function selectExistingBuilding(position, { label = '' } = {}) {
     const feature = firstFeature(await loadJsonp(buildingLookupUrl(position, vworldKey())));
     if (!isCurrent()) return false;
     const polygon = polygonFromGeometry(feature?.geometry);
+    if (!polygon) throw new Error('building geometry missing');
+    if (informationOnly) {
+      renderBuildingInfo(feature, polygon, position, label, isCurrent);
+      setStatus('선택한 건물의 정보를 표시했습니다.');
+      return true;
+    }
     const height = featureHeight(feature?.properties);
     const applied = polygon && applyBuildingGeometry(
       polygon,
@@ -935,7 +985,6 @@ export async function selectExistingBuilding(position, { label = '' } = {}) {
       setRoofPolygon,
     );
     if (!applied) throw new Error('building geometry missing');
-    renderBuildingInfo(feature, polygon, position, label, isCurrent);
     // VWorld는 KML 분석 레이어를 추가할 때 레이어 전체 범위로 자동 축소할 수 있다.
     // 도형 로딩 직후 선택 건물로 다시 이동해 꼭짓점·설치가능점이 식별되는 축척을 유지한다.
     setTimeout(() => isCurrent() && focusBuildingOnMap(position, label || '선택 건물'), 500);
@@ -947,7 +996,7 @@ export async function selectExistingBuilding(position, { label = '' } = {}) {
     }
     return true;
   } catch {
-    if (isCurrent()) manualFallback();
+    if (isCurrent()) setStatus(informationOnly ? '선택한 위치에서 건물 정보를 찾지 못했습니다.' : '건물 자료를 불러오지 못했습니다. 지붕 좌표와 높이를 직접 입력하세요.');
     return false;
   }
 }
@@ -960,7 +1009,9 @@ function positionFromSearch(item) {
 }
 
 async function searchBuilding() {
-  clearBuildingSelection();
+  selectingExistingBuilding = false;
+  if (solarTask === 'information') buildingSelectionGeneration += 1;
+  else clearBuildingSelection();
   const generation = buildingSelectionGeneration;
   const query = document.querySelector('#address-query').value.trim();
   if (!query || !vworldKey()) return manualFallback('주소와 지도 API 키를 확인하세요.');
@@ -1401,10 +1452,20 @@ form.querySelectorAll('input[name="analysisMode"]').forEach((control) => control
   precisionOptions.hidden = control.value !== 'detailed' || !control.checked;
 }));
 form.addEventListener('input', (event) => {
-  if (event.target.name !== 'buildingMode' && ![roofCoordinates, exclusionCoordinates, heightInput].includes(event.target)) markDirty();
+  if (!['buildingMode', 'solarTask'].includes(event.target.name) && ![roofCoordinates, exclusionCoordinates, heightInput].includes(event.target)) markDirty();
 });
 doc.querySelector('#preview-left')?.addEventListener('click', () => renderBuildingAngle?.(-Math.PI / 4));
 doc.querySelector('#preview-right')?.addEventListener('click', () => renderBuildingAngle?.(Math.PI / 4));
+form.querySelectorAll('input[name="solarTask"]').forEach((control) => control.addEventListener('change', () => {
+  solarTask = control.value;
+  selectingExistingBuilding = false;
+  buildingSelectionGeneration += 1;
+  buildingInfo?.close();
+  drawing = undefined;
+  updateModeTools();
+  renderMapShapes();
+  setStatus(solarTask === 'information' ? '주소를 검색하거나 지도에서 건물을 선택하세요.' : '분석할 기존 건물 또는 가상 건물을 선택하세요.');
+}));
 form.querySelectorAll('input[name="buildingMode"]').forEach((control) => control.addEventListener('change', () => setBuildingMode(control.value)));
 roofCoordinates.addEventListener('input', () => {
   const points = parsePoints(roofCoordinates.value);
@@ -1431,7 +1492,7 @@ heightInput.addEventListener('input', () => {
   renderMapShapes();
   markDirty();
 });
-document.querySelector('#start-roof-drawing').addEventListener('click', () => { drawing = { kind: 'roof', points: [] }; clearRoof(); drawing = { kind: 'roof', points: [] }; setStatus('지도에서 지붕 꼭짓점을 차례로 선택하세요.'); });
+document.querySelector('#start-roof-drawing').addEventListener('click', () => { clearRoof(); drawing = { kind: 'roof', points: [] }; setStatus('지도에서 지붕 꼭짓점을 차례로 선택하세요.'); });
 document.querySelector('#undo-roof-point').addEventListener('click', () => {
   if (drawing?.kind !== 'roof') return;
   drawing.points.pop();

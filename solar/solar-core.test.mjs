@@ -1105,3 +1105,44 @@ test('입체 미리보기는 회전해도 출입문을 다른 벽에 다시 만�
   assert.ok(svg.shapes.some(shape => shape.fill === '#45748a'));
   assert.equal(svg.shapes.filter(shape => shape.fill === '#324d46').length, 0);
 });
+
+test('가상 지붕 그리기는 클릭마다 점을 표시하고 세 번째 꼭짓점에서 면을 표시한다', async () => {
+  const { renderRoofDraft } = await import('./app.mjs');
+  const points = [
+    { lat: 37.654, lon: 127.056 },
+    { lat: 37.654, lon: 127.0561 },
+    { lat: 37.6541, lon: 127.0561 },
+  ];
+  const entities = [];
+  let frames = 0;
+  const viewer = {
+    entities: { add: entity => { entities.push(entity); } },
+    scene: { requestRender: () => { frames += 1; } },
+  };
+  const Cesium = {
+    Cartesian3: { fromDegrees: (...coordinates) => coordinates, fromDegreesArray: coordinates => coordinates },
+    HeightReference: { RELATIVE_TO_GROUND: 2 },
+  };
+  for (const count of [1, 2, 3, 2]) {
+    entities.length = 0;
+    renderRoofDraft(points.slice(0, count), 10, viewer, Cesium);
+    assert.equal(entities.filter(entity => entity.point?.color === '#ffd700').length, count);
+    assert.equal(entities.filter(entity => entity.polygon).length, count === 3 ? 1 : 0);
+  }
+  assert.equal(frames, 4);
+});
+
+test('가상 지붕 클릭은 지붕 미리보기 대신 지도 지형에서 좌표를 얻는다', async () => {
+  const { coordinateFromClick } = await import('./app.mjs');
+  const ray = {};
+  const viewer = {
+    camera: { getPickRay: () => ray },
+    scene: {
+      pickPositionSupported: true,
+      pickPosition: () => assert.fail('미리보기 면의 좌표를 읽으면 안 됩니다.'),
+      globe: { pick: (input) => { assert.equal(input, ray); return { longitude: 127.056, latitude: 37.654 }; } },
+    },
+  };
+  const Cesium = { Cartographic: { fromCartesian: point => point } };
+  assert.deepEqual(coordinateFromClick({ position: { x: 10, y: 20 } }, viewer, Cesium, true), { lon: 127.056, lat: 37.654 });
+});

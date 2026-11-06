@@ -33,7 +33,7 @@
       .building-info h4 { margin: 1rem 0 .4rem; }
       .building-preview { display: block; width: 100%; max-height: 29dvh; margin: .6rem 0; background: #edf4eb; border-radius: .6rem; }
       .preview-controls { justify-content: center; }
-      .preview-controls[hidden] { display: none; }
+      .preview-controls[hidden], .map-legend[hidden] { display: none; }
       .building-info h3 { margin: 0 0 .55rem; font-size: 1rem; }
       .building-info dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem .7rem; margin: 0; font-size: .88rem; }
       .building-info dt { color: #4d6555; font-weight: 700; } .building-info dd { margin: 0; overflow-wrap: anywhere; }
@@ -81,17 +81,25 @@
     <main>
       <section class="panel input-panel" aria-label="분석 입력">
         <form id="analysis-form">
-          <fieldset id="building-mode">
-            <legend>건물 유형</legend>
+          <fieldset>
+            <legend>작업 선택</legend>
             <div class="choice">
-              <label><input type="radio" name="buildingMode" value="existing" checked> 기존 건물</label>
-              <label><input type="radio" name="buildingMode" value="virtual"> 가상 건물</label>
+              <label><input type="radio" name="solarTask" value="information"> 건물정보 조회</label>
+              <label><input type="radio" name="solarTask" value="simulation" checked> 태양광 시뮬레이션</label>
             </div>
           </fieldset>
           <fieldset id="existing-tools">
             <legend>기존 건물 찾기</legend>
             <label for="address-query">도로명 주소<input id="address-query" type="search" autocomplete="street-address"></label>
             <div class="button-row three"><button id="search-building" type="button">건물 찾기</button><button id="select-building" class="secondary" type="button">지도에서 선택</button><button id="reset-analysis" class="secondary" type="button">초기화</button></div>
+          </fieldset>
+          <div id="simulation-inputs">
+          <fieldset id="building-mode">
+            <legend>건물 유형</legend>
+            <div class="choice">
+              <label><input type="radio" name="buildingMode" value="existing" checked> 기존 건물</label>
+              <label><input type="radio" name="buildingMode" value="virtual"> 가상 건물</label>
+            </div>
           </fieldset>
           <fieldset id="virtual-tools" hidden>
             <legend>가상 건물 지붕</legend>
@@ -150,6 +158,7 @@
           <p class="map-description">기본값은 옥상 통로·소방 이격·구조물·패널 간격을 고려해 배치 가능률 60%, 가장자리 이격 1m, 인버터·배선·온도 등 시스템 손실 20%를 적용합니다.</p>
           <button id="save-project" class="secondary" type="button">프로젝트 저장</button>
           <button id="run-analysis" type="submit">분석 실행</button>
+          </div>
         </form>
       </section>
       <section class="panel map-panel" aria-label="노원구 지도">
@@ -192,7 +201,7 @@
           <dl id="building-title-details"></dl>
         </dialog>
       </section>
-      <section class="panel results-panel" aria-label="분석 결과">
+      <section id="simulation-results" class="panel results-panel" aria-label="분석 결과">
         <h2>분석 결과</h2>
         <div id="results" aria-live="polite"><div id="monthly-chart" aria-label="월별 예상 발전량"></div></div>
         <section id="calculation-basis" class="calculation-basis" aria-labelledby="calculation-basis-heading">
@@ -210,6 +219,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=building-preview-1"></script>
+    <script type="module" src="./app.mjs?v=solar-task-2"></script>
   </body>
 </html>
