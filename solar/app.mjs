@@ -1,6 +1,11 @@
 import { buildingParcel, drawBuildingPreview, lookupBuildingTitle, positiveNumber } from './building-preview.mjs';
 import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideNowon, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs?v=installation-cost-1';
 
+const INSTALLATION_COST_REFERENCE = {
+  unitCostKrw: 1_900_000,
+  title: '국회예산정책처 「2026년도 제1회 추가경정예산안 분석」 614쪽',
+  url: 'https://www.nabo.go.kr/board/file/down.do?fid=33319180#page=631',
+};
 const PROJECT_KEY = 'nowon-solar-project-v1';
 const NOWON_OFFICE = { lat: 37.654351, lon: 127.056428 };
 const PRECISION = {
@@ -1351,6 +1356,9 @@ export function calculationBasisRows(result = {}) {
     ['유효 옥상면적', `${format(rough.usableAreaM2 || 0)} ㎡ = 지붕면적 - 제외면적 - 이격면적`],
     ['실제 설치 가능면적', `${format(rough.installableAreaM2 || 0)} ㎡ = 유효면적 × ${format((input.layoutRatio || 0) * 100)}%`],
     ['패널·설비용량', `${rough.panelCount || 0}장 × ${format(input.panelPowerKw || 0, 2)} kW = ${format(rough.capacityKwp || 0)} kWp`],
+    ['설치공사비 단가 출처', ...(rough.installationUnitCostKrw === INSTALLATION_COST_REFERENCE.unitCostKrw
+      ? ['기본 단가 190만 원/kWp · 단독주택 3kW 태양광 예산 산정 기준. ', INSTALLATION_COST_REFERENCE]
+      : [rough.installationCostKrw == null ? '적용 단가 없음' : '시뮬레이션에 입력한 단가'])],
     ['설치공사비 산식', rough.installationCostKrw == null ? '유효한 설치공사 단가를 입력하세요.' : `${format(rough.capacityKwp, 3)} kWp × ${format(rough.installationUnitCostKrw, 0)} 원/kWp = ${format(rough.installationCostKrw, 0)} 원 (보조금 차감 전)`],
     ['발전량 공식', '설비용량 × 일평균 일사량 × 일수 × 경사·방위 보정 × (1 - 시스템 손실률)'],
     ['적용 손실·방향', `시스템 손실 ${format((input.systemLossRatio || 0) * 100)}%, 경사 ${format(input.tiltDeg || 0)}°, 방위 ${format(input.azimuthDeg || 0)}°`],
@@ -1367,7 +1375,17 @@ function renderCalculationBasis(result) {
   const heading = element('h3', '산출근거');
   heading.id = 'calculation-basis-heading';
   const list = element('dl');
-  for (const [term, description] of calculationBasisRows(result)) list.append(element('dt', term), element('dd', description));
+  for (const [term, description, reference] of calculationBasisRows(result)) {
+    const detail = element('dd', description);
+    if (reference) {
+      const link = element('a', reference.title);
+      link.href = reference.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      detail.append(link);
+    }
+    list.append(element('dt', term), detail);
+  }
   const note = element('p', '본 결과는 사전 타당성 검토용 추정치입니다. 실제 설치 가능 여부와 발전량은 구조안전진단, 현장 장애물, 소방·피난 기준, 계통연계 및 실시설계에서 확정해야 합니다.', 'basis-note');
   calculationBasis.replaceChildren(heading, list, note);
 }

@@ -1065,6 +1065,12 @@ test('산출근거는 면적·설비용량·발전량·음영 공식을 설명�
   assert.match(rows['패널·설비용량'], /18장.*8\.1 kWp/);
   assert.match(rows['발전량 공식'], /일평균 일사량/);
   assert.match(rows['그림자 반영'], /12\.0%/);
+  const defaultCost = { capacityKwp: 8.1, installationUnitCostKrw: 1_900_000, installationCostKrw: 15_390_000 };
+  const source = calculationBasisRows(defaultCost).find(([term]) => term === '설치공사비 단가 출처');
+  assert.match(source[2].title, /614쪽/);
+  assert.match(Object.fromEntries(calculationBasisRows(defaultCost))['설치공사비 산식'], /15,390,000 원/);
+  const customCost = { ...defaultCost, installationUnitCostKrw: 1_500_000, installationCostKrw: 12_150_000 };
+  assert.equal(Object.fromEntries(calculationBasisRows(customCost))['설치공사비 단가 출처'], '시뮬레이션에 입력한 단가');
 });
 
 test('건축물대장 조회는 산지번을 보존하고 복수 동을 임의 선택하지 않는다', async () => {

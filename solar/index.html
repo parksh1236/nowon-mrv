@@ -168,7 +168,7 @@
             <label for="installation-unit-cost">설치공사 단가 (원/kWp)
               <input id="installation-unit-cost" name="installationUnitCostKrw" type="number" min="1" step="1" value="1900000" aria-describedby="installation-cost-note" required>
             </label>
-            <p id="installation-cost-note" class="map-description">기본값은 2026년 국회예산정책처 자료의 단독주택 태양광 예산 산정 단가입니다. 현장 견적 단가를 입력할 수 있으며 보조금은 차감하지 않습니다. <a href="https://www.nabo.go.kr/board/file/down.do?fid=33319180" target="_blank" rel="noopener">산정 단가 출처</a></p>
+            <p id="installation-cost-note" class="map-description">기본값은 2026년 국회예산정책처 자료의 단독주택 태양광 예산 산정 단가입니다. 현장 견적 단가를 입력할 수 있으며 보조금은 차감하지 않습니다. <a href="https://www.nabo.go.kr/board/file/down.do?fid=33319180#page=631" target="_blank" rel="noopener">산정 단가 출처</a></p>
           </fieldset>
           <button id="save-project" class="secondary" type="button">프로젝트 저장</button>
           <button id="run-analysis" type="submit">분석 실행</button>
@@ -233,6 +233,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=installation-cost-1"></script>
+    <script type="module" src="./app.mjs?v=installation-cost-basis-2"></script>
   </body>
 </html>
