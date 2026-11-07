@@ -33,6 +33,15 @@
       .building-preview { display: block; width: 100%; max-height: 29dvh; margin: .6rem 0; background: #edf4eb; border-radius: .6rem; }
       .preview-controls { justify-content: center; }
       .preview-controls[hidden], .map-legend[hidden] { display: none; }
+      .preview-editor { margin-top: .7rem; padding: .75rem; border: 1px solid #c8d7c8; border-radius: .55rem; background: #fff; }
+      .preview-editor[hidden], .editor-group[hidden] { display: none; }
+      .preview-editor .fields { margin-top: .6rem; }
+      .preview-editor .button-row { margin-top: .6rem; }
+      .preview-editor button { width: 100%; }
+      .building-preview[data-active-layer="wall"] [data-layer]:not([data-layer="wall"]):not([data-layer="roof"]),
+      .building-preview[data-active-layer="window"] [data-layer]:not([data-layer="window"]),
+      .building-preview[data-active-layer="door"] [data-layer]:not([data-layer="door"]) { opacity: .22; }
+      .building-preview [data-selected="true"] { stroke: #ff8a00; stroke-width: 2.5; }
       .building-info h2 { margin: 0 0 .55rem; font-size: 1.15rem; }
       .building-info dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem .7rem; margin: 0; font-size: .88rem; }
       .building-info dt { color: #4d6555; font-weight: 700; } .building-info dd { margin: 0; overflow-wrap: anywhere; }
@@ -206,7 +215,27 @@
           <div id="preview-controls" class="preview-controls">
             <button id="preview-left" class="secondary" type="button">왼쪽으로 회전</button>
             <button id="preview-right" class="secondary" type="button">오른쪽으로 회전</button>
+            <button id="preview-edit" type="button" aria-expanded="false">편집하기</button>
           </div>
+          <section id="preview-editor" class="preview-editor" aria-label="3D 미리보기 편집기" hidden>
+            <label>편집 레이어<select id="editor-layer"><option value="wall">벽·매스</option><option value="window">창</option><option value="door">문</option></select></label>
+            <div id="editor-mass-group" class="editor-group">
+              <label>선택 매스<select id="editor-mass-select"><option value="">새 매스</option></select></label>
+              <div class="fields">
+                <label>X 위치 (m)<input id="mass-x" type="number" step="0.5" value="0"></label>
+                <label>Y 위치 (m)<input id="mass-y" type="number" step="0.5" value="0"></label>
+                <label>폭 (m)<input id="mass-width" type="number" min="0.5" step="0.5" value="8"></label>
+                <label>깊이 (m)<input id="mass-depth" type="number" min="0.5" step="0.5" value="8"></label>
+                <label>기준 높이 (m)<input id="mass-base" type="number" min="0" step="0.5" value="0"></label>
+                <label>매스 높이 (m)<input id="mass-height" type="number" min="0.5" step="0.5" value="3"></label>
+              </div>
+              <div class="button-row three"><button id="mass-add" type="button">매스 추가</button><button id="mass-update" class="secondary" type="button">선택 수정</button><button id="mass-delete" class="secondary" type="button">선택 삭제</button></div>
+            </div>
+            <div id="editor-window-group" class="editor-group" hidden><div class="fields"><label>창 폭 (m)<input id="window-width" type="number" min="0.3" step="0.1" value="1.5"></label><label>창 높이 (m)<input id="window-height" type="number" min="0.3" step="0.1" value="1.4"></label></div></div>
+            <div id="editor-door-group" class="editor-group" hidden><div class="fields"><label>문 폭 (m)<input id="door-width" type="number" min="0.5" step="0.1" value="1.1"></label><label>문 높이 (m)<input id="door-height" type="number" min="1.5" step="0.1" value="2.1"></label></div></div>
+            <div class="button-row"><button id="editor-reset" class="secondary" type="button">편집 초기화</button><button id="editor-close" class="secondary" type="button">편집 닫기</button></div>
+            <p class="map-description">매스를 겹치거나 기준 높이를 바꾸면 증축·단차·요철 형태를 빠르게 검토할 수 있습니다.</p>
+          </section>
           <p id="building-preview-note" class="map-description"></p>
           <button id="show-vworld-facade" class="secondary" type="button">V월드 지도에서 입면 보기</button>
           <h4 id="building-details-source">건물 정보</h4>
@@ -234,6 +263,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=local-climate-1"></script>
+    <script type="module" src="./app.mjs?v=mass-editor-1"></script>
   </body>
 </html>

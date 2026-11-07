@@ -1,5 +1,5 @@
 import { lookupSeoulBuilding } from './seoul-buildings.mjs';
-import { buildingParcel, drawBuildingPreview, lookupBuildingTitle, positiveNumber } from './building-preview.mjs?v=facade-preview-1';
+import { addBuildingMass, buildingParcel, createBuildingDesign, drawBuildingPreview, lookupBuildingTitle, positiveNumber, updateBuildingMass } from './building-preview.mjs?v=mass-editor-1';
 import { buildCsv, calculateDetailedPair, calculateRough, filterInstallableSamples, isInsideSupportedMap, isValidPolygon, localOffset, normalizeTrees, polygonMetrics, rayIntersectsTree, readStoredProject, removeStoredProject, samplePolygon, serializeProject, sunPosition } from './solar-core.mjs?v=local-climate-1';
 
 const INSTALLATION_COST_REFERENCE = {
@@ -785,6 +785,17 @@ function renderBuildingInfo(feature, polygon, position, label, isCurrent) {
   const preview = doc.querySelector('#building-preview');
   const previewNote = doc.querySelector('#building-preview-note');
   const controls = doc.querySelector('#preview-controls');
+  const editButton = doc.querySelector('#preview-edit');
+  const editor = doc.querySelector('#preview-editor');
+  const editorLayer = doc.querySelector('#editor-layer');
+  const massGroup = doc.querySelector('#editor-mass-group');
+  const windowGroup = doc.querySelector('#editor-window-group');
+  const doorGroup = doc.querySelector('#editor-door-group');
+  const massSelect = doc.querySelector('#editor-mass-select');
+  const design = createBuildingDesign();
+  editor.hidden = true;
+  editButton.textContent = '편집하기';
+  editButton.setAttribute('aria-expanded', 'false');
   const facadeButton = doc.querySelector('#show-vworld-facade');
   const facadeCenter = polygonCenter(polygon);
   const footprintRadius = Math.max(...polygon.map(point => {
@@ -820,7 +831,10 @@ function renderBuildingInfo(feature, polygon, position, label, isCurrent) {
     previewNote.textContent = modelHeight
       ? `${heightSource || '지상층수 × 3 m 추정'} ${Number(modelHeight.toFixed(1))} m · 외곽과 층수 기반 추정 입면 · 창틀·창턱·출입구 위치는 예시입니다.`
       : '높이와 지상층수 자료가 없어 입체 모형을 표시할 수 없습니다.';
-    const heading = modelHeight ? drawBuildingPreview(preview, polygon, modelHeight, floors, angle) : Math.PI;
+    const heading = modelHeight ? drawBuildingPreview(preview, polygon, modelHeight, floors, angle, design) : Math.PI;
+    preview.querySelectorAll?.('[data-object-id]').forEach(node => {
+      node.setAttribute('data-selected', String(node.getAttribute('data-object-id') === massSelect.value));
+    });
     const viewer = getViewer();
     const Cesium = window.Cesium;
     facadeButton.disabled = !viewer?.camera?.flyToBoundingSphere || !Cesium?.BoundingSphere || !Cesium?.HeadingPitchRange;
@@ -841,6 +855,69 @@ function renderBuildingInfo(feature, polygon, position, label, isCurrent) {
     angle += step;
     renderPreview();
   };
+  const massInputs = ['x', 'y', 'width', 'depth', 'base', 'height'].map(name => doc.querySelector(`#mass-${name}`));
+  const massValues = () => Object.fromEntries(['xM', 'yM', 'widthM', 'depthM', 'baseM', 'heightM'].map((name, index) => [name, Number(massInputs[index].value)]));
+  const refreshMassOptions = selected => {
+    massSelect.replaceChildren(new Option('새 매스', ''), ...design.masses.map((mass, index) => new Option(`매스 ${index + 1}`, mass.id)));
+    massSelect.value = selected ?? '';
+  };
+  const selectMass = id => {
+    const mass = design.masses.find(item => item.id === id);
+    if (mass) [mass.xM, mass.yM, mass.widthM, mass.depthM, mass.baseM, mass.heightM].forEach((value, index) => { massInputs[index].value = value; });
+    renderPreview();
+  };
+  const setLayer = layer => {
+    massGroup.hidden = layer !== 'wall';
+    windowGroup.hidden = layer !== 'window';
+    doorGroup.hidden = layer !== 'door';
+    preview.dataset.activeLayer = layer;
+  };
+  editButton.onclick = () => {
+    editor.hidden = !editor.hidden;
+    editButton.setAttribute('aria-expanded', String(!editor.hidden));
+    editButton.textContent = editor.hidden ? '편집하기' : '편집 닫기';
+    if (!editor.hidden) setLayer(editorLayer.value);
+  };
+  doc.querySelector('#editor-close').onclick = () => editButton.click();
+  editorLayer.onchange = () => setLayer(editorLayer.value);
+  massSelect.onchange = () => selectMass(massSelect.value);
+  doc.querySelector('#mass-add').onclick = () => {
+    const mass = addBuildingMass(design, massValues());
+    refreshMassOptions(mass.id);
+    renderPreview();
+  };
+  doc.querySelector('#mass-update').onclick = () => {
+    if (!updateBuildingMass(design, massSelect.value, massValues())) return setStatus('수정할 매스를 먼저 선택하세요.');
+    renderPreview();
+  };
+  doc.querySelector('#mass-delete').onclick = () => {
+    const index = design.masses.findIndex(item => item.id === massSelect.value);
+    if (index < 0) return setStatus('삭제할 매스를 먼저 선택하세요.');
+    design.masses.splice(index, 1);
+    refreshMassOptions('');
+    renderPreview();
+  };
+  for (const [id, layer, key] of [
+    ['window-width', 'window', 'widthM'], ['window-height', 'window', 'heightM'],
+    ['door-width', 'door', 'widthM'], ['door-height', 'door', 'heightM'],
+  ]) doc.querySelector(`#${id}`).oninput = event => {
+    design[layer][key] = Math.max(.1, Number(event.target.value) || .1);
+    renderPreview();
+  };
+  doc.querySelector('#editor-reset').onclick = () => {
+    Object.assign(design, createBuildingDesign());
+    refreshMassOptions('');
+    doc.querySelector('#window-width').value = design.window.widthM;
+    doc.querySelector('#window-height').value = design.window.heightM;
+    doc.querySelector('#door-width').value = design.door.widthM;
+    doc.querySelector('#door-height').value = design.door.heightM;
+    renderPreview();
+  };
+  refreshMassOptions('');
+  doc.querySelector('#window-width').value = design.window.widthM;
+  doc.querySelector('#window-height').value = design.window.heightM;
+  doc.querySelector('#door-width').value = design.door.widthM;
+  doc.querySelector('#door-height').value = design.door.heightM;
   renderPreview();
   buildingInfo.hidden = false;
   doc.querySelector('#building-info-empty').hidden = true;

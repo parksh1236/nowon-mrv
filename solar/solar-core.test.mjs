@@ -1129,6 +1129,30 @@ test('입체 미리보기는 좌우를 반전하지 않고 회전해도 출입�
   assert.equal(svg.shapes.filter(shape => shape.fill === '#324d46').length, 0);
 });
 
+test('3D 편집기는 매스와 벽·창·문 레이어를 독립적으로 변경한다', async () => {
+  const { addBuildingMass, createBuildingDesign, drawBuildingPreview, updateBuildingMass } = await import('./building-preview.mjs');
+  const design = createBuildingDesign();
+  const mass = addBuildingMass(design, { xM: 4, yM: 2, widthM: 6, depthM: 5, baseM: 9, heightM: 3 });
+  assert.equal(updateBuildingMass(design, mass.id, { xM: -2, yM: 1, widthM: 7, depthM: 4, baseM: 6, heightM: 5 }), true);
+  assert.deepEqual(design.masses[0], { id: mass.id, xM: -2, yM: 1, widthM: 7, depthM: 4, baseM: 6, heightM: 5 });
+  design.window = { widthM: 2.2, heightM: 1.8 };
+  design.door = { widthM: 1.4, heightM: 2.4 };
+  const svg = {
+    shapes: [],
+    ownerDocument: { createElementNS: () => ({ attrs: {}, setAttribute(key, value) { this.attrs[key] = value; } }) },
+    replaceChildren() { this.shapes = []; },
+    append(node) { this.shapes.push(node.attrs); },
+  };
+  drawBuildingPreview(svg, [
+    { lat: 37.654, lon: 127.056 }, { lat: 37.654, lon: 127.0562 },
+    { lat: 37.6541, lon: 127.0562 }, { lat: 37.6541, lon: 127.056 },
+  ], 9, 3, 0, design);
+  assert.ok(svg.shapes.some(shape => shape['data-layer'] === 'wall' && shape['data-object-id'] === mass.id));
+  assert.ok(svg.shapes.some(shape => shape['data-layer'] === 'window'));
+  assert.ok(svg.shapes.some(shape => shape['data-layer'] === 'door'));
+  assert.ok(svg.shapes.every(shape => !/NaN|Infinity/.test(shape.points)));
+});
+
 test('가상 지붕 그리기는 클릭마다 점을 표시하고 세 번째 꼭짓점에서 면을 표시한다', async () => {
   const { renderRoofDraft } = await import('./app.mjs');
   const points = [
