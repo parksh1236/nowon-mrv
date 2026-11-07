@@ -842,6 +842,19 @@ test('preloaded VWorld runtime is reused without injecting a late loader', async
   }
 });
 
+test('지도는 위성 타일이 준비될 때까지 로딩 상태를 유지한다', async () => {
+  globalThis.window = {};
+  try {
+    const { mapTileLoadingState } = await import(`./app.mjs?tile-loading=${Date.now()}`);
+    assert.equal(mapTileLoadingState(false, 3000), 'waiting');
+    assert.equal(mapTileLoadingState(true, 300), 'waiting');
+    assert.equal(mapTileLoadingState(true, 700), 'ready');
+    assert.equal(mapTileLoadingState(false, 12000), 'timeout');
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('building replacement clears stale geometry and blanks a missing height', async () => {
   globalThis.window = {};
   try {

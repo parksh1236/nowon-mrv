@@ -24,6 +24,8 @@
       .button-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .secondary { background: #35614b; } .geometry-list { margin: .5rem 0 0; padding-left: 1.25rem; }
       .map-stage { position: relative; }
+      .map-loading { position: absolute; z-index: 11; inset: 0; display: grid; place-items: center; border-radius: .5rem; background: #e7eee3e8; color: #244434; font-weight: 800; pointer-events: none; }
+      .map-loading[hidden] { display: none; }
       #map { height: 52.2rem; border-radius: .5rem; background: linear-gradient(135deg, #d8ebd3, #b9d9e9); }
       #status { margin-top: .75rem; padding: .65rem; border-left: 4px solid #167044; background: #edf7ed; line-height: 1.45; }
       .building-info { grid-area: results; background: #f7fbf6; color: #203b30; }
@@ -187,6 +189,7 @@
       <section class="panel map-panel" aria-label="전국 지도">
         <div class="map-stage">
           <div id="map" aria-describedby="map-description"></div>
+          <div id="map-loading" class="map-loading" role="status">전국 위성지도를 불러오는 중입니다…</div>
           <details class="shadow-controls" open>
             <summary id="shadow-heading">☀️ 일조권 분석 · 시간별 그림자</summary>
             <label class="shadow-toggle"><input id="shadow-toggle" type="checkbox"> 그림자 표시</label>
@@ -263,6 +266,6 @@
         document.write(`<script src="https://map.vworld.kr/js/webglMapInit.js.do?version=3.0&apiKey=${encodeURIComponent(window.SOLAR_CONFIG.vworldApiKey)}"><\/script>`);
       }
     </script>
-    <script type="module" src="./app.mjs?v=mass-editor-1"></script>
+    <script type="module" src="./app.mjs?v=mass-editor-2"></script>
   </body>
 </html>

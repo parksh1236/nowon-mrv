@@ -1227,7 +1227,14 @@ export function loadVWorld(key) {
   });
 }
 
+export function mapTileLoadingState(tilesLoaded, elapsedMs) {
+  if (tilesLoaded && elapsedMs >= 700) return 'ready';
+  return elapsedMs >= 12000 ? 'timeout' : 'waiting';
+}
+
 export async function initMap() {
+  const loading = doc.querySelector('#map-loading');
+  if (loading) loading.hidden = false;
   try {
     await loadVWorld(vworldKey());
     if (!window.vw) throw new Error('VWorld 지도를 초기화하지 못했습니다.');
@@ -1250,9 +1257,18 @@ export async function initMap() {
     wireMapViewSync(mapInstance);
     renderMapShapes();
     if (shadowToggle?.checked) toggleShadowSimulation(true);
-    setStatus(`전국 V월드 지도를 불러왔습니다.`);
+    setStatus('전국 V월드 위성 타일을 불러오는 중입니다.');
+    const started = Date.now();
+    const finishLoading = () => {
+      const state = mapTileLoadingState(getViewer()?.scene?.globe?.tilesLoaded, Date.now() - started);
+      if (state === 'waiting') return setTimeout(finishLoading, 250);
+      if (loading) loading.hidden = true;
+      setStatus(state === 'ready' ? '전국 V월드 지도를 불러왔습니다.' : '지도 타일 로딩이 지연되고 있습니다. 확대·축소하거나 새로고침해 주세요.');
+    };
+    setTimeout(finishLoading, 700);
     return mapInstance;
   } catch (error) {
+    if (loading) loading.hidden = true;
     setStatus(`${error.message} 좌표 입력으로 개략 분석을 계속할 수 있습니다.`);
     return null;
   }
