@@ -85,10 +85,33 @@ export async function hydrateElectricity(buildings, fetchUsage, {concurrency=3,i
   await Promise.all(Array.from({length:Math.min(Math.max(1,concurrency),buildings.length)},worker));
 }
 
+export function applyUsageLookup(buildings, payload, expectedSigunguCd) {
+  if (!payload || payload.sigunguCd!==expectedSigunguCd || !/^\d{6}$/.test(payload.ym || '') || !Array.isArray(payload.rows)) {
+    throw new Error('전기·가스 사용량 자료 형식을 확인해 주세요.');
+  }
+  const lookup=new Map();
+  for (const row of payload.rows) {
+    if (!Array.isArray(row) || row.length!==6) continue;
+    const [bjdongCd,platGbCd,bun,ji,elec,gas]=row;
+    lookup.set(`${bjdongCd}|${platGbCd}|${bun}|${ji}`,{elec,gas});
+  }
+  for (const b of buildings) {
+    const usage=lookup.get(`${b.bjdongCd}|${b.platGbCd}|${b.bun}|${b.ji}`);
+    b.ym=payload.ym;
+    b.elec=usage?.elec ?? null;
+    b.gas=usage?.gas ?? null;
+    b.energyStatus=b.elec==null?'no-data':'available';
+    b.gasStatus=b.gas==null?'no-data':'available';
+  }
+  return buildings;
+}
+
 export function coverageText({total,loaded,buildings,month,duplicates=0,rejected=0,outside=0}) {
   const count=s=>buildings.filter(b=>b.energyStatus===s).length;
+  const gasCount=s=>buildings.filter(b=>b.gasStatus===s).length;
   return `${month.slice(0,4)}.${month.slice(4)} · 현재 화면 API 건물 ${total.toLocaleString()}개 중 ${loaded.toLocaleString()}개 불러옴. `+
     `필지 ${buildings.length.toLocaleString()}개: 전기자료 있음 ${count('available')} · 미제공 ${count('no-data')} · 실패 ${count('error')} · 미조회 ${count('pending')}. `+
+    `가스자료 있음 ${gasCount('available')} · 미제공 ${gasCount('no-data')} · 미조회 ${gasCount('unqueried')+gasCount('pending')}. `+
     `동일 필지 중복 ${duplicates} · 식별/좌표 오류 ${rejected} · 다른 지역 ${outside}. `+
     `지역 전체 건물의 전수자료가 아닙니다. 미제공은 0kWh가 아니며 회색 점은 미제공·미조회·오류를 포함합니다. 같은 필지의 여러 동은 1개 지점으로 표시합니다.`;
 }

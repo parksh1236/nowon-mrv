@@ -130,14 +130,33 @@ test('stale selection does not start new API calls',async()=>{
   await hydrateElectricity([{energyStatus:'pending'}],async()=>{calls++;},{isCurrent:()=>false});
   assert.equal(calls,0);
 });
+test('stored electricity and gas usage join to exact parcel keys without treating missing as zero',async()=>{
+  const { applyUsageLookup }=await load();
+  const buildings=[
+    {bjdongCd:'10200',platGbCd:'0',bun:'0123',ji:'0004'},
+    {bjdongCd:'10200',platGbCd:'1',bun:'0123',ji:'0004'}
+  ];
+  applyUsageLookup(buildings,{sigunguCd:'41360',ym:'202606',rows:[['10200','0','0123','0004',1200,340]]},'41360');
+  assert.deepEqual([buildings[0].elec,buildings[0].gas,buildings[0].energyStatus,buildings[0].gasStatus],[1200,340,'available','available']);
+  assert.deepEqual([buildings[1].elec,buildings[1].gas,buildings[1].energyStatus,buildings[1].gasStatus],[null,null,'no-data','no-data']);
+  assert.equal(buildings[0].ym,'202606');
+  assert.throws(()=>applyUsageLookup(buildings,{sigunguCd:'11350',ym:'202606',rows:[]},'41360'),/형식/);
+});
 test('page and API coverage are not conflated with complete district coverage',async()=>{
   const { coverageText }=await load();
-  const text=coverageText({total:200,loaded:50,duplicates:2,rejected:1,outside:3,buildings:[{energyStatus:'available'},{energyStatus:'no-data'},{energyStatus:'error'},{energyStatus:'pending'}],month:'202604'});
-  for(const expected of ['200','50','미제공 1','실패 1','미조회 1','지역 전체','2026.04']) assert.ok(text.includes(expected),expected);
+  const text=coverageText({total:200,loaded:50,duplicates:2,rejected:1,outside:3,buildings:[{energyStatus:'available',gasStatus:'available'},{energyStatus:'no-data',gasStatus:'no-data'},{energyStatus:'error',gasStatus:'unqueried'},{energyStatus:'pending',gasStatus:'unqueried'}],month:'202604'});
+  for(const expected of ['200','50','미제공 1','실패 1','미조회 1','가스자료 있음 1','미조회 2','지역 전체','2026.04']) assert.ok(text.includes(expected),expected);
 });
 test('main page wires visible-area loading and does not claim full building coverage',()=>{
   const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
   assert.ok(html.includes('id="mapLoadBuildings"'));
   assert.ok(html.includes('id="mapEnergyCoverage"'));
   assert.ok(html.includes("import('./energy-map.mjs')"));
+});
+test('Nowon stored map uses the full June usage coordinate match instead of the old sample',()=>{
+  const rows=JSON.parse(readFileSync(new URL('./data/energy/11350.json',import.meta.url),'utf8'));
+  assert.equal(rows.length,3553);
+  assert.equal(rows.filter(row=>row.elec!=null).length,3456);
+  assert.equal(rows.filter(row=>row.gas!=null).length,2563);
+  assert.equal(new Set(rows.map(row=>`${row.bjdongCd}|${row.platGbCd}|${row.bun}|${row.ji}`)).size,3553);
 });
