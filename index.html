@@ -140,6 +140,22 @@
   #t4.on { width:calc(100vw - 32px); margin-left:calc(50% - 50vw + 16px); margin-right:calc(50% - 50vw + 16px); }
   .solar-lab-frame { display:block; width:100%; height:calc(120vh - 228px); min-height:912px; border:0; border-radius:6px; background:#f4f7f1; }
   @media (max-width:1100px){ .maplayout { flex-direction:column; } .mapside { flex:none; width:100%; } .mapmain { width:100%; } }
+  /* 지도는 화면 전체를 채우고 선택 도구만 지도 위에 띄운다. */
+  body:has(#tMap.on) main { max-width:none; margin:0; padding:0; }
+  #tMap .mapcard { border:0; border-radius:0; padding:0; margin:0; background:none; }
+  #tMap .mapcard > h2, #tMap .mapcard > .cpsub { display:none; }
+  #tMap .maplayout { display:block; position:relative; margin:0; }
+  #tMap .maplayout > .mapside:not(.mapinfo-side) { position:absolute; z-index:3; top:12px; left:12px; width:268px; max-height:calc(100% - 24px); overflow:auto; gap:8px; }
+  #tMap .mapmain { position:relative; width:100%; }
+  #tMap #kakaoMap { height:calc(100vh - 145px); min-height:520px; border-radius:0; }
+  #tMap #mapLiveControls { display:none !important; }
+  #tMap #mapLegendBox { position:absolute; z-index:2; right:58px; bottom:16px; background:rgba(255,255,255,.96); padding:9px 12px; }
+  #tMap .mapinfo-side { position:absolute; z-index:4; right:12px; top:12px; width:min(340px,calc(100% - 24px)); max-height:calc(100% - 24px); overflow:auto; padding:14px; border-radius:8px; background:white; box-shadow:0 3px 18px #0004; }
+  #tMap .mapinfo-side[hidden] { display:none; }
+  #mapInfoClose { float:right; border:0; background:none; font-size:22px; line-height:1; cursor:pointer; }
+  #tMap #mapStatus, #tMap #mapEnergyCoverage { position:absolute; z-index:2; left:292px; bottom:12px; max-width:calc(100% - 450px); background:#fffffff0; padding:5px 8px; margin:0!important; }
+  #tMap #mapEnergyCoverage { bottom:42px; }
+  @media(max-width:700px){ #tMap .maplayout > .mapside:not(.mapinfo-side) { width:205px; } #tMap #mapStatus, #tMap #mapEnergyCoverage { left:225px; max-width:calc(100% - 235px); } }
 </style>
 </head>
 <body>
@@ -185,10 +201,6 @@
           <div class="statsub" id="statMeta">-</div>
           <div class="statsub" style="margin-top:4px">전력배출계수 0.4871 · 도시가스배출계수 0.202 kgCO₂eq/kWh 적용 추정치</div>
         </div>
-        <div class="sidebox" id="mapLegendBox" style="display:none">
-          <div class="sidebox-title" id="mapLegendTitle">전기 사용량 (kWh) 범례</div>
-          <div id="mapLegend"></div>
-        </div>
         <div class="sidebox" id="mapUsageBox" style="display:none">
           <div class="sidebox-title">건축물 용도별 사용량</div>
           <label for="mapEnergyKind">에너지 종류</label>
@@ -208,10 +220,15 @@
       </div>
       <div class="mapmain">
         <div id="kakaoMap"></div>
+        <div class="sidebox" id="mapLegendBox" style="display:none">
+          <div class="sidebox-title" id="mapLegendTitle">전기 사용량 (kWh) 범례</div>
+          <div id="mapLegend"></div>
+        </div>
         <div class="dnote" id="mapStatus" style="margin-top:10px">지역을 선택하거나 주소를 검색해 보세요.</div>
         <div class="dnote" id="mapEnergyCoverage" role="status" aria-live="polite" style="margin-top:8px;line-height:1.7"></div>
       </div>
-      <div class="mapside mapinfo-side">
+      <div class="mapside mapinfo-side" id="mapInfoPanel" hidden>
+        <button id="mapInfoClose" type="button" aria-label="건물 상세정보 닫기">×</button>
         <div class="sidebox-title" style="margin:0 0 4px 2px">건물 상세정보</div>
         <div class="infogrid" id="mapInfoGrid" style="display:none">
           <div class="infocard">
@@ -1172,10 +1189,12 @@ function initKakaoMap(){
   const infoEmpty = document.getElementById('mapInfoEmpty');
   let detailGeneration=0, searchGeneration=0;
   function setInfoVisible(on){
+    document.getElementById('mapInfoPanel').hidden=!on;
     grid.style.display = on ? 'grid' : 'none';
     infoEmpty.style.display = on ? 'none' : 'block';
     if (!on){ detailGeneration++; document.getElementById('usageChartBox').style.display='none'; }
   }
+  document.getElementById('mapInfoClose').onclick=()=>{ searchGeneration++; setInfoVisible(false); };
 
   // ── 지역 선택: 시·도 → 시군구 2단 선택 (data/region_centers.json 기준) ──
   const provinceSelect = document.getElementById('mapProvinceSelect');
@@ -1485,8 +1504,8 @@ function initKakaoMap(){
     coverage.textContent=currentBuildings.length
       ? buildingConfig?.scope==='usage-coordinate'
         ? `${ym?.slice(0,4)}.${ym?.slice(4)} 사용량 필지 ${buildingConfig.sourceParcels.toLocaleString()}개 중 좌표 연결 ${currentBuildings.length.toLocaleString()}개소 · 전기 ${currentBuildings.filter(b=>b.elec!=null).length.toLocaleString()} · 가스 ${currentBuildings.filter(b=>b.gas!=null).length.toLocaleString()} · 좌표 미연결 ${buildingConfig.unmappedParcels.toLocaleString()}개소.`
-        : `저장된 표본 ${currentBuildings.length}개소 중 전기자료 ${currentBuildings.filter(b=>b.elec!=null).length}개소. 지역 전체 전수자료가 아닙니다. 현재 화면 조회를 누르면 선택 월의 API 자료로 교체합니다.`
-      : supportsLive?'현재 화면의 건물 위치와 전기사용량을 조회할 수 있습니다. 지역 전체를 한 번에 불러오는 방식은 아닙니다.':'현재 건물별 표본·화면 조회를 지원하지 않는 지역입니다.';
+        : `저장된 표본 ${currentBuildings.length}개소 중 전기자료 ${currentBuildings.filter(b=>b.elec!=null).length}개소. 지역 전체 전수자료가 아닙니다.`
+      : supportsLive?'현재 화면의 건물 위치와 전기사용량을 조회합니다. 지역 전체를 한 번에 불러오는 방식은 아닙니다.':'현재 건물별 표본·화면 조회를 지원하지 않는 지역입니다.';
     const official = officialGhg(name);
     const statBox = document.getElementById('mapStatBox');
     const statMetaNote = statBox.querySelector('.statsub:last-child');

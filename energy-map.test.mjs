@@ -153,6 +153,14 @@ test('main page wires visible-area loading and does not claim full building cove
   assert.ok(html.includes('id="mapEnergyCoverage"'));
   assert.ok(html.includes("import('./energy-map.mjs')"));
 });
+test('map layout places legend over the map and exposes a closable detail panel',()=>{
+  const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+  assert.ok(html.includes('#tMap #mapLiveControls { display:none !important; }'));
+  assert.ok(html.indexOf('id="kakaoMap"') < html.indexOf('id="mapLegendBox"'));
+  assert.ok(html.includes('id="mapInfoPanel" hidden'));
+  assert.ok(html.includes("document.getElementById('mapInfoPanel').hidden=!on"));
+  assert.ok(html.includes("document.getElementById('mapInfoClose').onclick"));
+});
 test('Nowon stored map uses the full June usage coordinate match instead of the old sample',()=>{
   const rows=JSON.parse(readFileSync(new URL('./data/energy/11350.json',import.meta.url),'utf8'));
   assert.equal(rows.length,3553);
