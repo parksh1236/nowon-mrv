@@ -193,9 +193,9 @@
           <div class="sidebox-title">건축물 용도별 사용량</div>
           <label for="mapEnergyKind">에너지 종류</label>
           <select id="mapEnergyKind"><option value="elec">전기 (kWh)</option><option value="gas">가스 (원본 단위)</option></select>
-          <label for="mapUsageType">건축물 용도</label>
-          <select id="mapUsageType"><option value="">전체 용도</option></select>
-          <div id="mapUsageSummary" style="margin-top:10px"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px"><b>건축물 용도</b><button id="mapUsageAll" type="button" style="width:auto;padding:3px 7px;font-size:11px">전체 선택/해제</button></div>
+          <div id="mapUsageTypes" style="max-height:180px;overflow:auto;margin-top:5px;font-size:12px"></div>
+          <div id="mapUsageSummary" style="margin-top:12px;font-size:12px"></div>
           <div class="dnote">현재 불러온 필지 기준이며 지역 전체 사용량이 아닙니다. 미제공 값은 합계에서 제외합니다. 가스 원본 단위 확인 전에는 전기와 합산하지 않습니다.</div>
         </div>
         <div class="sidebox">
@@ -1210,19 +1210,27 @@ function initKakaoMap(){
   let districtOverlay = null; // 시군구 집계 라벨 (줌아웃 시 표시)
   let currentBuildings = [];
   let currentRegion = null;
-  const energyKind=document.getElementById('mapEnergyKind'), usageType=document.getElementById('mapUsageType');
+  const energyKind=document.getElementById('mapEnergyKind'), usageTypes=document.getElementById('mapUsageTypes');
   const usageBox=document.getElementById('mapUsageBox'), usageSummary=document.getElementById('mapUsageSummary');
+  let selectedTypes=null;
   function updateUsageSummary(){
     usageBox.style.display=currentBuildings.length?'block':'none';
-    const prior=usageType.value;
     const types=[...new Set(currentBuildings.map(b=>String(b.type||'').trim()||'용도정보 없음'))].sort((a,b)=>a.localeCompare(b,'ko'));
-    usageType.innerHTML='<option value="">전체 용도</option>';
-    types.forEach(type=>{const option=document.createElement('option'); option.value=type; option.textContent=type; usageType.appendChild(option);});
-    usageType.value=types.includes(prior)?prior:'';
+    if(selectedTypes===null && types.length) selectedTypes=new Set(types);
+    const activeTypes=selectedTypes||new Set();
+    usageTypes.replaceChildren();
+    types.forEach(type=>{
+      const label=document.createElement('label'); label.style.cssText='display:flex;align-items:center;gap:5px;margin:3px 0;font-size:12px';
+      const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.style.cssText='width:auto;margin:0'; checkbox.checked=activeTypes.has(type);
+      checkbox.onchange=()=>{if(checkbox.checked) selectedTypes.add(type); else selectedTypes.delete(type); updateUsageSummary(); updateDisplayMode();};
+      const name=document.createElement('span'); name.textContent=type;
+      const count=document.createElement('span'); count.style.marginLeft='auto'; count.textContent=currentBuildings.filter(b=>(String(b.type||'').trim()||'용도정보 없음')===type).length.toLocaleString();
+      label.append(checkbox,name,count); usageTypes.appendChild(label);
+    });
     const groups=new Map();
     for(const b of currentBuildings){
       const type=String(b.type||'').trim()||'용도정보 없음';
-      if(usageType.value && usageType.value!==type) continue;
+      if(!activeTypes.has(type)) continue;
       const value=b[energyKind.value];
       const item=groups.get(type)||{count:0,total:0};
       if(value!=null && Number.isFinite(Number(value)) && Number(value)>=0){item.count++; item.total+=Number(value);}
@@ -1230,13 +1238,13 @@ function initKakaoMap(){
     }
     const unit=energyKind.value==='elec'?'kWh':'원본 단위';
     const totals=[...groups.values()].reduce((a,b)=>({count:a.count+b.count,total:a.total+b.total}),{count:0,total:0});
-    usageSummary.innerHTML=`<b>자료 있음 ${totals.count.toLocaleString()}필지 · ${totals.total.toLocaleString()} ${unit}</b>`+
-      [...groups].sort((a,b)=>b[1].total-a[1].total).map(([type,item])=>`<div style="margin-top:5px">${esc(type)} · ${item.count.toLocaleString()}필지 · ${item.total.toLocaleString()} ${unit}</div>`).join('');
+    usageSummary.innerHTML=`<div style="margin-bottom:8px"><b>총 사용량</b><br>${totals.total.toLocaleString()} ${unit} · ${totals.count.toLocaleString()}필지</div><b>건축물 용도별 사용량</b>`+
+      [...groups].sort((a,b)=>b[1].total-a[1].total).map(([type,item])=>`<div style="display:flex;justify-content:space-between;gap:4px;margin-top:5px"><span>${esc(type)}</span><span>${item.count.toLocaleString()} · ${item.total.toLocaleString()}</span></div>`).join('');
     document.getElementById('mapLegendTitle').textContent=`${energyKind.value==='elec'?'전기 (kWh)':'가스 (원본 단위)'} 사용량 범례`;
     legendEl.innerHTML=USAGE_BUCKETS.map(b=>`<div class="legendrow"><span class="legenddot" style="background:${b.color}"></span>${b.label} ${unit}</div>`).join('')+`<div class="legendrow"><span class="legenddot" style="background:${USAGE_NODATA_COLOR}"></span>미제공·미조회·조회 실패</div>`;
   }
   energyKind.onchange=()=>{updateUsageSummary(); updateDisplayMode();};
-  usageType.onchange=()=>{updateUsageSummary(); updateDisplayMode();};
+  document.getElementById('mapUsageAll').onclick=()=>{const types=[...usageTypes.querySelectorAll('input')]; const selectAll=types.some(input=>!input.checked); selectedTypes=new Set(selectAll?[...currentBuildings.map(b=>String(b.type||'').trim()||'용도정보 없음')]:[]); updateUsageSummary(); updateDisplayMode();};
   let displayMode = 'district'; // 'building' | 'district'
   let liveGeneration=0, liveBatch=null;
   const energyUsageCache=new Map();
@@ -1351,7 +1359,7 @@ function initKakaoMap(){
 
   function renderBuildingDots(){
     buildingOverlays.forEach(o=>o.setMap(null));
-    buildingOverlays = currentBuildings.filter(b=>!usageType.value || (String(b.type||'').trim()||'용도정보 없음')===usageType.value).map(b=>{
+    buildingOverlays = currentBuildings.filter(b=>selectedTypes?.has(String(b.type||'').trim()||'용도정보 없음')).map(b=>{
       const dot = document.createElement('div');
       dot.className = 'bldg-dot';
       dot.style.background = usageColor(b[energyKind.value]);
@@ -1433,7 +1441,7 @@ function initKakaoMap(){
     loadBuildingsButton.disabled=false; nextBuildingsButton.disabled=true;
     clearOverlays();
     currentBuildings = [];
-    usageType.value=''; updateUsageSummary();
+    selectedTypes=null; updateUsageSummary();
     currentRegion = null;
     setInfoVisible(false);
     const center = REGION_CENTERS[name];
