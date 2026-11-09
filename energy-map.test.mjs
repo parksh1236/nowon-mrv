@@ -160,3 +160,11 @@ test('Nowon stored map uses the full June usage coordinate match instead of the 
   assert.equal(rows.filter(row=>row.gas!=null).length,2563);
   assert.equal(new Set(rows.map(row=>`${row.bjdongCd}|${row.platGbCd}|${row.bun}|${row.ji}`)).size,3553);
 });
+test('Gangdong stored map joins June usage to unique official building parcels',()=>{
+  const rows=JSON.parse(readFileSync(new URL('./data/energy/11740.json',import.meta.url),'utf8'));
+  assert.equal(rows.length,2851);
+  assert.equal(rows.filter(row=>row.elec!=null).length,2816);
+  assert.equal(rows.filter(row=>row.gas!=null).length,2151);
+  assert.equal(new Set(rows.map(row=>`${row.bjdongCd}|${row.platGbCd}|${row.bun}|${row.ji}`)).size,2851);
+  assert.ok(rows.every(row=>row.sigunguCd==='11740' && row.lng>=127.09 && row.lng<=127.19 && row.lat>=37.49 && row.lat<=37.60));
+});
