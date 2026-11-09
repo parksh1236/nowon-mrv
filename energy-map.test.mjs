@@ -168,3 +168,10 @@ test('Gangdong stored map joins June usage to unique official building parcels',
   assert.equal(new Set(rows.map(row=>`${row.bjdongCd}|${row.platGbCd}|${row.bun}|${row.ji}`)).size,2851);
   assert.ok(rows.every(row=>row.sigunguCd==='11740' && row.lng>=127.09 && row.lng<=127.19 && row.lat>=37.49 && row.lat<=37.60));
 });
+test('Gangbuk map links June usage to unique building parcels',()=>{
+  const rows=JSON.parse(readFileSync(new URL('./data/energy/11305.json',import.meta.url),'utf8'));
+  assert.equal(rows.length,3234);
+  assert.equal(rows.filter(row=>row.elec!=null).length,3204);
+  assert.equal(rows.filter(row=>row.gas!=null).length,2467);
+  assert.equal(new Set(rows.map(row=>`${row.bjdongCd}|${row.platGbCd}|${row.bun}|${row.ji}`)).size,3234);
+});
