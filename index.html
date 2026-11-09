@@ -186,8 +186,17 @@
           <div class="statsub" style="margin-top:4px">전력배출계수 0.4871 · 도시가스배출계수 0.202 kgCO₂eq/kWh 적용 추정치</div>
         </div>
         <div class="sidebox" id="mapLegendBox" style="display:none">
-          <div class="sidebox-title">전기 사용량 (kWh) 범례</div>
+          <div class="sidebox-title" id="mapLegendTitle">전기 사용량 (kWh) 범례</div>
           <div id="mapLegend"></div>
+        </div>
+        <div class="sidebox" id="mapUsageBox" style="display:none">
+          <div class="sidebox-title">건축물 용도별 사용량</div>
+          <label for="mapEnergyKind">에너지 종류</label>
+          <select id="mapEnergyKind"><option value="elec">전기 (kWh)</option><option value="gas">가스 (원본 단위)</option></select>
+          <label for="mapUsageType">건축물 용도</label>
+          <select id="mapUsageType"><option value="">전체 용도</option></select>
+          <div id="mapUsageSummary" style="margin-top:10px"></div>
+          <div class="dnote">현재 불러온 필지 기준이며 지역 전체 사용량이 아닙니다. 미제공 값은 합계에서 제외합니다. 가스 원본 단위 확인 전에는 전기와 합산하지 않습니다.</div>
         </div>
         <div class="sidebox">
           <div class="sidebox-title">🔎 개별 건물 검색</div>
@@ -1201,6 +1210,33 @@ function initKakaoMap(){
   let districtOverlay = null; // 시군구 집계 라벨 (줌아웃 시 표시)
   let currentBuildings = [];
   let currentRegion = null;
+  const energyKind=document.getElementById('mapEnergyKind'), usageType=document.getElementById('mapUsageType');
+  const usageBox=document.getElementById('mapUsageBox'), usageSummary=document.getElementById('mapUsageSummary');
+  function updateUsageSummary(){
+    usageBox.style.display=currentBuildings.length?'block':'none';
+    const prior=usageType.value;
+    const types=[...new Set(currentBuildings.map(b=>String(b.type||'').trim()||'용도정보 없음'))].sort((a,b)=>a.localeCompare(b,'ko'));
+    usageType.innerHTML='<option value="">전체 용도</option>';
+    types.forEach(type=>{const option=document.createElement('option'); option.value=type; option.textContent=type; usageType.appendChild(option);});
+    usageType.value=types.includes(prior)?prior:'';
+    const groups=new Map();
+    for(const b of currentBuildings){
+      const type=String(b.type||'').trim()||'용도정보 없음';
+      if(usageType.value && usageType.value!==type) continue;
+      const value=b[energyKind.value];
+      const item=groups.get(type)||{count:0,total:0};
+      if(value!=null && Number.isFinite(Number(value)) && Number(value)>=0){item.count++; item.total+=Number(value);}
+      groups.set(type,item);
+    }
+    const unit=energyKind.value==='elec'?'kWh':'원본 단위';
+    const totals=[...groups.values()].reduce((a,b)=>({count:a.count+b.count,total:a.total+b.total}),{count:0,total:0});
+    usageSummary.innerHTML=`<b>자료 있음 ${totals.count.toLocaleString()}필지 · ${totals.total.toLocaleString()} ${unit}</b>`+
+      [...groups].sort((a,b)=>b[1].total-a[1].total).map(([type,item])=>`<div style="margin-top:5px">${esc(type)} · ${item.count.toLocaleString()}필지 · ${item.total.toLocaleString()} ${unit}</div>`).join('');
+    document.getElementById('mapLegendTitle').textContent=`${energyKind.value==='elec'?'전기 (kWh)':'가스 (원본 단위)'} 사용량 범례`;
+    legendEl.innerHTML=USAGE_BUCKETS.map(b=>`<div class="legendrow"><span class="legenddot" style="background:${b.color}"></span>${b.label} ${unit}</div>`).join('')+`<div class="legendrow"><span class="legenddot" style="background:${USAGE_NODATA_COLOR}"></span>미제공·미조회·조회 실패</div>`;
+  }
+  energyKind.onchange=()=>{updateUsageSummary(); updateDisplayMode();};
+  usageType.onchange=()=>{updateUsageSummary(); updateDisplayMode();};
   let displayMode = 'district'; // 'building' | 'district'
   let liveGeneration=0, liveBatch=null;
   const energyUsageCache=new Map();
@@ -1268,7 +1304,7 @@ function initKakaoMap(){
         const statNote=document.querySelector('#mapStatBox .statsub:last-child');
         if (statNote) statNote.textContent='건물 지도는 아래 현재 화면 조회 범위의 필지별 전기·가스 자료입니다. 지역 전체 배출량·건물 전수자료와 다릅니다.';
       };
-      progress(); updateDisplayMode();
+      progress(); updateUsageSummary(); updateDisplayMode();
       const storedUsage=await loadEnergyUsage(codes[0]);
       if (!isCurrent()) return;
       if (storedUsage) {
@@ -1281,7 +1317,7 @@ function initKakaoMap(){
           {isCurrent,onProgress:progress,concurrency:3});
       }
       if (!isCurrent()) return;
-      progress(); updateDisplayMode();
+      progress(); updateUsageSummary(); updateDisplayMode();
       const failed=currentBuildings.find(b=>b.energyStatus==='error');
       status.textContent=failed
         ? `${name} — ${failed.energyError} · 미조회 건물은 현재 화면 조회로 다시 시도하세요.`
@@ -1315,12 +1351,12 @@ function initKakaoMap(){
 
   function renderBuildingDots(){
     buildingOverlays.forEach(o=>o.setMap(null));
-    buildingOverlays = currentBuildings.map(b=>{
+    buildingOverlays = currentBuildings.filter(b=>!usageType.value || (String(b.type||'').trim()||'용도정보 없음')===usageType.value).map(b=>{
       const dot = document.createElement('div');
       dot.className = 'bldg-dot';
-      dot.style.background = usageColor(b.elec);
+      dot.style.background = usageColor(b[energyKind.value]);
       const elecText=b.energyStatus==='pending'?'전기 미조회':b.energyStatus==='error'?'전기 API 조회 실패':b.elec==null?'전기자료 미제공':`전기 ${Number(b.elec).toLocaleString()} kWh`;
-      const gasText=b.gasStatus==='unqueried'?'가스 미조회':b.gas==null?'가스자료 미제공':`가스 ${Number(b.gas).toLocaleString()} kWh`;
+      const gasText=b.gasStatus==='unqueried'?'가스 미조회':b.gas==null?'가스자료 미제공':`가스 ${Number(b.gas).toLocaleString()} (원본 단위)`;
       dot.title=`${b.addr} — ${elecText} · ${gasText}`;
       dot.setAttribute('role','button'); dot.tabIndex=0;
       dot.setAttribute('aria-label',dot.title);
@@ -1397,6 +1433,7 @@ function initKakaoMap(){
     loadBuildingsButton.disabled=false; nextBuildingsButton.disabled=true;
     clearOverlays();
     currentBuildings = [];
+    usageType.value=''; updateUsageSummary();
     currentRegion = null;
     setInfoVisible(false);
     const center = REGION_CENTERS[name];
@@ -1436,6 +1473,7 @@ function initKakaoMap(){
       });
     }
 
+    updateUsageSummary();
     coverage.textContent=currentBuildings.length
       ? buildingConfig?.scope==='usage-coordinate'
         ? `${ym?.slice(0,4)}.${ym?.slice(4)} 사용량 필지 ${buildingConfig.sourceParcels.toLocaleString()}개 중 좌표 연결 ${currentBuildings.length.toLocaleString()}개소 · 전기 ${currentBuildings.filter(b=>b.elec!=null).length.toLocaleString()} · 가스 ${currentBuildings.filter(b=>b.gas!=null).length.toLocaleString()} · 좌표 미연결 ${buildingConfig.unmappedParcels.toLocaleString()}개소.`
