@@ -152,6 +152,14 @@
   #tMap #mapLegendBox { position:absolute; z-index:2; right:58px; bottom:16px; background:rgba(255,255,255,.96); padding:9px 12px; }
   #tMap .mapinfo-side { position:absolute; z-index:4; right:12px; top:12px; width:min(340px,calc(100% - 24px)); max-height:calc(100% - 24px); overflow:auto; padding:14px; border-radius:8px; background:white; box-shadow:0 3px 18px #0004; }
   #tMap .mapinfo-side[hidden] { display:none; }
+  #tMap #usageChartBox { margin-top:10px!important; font-size:10px; }
+  #tMap #usageChartBox .sidebox-title { font-size:11px; margin-bottom:4px; }
+  #tMap #usageChartBuilding, #tMap #usageChartStatus { font-size:10px; line-height:1.35!important; margin:4px 0!important; }
+  #tMap #usageChart { max-height:76px; overflow:hidden; }
+  #tMap #usageChart svg { display:block; width:100%; height:72px; }
+  #tMap #usageChart .dnote { font-size:9px; margin-top:1px; }
+  #tMap #usageTable { font-size:9px!important; margin-top:3px!important; }
+  #tMap #usageTable th, #tMap #usageTable td { padding:3px 4px; }
   #mapInfoClose { float:right; border:0; background:none; font-size:22px; line-height:1; cursor:pointer; }
   #tMap #mapStatus, #tMap #mapEnergyCoverage { position:absolute; z-index:2; left:292px; bottom:12px; max-width:calc(100% - 450px); background:#fffffff0; padding:5px 8px; margin:0!important; }
   #tMap #mapEnergyCoverage { bottom:42px; }
@@ -951,16 +959,18 @@ function renderUsageChart(rows){
     :hasData?'업로드한 건물별 사용량 자료입니다. 미제공은 0을 의미하지 않습니다.'
     :'업로드 자료에 선택 건물의 전기·가스 자료가 없습니다(미제공).';
   const maxV = Math.max(1, ...rows.map(r=>Math.max(r.elec||0, r.gas||0)));
-  const barW=8, gap=6, H=90;
-  const chartW = rows.length*(barW*2+gap);
-  let svg = `<svg viewBox="0 0 ${chartW} ${H+16}" width="100%" preserveAspectRatio="xMinYMid meet">`;
+  const barW=7, gap=5, H=48;
+  const contentW = Math.max(1,rows.length)*(barW*2+gap);
+  const chartW = Math.max(120,contentW);
+  const chartOffset=(chartW-contentW)/2;
+  let svg = `<svg viewBox="0 0 ${chartW} ${H+16}" width="100%" preserveAspectRatio="xMidYMid meet">`;
   rows.forEach((r,i)=>{
-    const x = i*(barW*2+gap);
+    const x = chartOffset+i*(barW*2+gap);
     const eh = r.elec!=null ? Math.max(1, r.elec/maxV*H) : 0;
     const gh = r.gas!=null ? Math.max(1, r.gas/maxV*H) : 0;
     if (r.elec!=null) svg += `<rect x="${x}" y="${H-eh}" width="${barW}" height="${eh}" fill="#1c1a15"><title>${escape(r.ym)} 전기 ${escape(r.elec.toLocaleString())}kWh</title></rect>`;
     if (r.gas!=null) svg += `<rect x="${x+barW}" y="${H-gh}" width="${barW}" height="${gh}" fill="#9c7a3e"><title>${escape(r.ym)} 가스 ${escape(r.gas.toLocaleString())}kWh</title></rect>`;
-    svg += `<text x="${x+barW}" y="${H+12}" font-size="7" text-anchor="middle" fill="#7a7360">${escape(String(r.ym).slice(4))}월</text>`;
+    svg += `<text x="${x+barW}" y="${H+10}" font-size="6" text-anchor="middle" fill="#7a7360">${escape(String(r.ym).slice(4))}월</text>`;
   });
   svg += `</svg><div class="dnote"><span style="color:#1c1a15">■</span> 전기 &nbsp;<span style="color:#9c7a3e">■</span> 가스</div>`;
   document.getElementById('usageChart').innerHTML = hasData?svg:'<div class="empty">'+(pending?'월별 자료를 조회하고 있습니다.':error?'API 오류로 그래프 값을 확인하지 못했습니다.':'표시할 사용량 자료가 없습니다.')+'</div>';
@@ -1234,6 +1244,7 @@ function initKakaoMap(){
       opt.value = p; opt.textContent = p;
       provinceSelect.appendChild(opt);
     });
+    scheduleViewportRegionSync(0);
   });
 
   const legendBox = document.getElementById('mapLegendBox');
@@ -1420,7 +1431,8 @@ function initKakaoMap(){
     return { tCO2: r.value * 1000, type: r.type, year: GHG_TARGETS.year };
   }
 
-  const DISTRICT_MODE_THRESHOLD_KM = 4;
+  // 기존보다 한 단계 넓은 축척에서도 건물 점을 표시한다.
+  const DISTRICT_MODE_THRESHOLD_KM = 8;
 
   function renderDistrictLabel(){
     if (!currentRegion) return;
@@ -1465,9 +1477,33 @@ function initKakaoMap(){
     else renderDistrictLabel();
   }
 
-  kakao.maps.event.addListener(kakaoMap, 'idle', updateDisplayMode);
+  let viewportRegionTimer=null, viewportRegionRequest=0;
+  function scheduleViewportRegionSync(delay=350){
+    updateDisplayMode();
+    clearTimeout(viewportRegionTimer);
+    viewportRegionTimer=setTimeout(syncRegionFromViewport,delay);
+  }
+  function syncRegionFromViewport(){
+    if (!REGION_CENTERS || !kakaoGeocoder) return;
+    const request=++viewportRegionRequest;
+    const center=kakaoMap.getCenter();
+    kakaoGeocoder.coord2RegionCode(center.getLng(),center.getLat(),(results,code)=>{
+      if (request!==viewportRegionRequest || code!==kakao.maps.services.Status.OK) return;
+      const region=(results || []).find(item=>item.region_type==='H') || (results || [])[0];
+      const sigunguCd=String(region?.code || '').slice(0,5);
+      const match=Object.entries(REGION_CENTERS).find(([,item])=>String(item.sigunguCd)===sigunguCd);
+      if (!match) return;
+      const [name,info]=match;
+      if (currentRegion?.name===name) return;
+      provinceSelect.value=info.province;
+      fillRegionSelect(info.province);
+      regionSelect.value=name;
+      loadRegion(name,{preserveView:true});
+    });
+  }
+  kakao.maps.event.addListener(kakaoMap, 'idle', scheduleViewportRegionSync);
 
-  async function loadRegion(name){
+  async function loadRegion(name,{preserveView=false}={}){
     searchGeneration++;
     const generation=++liveGeneration;
     coverage.setAttribute('aria-busy','false');
@@ -1553,7 +1589,9 @@ function initKakaoMap(){
     setTimeout(()=>{
       if (generation!==liveGeneration) return;
       kakaoMap.relayout();
-      if (currentBuildings.length){
+      if (preserveView){
+        // 지도 이동으로 자동 선택된 경우 현재 중심과 확대 수준을 유지한다.
+      } else if (currentBuildings.length){
         const bounds = new kakao.maps.LatLngBounds();
         currentBuildings.forEach(b=> bounds.extend(new kakao.maps.LatLng(b.lat, b.lng)));
         kakaoMap.setBounds(bounds);
@@ -1563,7 +1601,7 @@ function initKakaoMap(){
       }
       displayMode = null; // 강제 재계산
       updateDisplayMode();
-      status.textContent = `${name} — 지도 축척이 ${DISTRICT_MODE_THRESHOLD_KM}km 미만이면 건물별 점이, ${DISTRICT_MODE_THRESHOLD_KM}km 이상이면 지역 총 배출량이 표시됩니다.`;
+      status.textContent = `${name} — 지도 중심 지역을 자동 표시합니다. 화면 폭 ${DISTRICT_MODE_THRESHOLD_KM}km 미만이면 건물별 점이 표시됩니다.`;
       if (supportsLive && !buildingFile) loadLiveBuildings();
     }, 80);
   }

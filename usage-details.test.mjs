@@ -102,11 +102,26 @@ test('uploaded building values preserve zero and missing values',()=>{
 });
 
 test('building detail reads uploaded fields without public-data APIs',()=>{
-  const start=html.indexOf('async function showBuildingInfo(');
+  const start=html.indexOf('function showBuildingInfo(');
   const end=html.indexOf('regionSelect.onchange',start);
   const source=html.slice(start,end);
   assert.match(source,/usageRowsFromUploadedBuilding\(b\)/);
   assert.match(source,/b\.type/);
   assert.match(source,/b\.etc/);
   assert.doesNotMatch(source,/fetchMonthlySeries|fetchBeUsage|fetchBuildingType|callDataGoKr/);
+});
+
+test('single-month chart uses a compact minimum coordinate width',()=>{
+  const {nodes,c}=chartContext();
+  c.renderUsageChart([{ym:'202606',elec:10042,gas:11580,elecStatus:'available',gasStatus:'available'}]);
+  assert.match(nodes.usageChart.innerHTML,/viewBox="0 0 120 64"/);
+  assert.match(html,/#tMap #usageChart svg \{ display:block; width:100%; height:72px; \}/);
+  assert.match(html,/#tMap #usageTable \{ font-size:9px!important/);
+});
+
+test('map follows the viewport district and shows dots one zoom step earlier',()=>{
+  assert.match(html,/const DISTRICT_MODE_THRESHOLD_KM = 8/);
+  assert.match(html,/coord2RegionCode\(center\.getLng\(\),center\.getLat\(\)/);
+  assert.match(html,/loadRegion\(name,\{preserveView:true\}\)/);
+  assert.match(html,/async function loadRegion\(name,\{preserveView=false\}=\{\}\)/);
 });
