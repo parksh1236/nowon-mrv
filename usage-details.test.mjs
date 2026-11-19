@@ -88,3 +88,25 @@ test('cancelled detail series does not enqueue more API calls',async()=>{
   await c.fetchMonthlySeries('11350','10500','0701','0001','0',{isCurrent:()=>false});
   assert.equal(calls,0);
 });
+
+test('uploaded building values preserve zero and missing values',()=>{
+  const start=html.indexOf('function usageRowsFromUploadedBuilding(');
+  const end=html.indexOf('// 공공데이터포털 API 공통 호출');
+  const c=vm.createContext({});
+  vm.runInContext(html.slice(start,end),c);
+  const [row]=c.usageRowsFromUploadedBuilding({ym:'202606',elec:0,gas:null});
+  assert.equal(row.elec,0);
+  assert.equal(row.elecStatus,'available');
+  assert.equal(row.gas,null);
+  assert.equal(row.gasStatus,'no-data');
+});
+
+test('building detail reads uploaded fields without public-data APIs',()=>{
+  const start=html.indexOf('async function showBuildingInfo(');
+  const end=html.indexOf('regionSelect.onchange',start);
+  const source=html.slice(start,end);
+  assert.match(source,/usageRowsFromUploadedBuilding\(b\)/);
+  assert.match(source,/b\.type/);
+  assert.match(source,/b\.etc/);
+  assert.doesNotMatch(source,/fetchMonthlySeries|fetchBeUsage|fetchBuildingType|callDataGoKr/);
+});

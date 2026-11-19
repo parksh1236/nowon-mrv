@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 function client(fetch) {
   const source = html.slice(html.indexOf('async function callDataGoKr('), html.indexOf('// 시군구코드별 총괄표제부'));
-  const context = vm.createContext({ fetch, AbortSignal, URL, setTimeout:callback=>{callback();return 0;}, DATA_GO_KR_KEY: 'test-only', BLDENGY_BASE: 'https://apis.data.go.kr/1613000/BldEngyHubService' });
+  const context = vm.createContext({ fetch, AbortSignal, URL, setTimeout:callback=>{callback();return 0;}, PUBLIC_DATA_PORTAL_ENABLED: true, DATA_GO_KR_KEY: 'test-only', BLDENGY_BASE: 'https://apis.data.go.kr/1613000/BldEngyHubService' });
   vm.runInContext(source, context);
   return context;
 }
@@ -61,4 +61,9 @@ test('concurrent callers use a shared API queue',async()=>{
   });
   await Promise.all([c.callDataGoKr('https://example.test'),c.callDataGoKr('https://example.test')]);
   assert.equal(max,1);
+});
+
+test('production configuration disables public-data portal calls',()=>{
+  assert.match(html,/const PUBLIC_DATA_PORTAL_ENABLED = false/);
+  assert.match(html,/if \(!PUBLIC_DATA_PORTAL_ENABLED\) return \{ok:false,raw:'공공데이터포털 API 사용 중지'\}/);
 });
