@@ -121,7 +121,7 @@ test('single-month chart uses a compact minimum coordinate width',()=>{
 
 test('map follows the viewport district and shows dots one zoom step earlier',()=>{
   assert.match(html,/const DISTRICT_MODE_THRESHOLD_KM = 8/);
-  assert.match(html,/coord2RegionCode\(center\.getLng\(\),center\.getLat\(\)/);
-  assert.match(html,/loadRegion\(name,\{preserveView:true\}\)/);
+  assert.match(html,/distance:haversineKm\(center\.getLat\(\),center\.getLng\(\),info\.lat,info\.lng\)/);
+  assert.match(html,/loadRegion\(nearest\.name,\{preserveView:true\}\)/);
   assert.match(html,/async function loadRegion\(name,\{preserveView=false\}=\{\}\)/);
 });

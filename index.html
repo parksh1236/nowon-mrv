@@ -1477,29 +1477,23 @@ function initKakaoMap(){
     else renderDistrictLabel();
   }
 
-  let viewportRegionTimer=null, viewportRegionRequest=0;
+  let viewportRegionTimer=null;
   function scheduleViewportRegionSync(delay=350){
     updateDisplayMode();
     clearTimeout(viewportRegionTimer);
     viewportRegionTimer=setTimeout(syncRegionFromViewport,delay);
   }
   function syncRegionFromViewport(){
-    if (!REGION_CENTERS || !kakaoGeocoder) return;
-    const request=++viewportRegionRequest;
+    if (!REGION_CENTERS) return;
     const center=kakaoMap.getCenter();
-    kakaoGeocoder.coord2RegionCode(center.getLng(),center.getLat(),(results,code)=>{
-      if (request!==viewportRegionRequest || code!==kakao.maps.services.Status.OK) return;
-      const region=(results || []).find(item=>item.region_type==='H') || (results || [])[0];
-      const sigunguCd=String(region?.code || '').slice(0,5);
-      const match=Object.entries(REGION_CENTERS).find(([,item])=>String(item.sigunguCd)===sigunguCd);
-      if (!match) return;
-      const [name,info]=match;
-      if (currentRegion?.name===name) return;
-      provinceSelect.value=info.province;
-      fillRegionSelect(info.province);
-      regionSelect.value=name;
-      loadRegion(name,{preserveView:true});
-    });
+    const nearest=Object.entries(REGION_CENTERS)
+      .map(([name,info])=>({name,info,distance:haversineKm(center.getLat(),center.getLng(),info.lat,info.lng)}))
+      .sort((a,b)=>a.distance-b.distance)[0];
+    if (!nearest || nearest.distance>35 || currentRegion?.name===nearest.name) return;
+    provinceSelect.value=nearest.info.province;
+    fillRegionSelect(nearest.info.province);
+    regionSelect.value=nearest.name;
+    loadRegion(nearest.name,{preserveView:true});
   }
   kakao.maps.event.addListener(kakaoMap, 'idle', scheduleViewportRegionSync);
 
