@@ -191,3 +191,13 @@ test('Namyangju map joins June usage to unique valid GIS parcels',()=>{
   assert.equal(new Set(rows.map(r=>`${r.bjdongCd}|${r.platGbCd}|${r.bun}|${r.ji}`)).size,rows.length);
   assert.ok(rows.every(r=>r.sigunguCd==='41360' && r.lat>37.45 && r.lat<37.90 && r.lng>126.95 && r.lng<127.55));
 });
+test('Yongin map joins June usage and uploaded building data across all three districts',()=>{
+  const rows=JSON.parse(readFileSync(new URL('./data/energy/41460.json',import.meta.url),'utf8'));
+  assert.equal(rows.length,11386);
+  assert.equal(rows.filter(r=>r.elec!=null).length,11175);
+  assert.equal(rows.filter(r=>r.gas!=null).length,2984);
+  assert.deepEqual([...new Set(rows.map(r=>r.sigunguCd))].sort(),['41461','41463','41465']);
+  assert.equal(new Set(rows.map(r=>`${r.sigunguCd}|${r.bjdongCd}|${r.platGbCd}|${r.bun}|${r.ji}`)).size,rows.length);
+  assert.ok(rows.every(r=>r.lat>37.05 && r.lat<37.40 && r.lng>127.00 && r.lng<127.45));
+  assert.ok(rows.every(r=>r.elec!=null || r.gas!=null));
+});
