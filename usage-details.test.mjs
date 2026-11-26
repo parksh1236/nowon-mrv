@@ -115,8 +115,8 @@ test('single-month chart uses a compact minimum coordinate width',()=>{
   const {nodes,c}=chartContext();
   c.renderUsageChart([{ym:'202606',elec:10042,gas:11580,elecStatus:'available',gasStatus:'available'}]);
   assert.match(nodes.usageChart.innerHTML,/viewBox="0 0 120 64"/);
-  assert.match(html,/#tMap #usageChart svg \{ display:block; width:100%; height:72px; \}/);
-  assert.match(html,/#tMap #usageTable \{ font-size:9px!important/);
+  assert.match(html,/#tMap #usageChart svg \{ display:block; width:100%; height:100px; \}/);
+  assert.match(html,/#tMap #usageTable \{ font-size:13px!important/);
 });
 
 test('map follows the viewport district and shows dots one zoom step earlier',()=>{

@@ -153,13 +153,12 @@
   #tMap .mapinfo-side { position:absolute; z-index:4; right:12px; top:12px; width:min(340px,calc(100% - 24px)); max-height:calc(100% - 24px); overflow:auto; padding:14px; border-radius:8px; background:white; box-shadow:0 3px 18px #0004; }
   #tMap .mapinfo-side[hidden] { display:none; }
   #tMap #usageChartBox { margin-top:10px!important; font-size:10px; }
-  #tMap #usageChartBox .sidebox-title { font-size:11px; margin-bottom:4px; }
-  #tMap #usageChartBuilding, #tMap #usageChartStatus { font-size:10px; line-height:1.35!important; margin:4px 0!important; }
-  #tMap #usageChart { max-height:76px; overflow:hidden; }
-  #tMap #usageChart svg { display:block; width:100%; height:72px; }
-  #tMap #usageChart .dnote { font-size:9px; margin-top:1px; }
-  #tMap #usageTable { font-size:9px!important; margin-top:3px!important; }
-  #tMap #usageTable th, #tMap #usageTable td { padding:3px 4px; }
+  #tMap #usageChartBox .sidebox-title { font-size:14px; margin-bottom:4px; }
+  #tMap #usageChartBuilding, #tMap #usageChartStatus { font-size:12px; line-height:1.4!important; margin:4px 0!important; }
+  #tMap #usageChart svg { display:block; width:100%; height:100px; }
+  #tMap #usageChart .dnote { font-size:12px; margin-top:1px; }
+  #tMap #usageTable { font-size:13px!important; margin-top:6px!important; font-variant-numeric:tabular-nums; }
+  #tMap #usageTable th, #tMap #usageTable td { font-size:inherit; padding:5px; }
   #mapInfoClose { float:right; border:0; background:none; font-size:22px; line-height:1; cursor:pointer; }
   #tMap #mapStatus, #tMap #mapEnergyCoverage { position:absolute; z-index:2; left:292px; bottom:12px; max-width:calc(100% - 450px); background:#fffffff0; padding:5px 8px; margin:0!important; }
   #tMap #mapEnergyCoverage { bottom:42px; }
@@ -959,7 +958,7 @@ function renderUsageChart(rows){
     :hasData?'업로드한 건물별 사용량 자료입니다. 미제공은 0을 의미하지 않습니다.'
     :'업로드 자료에 선택 건물의 전기·가스 자료가 없습니다(미제공).';
   const maxV = Math.max(1, ...rows.map(r=>Math.max(r.elec||0, r.gas||0)));
-  const barW=7, gap=5, H=48;
+  const barW=7, gap=9, H=48;
   const contentW = Math.max(1,rows.length)*(barW*2+gap);
   const chartW = Math.max(120,contentW);
   const chartOffset=(chartW-contentW)/2;
@@ -970,7 +969,7 @@ function renderUsageChart(rows){
     const gh = r.gas!=null ? Math.max(1, r.gas/maxV*H) : 0;
     if (r.elec!=null) svg += `<rect x="${x}" y="${H-eh}" width="${barW}" height="${eh}" fill="#1c1a15"><title>${escape(r.ym)} 전기 ${escape(r.elec.toLocaleString())}kWh</title></rect>`;
     if (r.gas!=null) svg += `<rect x="${x+barW}" y="${H-gh}" width="${barW}" height="${gh}" fill="#9c7a3e"><title>${escape(r.ym)} 가스 ${escape(r.gas.toLocaleString())}kWh</title></rect>`;
-    svg += `<text x="${x+barW}" y="${H+10}" font-size="6" text-anchor="middle" fill="#7a7360">${escape(String(r.ym).slice(4))}월</text>`;
+    svg += `<text x="${x+barW}" y="${H+12}" font-size="9" text-anchor="middle" fill="#595344">${escape(String(r.ym).slice(4))}월</text>`;
   });
   svg += `</svg><div class="dnote"><span style="color:#1c1a15">■</span> 전기 &nbsp;<span style="color:#9c7a3e">■</span> 가스</div>`;
   document.getElementById('usageChart').innerHTML = hasData?svg:'<div class="empty">'+(pending?'월별 자료를 조회하고 있습니다.':error?'API 오류로 그래프 값을 확인하지 못했습니다.':'표시할 사용량 자료가 없습니다.')+'</div>';
