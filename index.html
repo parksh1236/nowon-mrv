@@ -247,16 +247,6 @@
             <div class="ic-label">건축 개요</div>
             <table class="dt" id="infoDetailTable" style="margin-top:6px"></table>
           </div>
-          <div class="infocard">
-            <div class="ic-label">전기 사용량</div>
-            <div class="ic-value" id="infoElectric">-</div>
-            <div class="ic-sub" id="infoElectricMeta">업로드 자료</div>
-          </div>
-          <div class="infocard">
-            <div class="ic-label">가스 사용량</div>
-            <div class="ic-value" id="infoGas">-</div>
-            <div class="ic-sub" id="infoGasMeta">업로드 자료</div>
-          </div>
         </div>
         <div class="dnote" id="mapInfoEmpty">지도에서 건물 점을 클릭하거나 주소를 검색하면 여기에 상세정보가 표시됩니다.</div>
         <div id="usageChartBox" style="display:none;margin-top:14px">
@@ -1641,10 +1631,6 @@ function initKakaoMap(){
     const row=rows[rows.length-1];
     const month=/^\d{6}$/.test(row.ym)?`${row.ym.slice(0,4)}년 ${row.ym.slice(4)}월`:'기준월 미제공';
     document.getElementById('infoBuildingSub').textContent=`${buildingEtc || '건축물 세부 용도 미제공'} · ${month} 업로드 자료`;
-    for (const [kind,id,meta] of [['elec','infoElectric','infoElectricMeta'],['gas','infoGas','infoGasMeta']]){
-      document.getElementById(id).textContent=row[kind]!=null?`${Number(row[kind]).toLocaleString()} ${kind==='elec'?'kWh':'원본 단위'}`:'자료 미제공';
-      document.getElementById(meta).textContent=`${month} 업로드 자료`;
-    }
     document.getElementById('usageChartBuilding').textContent=b.addr || '선택 건물';
     renderUsageChart(rows);
     status.textContent=`📍 ${b.addr || '선택 건물'} — 업로드 자료 표시 완료`;
