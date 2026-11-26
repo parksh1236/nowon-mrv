@@ -982,6 +982,10 @@ function renderUsageChart(rows){
 }
 
 function usageRowsFromUploadedBuilding(building){
+  if (Array.isArray(building?.history)) {
+    const {history,...current}=building;
+    return [...history,current].flatMap(usageRowsFromUploadedBuilding).sort((a,b)=>a.ym.localeCompare(b.ym));
+  }
   const ym=/^\d{6}$/.test(String(building?.ym || '')) ? String(building.ym) : '자료기준';
   const value=key=>building?.[key] == null || building[key] === '' ? null : Number(building[key]);
   const elec=value('elec'), gas=value('gas');
@@ -1635,7 +1639,7 @@ function initKakaoMap(){
     }
     if(!b.register?.length) registerTable.createCaption().textContent='이 필지에 연결된 건물별 상세자료가 없습니다.';
     const rows=usageRowsFromUploadedBuilding(b);
-    const row=rows[0];
+    const row=rows[rows.length-1];
     const month=/^\d{6}$/.test(row.ym)?`${row.ym.slice(0,4)}년 ${row.ym.slice(4)}월`:'기준월 미제공';
     document.getElementById('infoBuildingSub').textContent=`${buildingEtc || '건축물 세부 용도 미제공'} · ${month} 업로드 자료`;
     for (const [kind,id,meta] of [['elec','infoElectric','infoElectricMeta'],['gas','infoGas','infoGasMeta']]){
