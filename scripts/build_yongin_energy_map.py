@@ -53,7 +53,7 @@ def load_buildings(path: Path, wanted: set[str]) -> dict[str, dict[str, str]]:
     buildings: dict[str, dict[str, str]] = {}
     with zipfile.ZipFile(path) as archive, archive.open("build_gyunggi.txt") as source:
         for raw in source:
-            if not raw.startswith((b"41461", b"41463", b"41465")):
+            if raw[:5].decode("ascii", errors="ignore") not in DISTRICT_CODES:
                 continue
             parts = raw.decode("cp949").rstrip("\r\n").split("|")
             if len(parts) < 26:
@@ -99,13 +99,18 @@ def load_coordinates(path: Path, wanted: set[str]) -> dict[str, tuple[float, flo
 
 
 def main() -> int:
+    global DISTRICT_CODES
     parser = argparse.ArgumentParser()
     parser.add_argument("--electricity", type=Path, required=True)
     parser.add_argument("--gas", type=Path, required=True)
     parser.add_argument("--building-zip", type=Path, required=True)
     parser.add_argument("--cadastre-zip", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--district", action="append")
+    parser.add_argument("--city", default="용인시")
     args = parser.parse_args()
+    if args.district:
+        DISTRICT_CODES = set(args.district)
 
     electricity, electricity_records = load_usage(args.electricity)
     gas, gas_records = load_usage(args.gas)
@@ -123,7 +128,7 @@ def main() -> int:
         building = buildings.get(key, {})
         rows.append(
             {
-                "addr": building.get("addr", f"용인시 {bun}-{ji}"),
+                "addr": building.get("addr", f"{args.city} {bun}-{ji}"),
                 "lat": lat,
                 "lng": lng,
                 "type": "",
