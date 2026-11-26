@@ -1623,6 +1623,17 @@ function initKakaoMap(){
     const buildingEtc=String(b.etc || '').trim();
     elBType.textContent=buildingType || '건물 용도 미제공';
     document.getElementById('infoDetailCard').style.display='none';
+    const registerTable=document.getElementById('infoDetailTable');
+    registerTable.replaceChildren();
+    if(b.register?.length){
+      document.getElementById('infoDetailCard').style.display='block';
+      registerTable.createCaption().textContent='건물별 정보 · 전기·가스는 필지 단위';
+      b.register.forEach(([name,dong,use,structure,height,above,below,area,total,approval],i)=>{
+        const tr=registerTable.insertRow();
+        tr.insertCell().textContent=[name,dong].filter(Boolean).join(' ') || ('건물 '+(i+1));
+        tr.insertCell().textContent=[use,structure,height!=null && height+' m',above!=null && '지상 '+above+'층',below!=null && '지하 '+below+'층',area!=null && '건축면적 '+area+'㎡',total!=null && '연면적 '+total+'㎡',approval && '사용승인 '+approval].filter(Boolean).join(' · ') || '상세정보 미제공';
+      });
+    }
     const rows=usageRowsFromUploadedBuilding(b);
     const row=rows[0];
     const month=/^\d{6}$/.test(row.ym)?`${row.ym.slice(0,4)}년 ${row.ym.slice(4)}월`:'기준월 미제공';
